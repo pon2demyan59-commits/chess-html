@@ -34,3 +34,6 @@ footer { text-align: center; margin: 16px 10px; }
 @keyframes blast {from{opacity:1;transform:scale(.1)}to{opacity:0;transform:scale(1.15)}}
 @keyframes spark {from{opacity:1;transform:translate(-50%,-50%) rotate(var(--angle)) translateY(0)}to{opacity:0;transform:translate(-50%,-50%) rotate(var(--angle)) translateY(-48px)}}
 @media(prefers-reduced-motion:reduce){.square--impact,.square--impact::before,.spark{animation:none}}
+
+.piece-image{width:88%;height:88%;object-fit:contain;pointer-events:none;user-select:none;filter:drop-shadow(0 3px 3px rgba(0,0,0,.35));transition:transform .15s ease}
+.square:hover .piece-image{transform:scale(1.06)}
