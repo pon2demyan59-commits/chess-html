@@ -32,6 +32,7 @@ let drag=null,pendingPromotion=null;
 let sceneTimers=[];
 let moving=false,motionToken=0,motionTimer=null,motionGhosts=[];
 let lastMove=null,reviewMode=false,reviewPly=0,reviewMoves=[],reviewStartFen="",finalMessage="";
+const difficultyNames=["Пешка","Слон","Конь","Ладья","Офицер","Король"];
 let playerColor="white",botColor="black",menuSide="white",difficultyLevel=5,gameStarted=false,gameMode="match",puzzleIndex=0;
 const statsKey="free-time-chess-stats-v1";
 const levelStatsKey="free-time-chess-level-stats-v1";
@@ -160,7 +161,7 @@ function saveGameState(){
  }catch{}
 }
 function syncMenuSelections(){
- document.querySelector("#level-value").textContent=difficultyLevel;
+ document.querySelector("#level-value").textContent=difficultyNames[difficultyLevel-1];
  for(const item of levelsElement.children){
   const selected=Number(item.textContent)===difficultyLevel;
   item.classList.toggle("is-selected",selected);item.setAttribute("aria-pressed",String(selected));
@@ -181,7 +182,7 @@ function restoreSession(){
     playerColor=saved.playerColor==="black"?"black":"white";
     botColor=playerColor==="white"?"black":"white";
     menuSide=saved.menuSide==="black"?"black":"white";
-    difficultyLevel=Math.max(1,Math.min(10,Number(saved.difficultyLevel)||5));
+    difficultyLevel=Math.max(1,Math.min(6,Number(saved.difficultyLevel)||5));
     puzzleIndex=Math.max(0,Math.min(puzzles.length-1,Number(saved.puzzleIndex)||0));
     finished=!!saved.finished;gameStarted=true;
     chess.load(saved.fen);syncBoard();closePromotion();resetReview();
@@ -197,7 +198,7 @@ function restoreSession(){
      document.querySelector("#resign").hidden=true;
     }else{
      document.querySelector("#opponent-name").textContent="Компьютер";
-     document.querySelector("#match-info").textContent=`Ты играешь за ${playerColor==="white"?"белых":"чёрных"} • уровень бота ${difficultyLevel}/10`;
+     document.querySelector("#match-info").textContent=`Ты играешь за ${playerColor==="white"?"белых":"чёрных"} • уровень бота: ${difficultyNames[difficultyLevel-1]}`;
      resetButton.textContent="Новая партия";
      document.querySelector("#resign").hidden=finished;
     }
@@ -231,10 +232,10 @@ function loadStats(){
 }
 const stats=loadStats();
 function loadLevelStats(){
- const result=Array.from({length:10},()=>({wins:0,losses:0,draws:0}));
+ const result=Array.from({length:6},()=>({wins:0,losses:0,draws:0}));
  try{
   const saved=JSON.parse(localStorage.getItem(levelStatsKey));
-  for(let i=0;i<10;i++)for(const outcome of ["wins","losses","draws"])
+  for(let i=0;i<6;i++)for(const outcome of ["wins","losses","draws"])
    if(Number.isSafeInteger(saved?.[i]?.[outcome])&&saved[i][outcome]>=0)result[i][outcome]=saved[i][outcome];
  }catch{/* Новая статистика. */}
  return result;
@@ -247,31 +248,31 @@ function showStats(){
   total+=games;
   const gamesEl=document.querySelector(`#${side}-games`);
   const winsEl=document.querySelector(`#${side}-wins`);
-  const detailWins=document.querySelector(`#${side}-wins-detail`);
   const lossesEl=document.querySelector(`#${side}-losses`);
   const drawsEl=document.querySelector(`#${side}-draws`);
   const rateEl=document.querySelector(`#${side}-rate`);
   if(gamesEl)gamesEl.textContent=games;
   if(winsEl)winsEl.textContent=stats[side].wins;
-  if(detailWins)detailWins.textContent=stats[side].wins;
   if(lossesEl)lossesEl.textContent=stats[side].losses;
   if(drawsEl)drawsEl.textContent=stats[side].draws;
   if(rateEl)rateEl.textContent=`${games?Math.round(stats[side].wins/games*100):0}%`;
  }
  const overall=document.querySelector("#overall-stats");
  if(overall)overall.textContent=total;
+ const solved=document.querySelector("#solved-puzzles-stat");
+ if(solved)solved.textContent=completedPuzzles.size;
 
  const body=document.querySelector("#level-stats-body");
  if(!body)return;
  body.replaceChildren();
- for(let i=0;i<10;i++){
+ for(let i=0;i<6;i++){
   const data=levelStats[i],games=data.wins+data.losses+data.draws;
   const row=document.createElement("article");
   row.className="stats-level-row";
   row.innerHTML=`
    <span class="stats-level-row__level">${i+1}</span>
    <div class="stats-level-row__main">
-    <strong>Уровень ${i+1}</strong>
+    <strong>${difficultyNames[i]}</strong>
     <small>${games} партий</small>
    </div>
    <div class="stats-level-row__numbers">
@@ -313,7 +314,7 @@ function startGame(){
  document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
  document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
  document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
- document.querySelector("#match-info").textContent=`Ты играешь за ${playerColor==="white"?"белых":"чёрных"} • уровень бота ${difficultyLevel}/10`;
+ document.querySelector("#match-info").textContent=`Ты играешь за ${playerColor==="white"?"белых":"чёрных"} • уровень бота: ${difficultyNames[difficultyLevel-1]}`;
  document.querySelector("#opponent-name").textContent="Компьютер";
  resetButton.textContent="Новая партия";document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#resign").hidden=false;
@@ -553,27 +554,85 @@ function botMove(){
  const choice=chooseBotMove(options,difficultyLevel);
  move(8-Number(choice.from[1]),files.indexOf(choice.from[0]),8-Number(choice.to[1]),files.indexOf(choice.to[0]),choice.promotion);
 }
-const pieceValues={pawn:1,knight:3,bishop:3,rook:5,queen:9,king:0};
-function materialScore(){let score=0;for(const row of chess.board())for(const p of row)if(p)score+=(colorName(p.color)===botColor?1:-1)*pieceValues[names[p.type]];return score}
+const pieceValues={pawn:100,knight:320,bishop:330,rook:500,queen:900,king:0};
+function evaluatePosition(){
+ if(chess.isCheckmate())return colorName(chess.turn())===botColor?-100000:100000;
+ if(chess.isStalemate()||chess.isInsufficientMaterial())return 0;
+ let score=0;
+ const center=new Set(["d4","e4","d5","e5"]);
+ const boardNow=chess.board();
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+  const p=boardNow[r][c];if(!p)continue;
+  const color=colorName(p.color),type=names[p.type];
+  let value=pieceValues[type]||0;
+  const sq=files[c]+(8-r);
+  if(center.has(sq))value+=type==="pawn"?18:12;
+  if(type==="pawn"){
+   const advance=color==="white"?6-r:r-1;
+   value+=Math.max(0,advance)*3;
+  }
+  score+=(color===botColor?1:-1)*value;
+ }
+ return score;
+}
+function orderedMoves(){
+ const values={p:100,n:320,b:330,r:500,q:900,k:10000};
+ return chess.moves({verbose:true})
+  .filter(m=>!m.promotion||m.promotion==="q")
+  .sort((a,b)=>(values[b.captured]||0)-(values[a.captured]||0));
+}
+function searchPosition(depth,alpha,beta){
+ if(depth<=0||chess.isGameOver())return evaluatePosition();
+ const maximizing=colorName(chess.turn())===botColor;
+ const moves=orderedMoves();
+ if(maximizing){
+  let best=-Infinity;
+  for(const m of moves){
+   chess.move({from:m.from,to:m.to,promotion:m.promotion});
+   const score=searchPosition(depth-1,alpha,beta);
+   chess.undo();
+   if(score>best)best=score;
+   if(best>alpha)alpha=best;
+   if(beta<=alpha)break;
+  }
+  return best;
+ }
+ let best=Infinity;
+ for(const m of moves){
+  chess.move({from:m.from,to:m.to,promotion:m.promotion});
+  const score=searchPosition(depth-1,alpha,beta);
+  chess.undo();
+  if(score<best)best=score;
+  if(best<beta)beta=best;
+  if(beta<=alpha)break;
+ }
+ return best;
+}
 function chooseBotMove(options,level){
  if(level===1)return options[Math.floor(Math.random()*options.length)];
- if(level<=3){const hits=options.filter(o=>o.captured),pool=hits.length&&Math.random()<(level===2?.3:.6)?hits:options;return pool[Math.floor(Math.random()*pool.length)]}
- let best=-Infinity,choices=[];
- for(const o of options){
-  chess.move({from:o.from,to:o.to,promotion:o.promotion});
-  let score=chess.isCheckmate()?1000:chess.isStalemate()||chess.isInsufficientMaterial()?0:materialScore();
-  if(level>=7&&!chess.isGameOver()){
-   let worst=Infinity;
-   for(const reply of chess.moves({verbose:true})){
-    chess.move({from:reply.from,to:reply.to,promotion:reply.promotion});
-    worst=Math.min(worst,chess.isCheckmate()?-1000:materialScore());chess.undo();
-   }
-   score=worst;
-  }
-  chess.undo();score+=Math.random()*({4:3,5:2,6:1.2,7:2,8:1.1,9:.4,10:0}[level]||0);
-  if(score>best){best=score;choices=[o]}else if(score===best)choices.push(o);
+ if(level===2){
+  const captures=options.filter(m=>m.captured);
+  const pool=captures.length&&Math.random()<.65?captures:options;
+  return pool[Math.floor(Math.random()*pool.length)];
  }
- return choices[Math.floor(Math.random()*choices.length)];
+ const depth=level===3?1:level===4?2:level===5?2:3;
+ const noise=level===3?70:level===4?24:level===5?7:0;
+ let best=-Infinity,choices=[];
+ const root=[...options].sort((a,b)=>{
+  const va=pieceValues[names[a.captured]]||0;
+  const vb=pieceValues[names[b.captured]]||0;
+  return vb-va;
+ });
+ for(const move of root){
+  chess.move({from:move.from,to:move.to,promotion:move.promotion});
+  let score=chess.isCheckmate()?100000:searchPosition(depth-1,-Infinity,Infinity);
+  if(chess.isCheck())score+=18;
+  chess.undo();
+  if(noise)score+=(Math.random()-.5)*noise;
+  if(score>best+0.001){best=score;choices=[move]}
+  else if(Math.abs(score-best)<0.001)choices.push(move);
+ }
+ return choices[Math.floor(Math.random()*choices.length)]||options[0];
 }
 function impact(r,c){
  const cell=boardElement.children[displayIndex(r,c)];if(!cell)return;
@@ -869,13 +928,14 @@ function startPuzzleWithEnergy(index){
 
 resetButton.addEventListener("click",()=>gameMode==="puzzle"?startPuzzle(puzzleIndex):startGame());
 document.querySelector("#next-puzzle").addEventListener("click",()=>startPuzzleWithEnergy((puzzleIndex+1)%puzzles.length));
-for(let level=1;level<=10;level++){
+for(let level=1;level<=6;level++){
  const button=document.createElement("button");
- button.type="button";button.textContent=level;
- button.setAttribute("aria-label",`Уровень сложности ${level}`);
+ button.type="button";
+ button.textContent=difficultyNames[level-1];
+ button.setAttribute("aria-label",`Сложность: ${difficultyNames[level-1]}`);
  button.addEventListener("click",()=>{
   difficultyLevel=level;
-  document.querySelector("#level-value").textContent=level;
+  document.querySelector("#level-value").textContent=difficultyNames[level-1];
   for(const item of levelsElement.children){
    const selected=item===button;
    item.classList.toggle("is-selected",selected);
