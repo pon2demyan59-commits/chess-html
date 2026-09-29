@@ -1,5 +1,6 @@
+import { Chess } from "../vendor/chess.js/chess.js";
 // Учебные шахматы: основные ходы, простой бот и эффект взятия.
-// Пока без взятия на проходе.
+
 const boardElement=document.querySelector("#board");
 const statusElement=document.querySelector("#status");
 const resetButton=document.querySelector("#reset");
@@ -20,15 +21,19 @@ const customSprites={
  "white-king":"assets/pieces/fantasy/white-king.png",
  "black-king":"assets/pieces/fantasy/black-king.png"
 };
-const firstRow=["rook","knight","bishop","queen","king","bishop","knight","rook"];
+const names={p:"pawn",n:"knight",b:"bishop",r:"rook",q:"queen",k:"king"};
+const colorName=x=>x==="w"?"white":"black";
+let chess=new Chess();
+const square=(r,c)=>files[c]+(8-r);
+function syncBoard(){board=chess.board().map(row=>row.map(p=>p&&{type:names[p.type],color:colorName(p.color)}));turn=colorName(chess.turn())}
 const files="abcdefgh";
 const puzzles=[
- {side:"white",pieces:[[0,0,"king","black"],[2,2,"king","white"],[2,1,"queen","white"]],from:[2,1],to:[1,1]},
- {side:"white",pieces:[[0,7,"king","black"],[2,5,"king","white"],[2,6,"queen","white"]],from:[2,6],to:[1,6]},
- {side:"black",pieces:[[7,7,"king","white"],[5,5,"king","black"],[5,6,"queen","black"]],from:[5,6],to:[6,6]}
+ {side:"white",fen:"k7/8/1QK5/8/8/8/8/8 w - - 0 1",from:[2,1],to:[1,1]},
+ {side:"white",fen:"7k/8/5KQ1/8/8/8/8/8 w - - 0 1",from:[2,6],to:[1,6]},
+ {side:"black",fen:"8/8/8/8/8/5kq1/8/7K b - - 0 1",from:[5,6],to:[6,6]}
 ];
 let board,selected,moves,turn,finished,botTimer,audioContext;
-let drag=null;
+let drag=null,pendingPromotion=null;
 let playerColor="white",botColor="black",menuSide="white",difficultyLevel=5,gameStarted=false,gameMode="match",puzzleIndex=0;
 const statsKey="free-time-chess-stats-v1";
 const levelStatsKey="free-time-chess-level-stats-v1";
@@ -98,17 +103,15 @@ function startGame(){
  cancelDrag();
  gameMode="match";
  playerColor=menuSide;botColor=playerColor==="white"?"black":"white";
- board=Array.from({length:8},()=>Array(8).fill(null));
- firstRow.forEach((type,c)=>{board[0][c]={type,color:"black"};board[7][c]={type,color:"white"}});
- for(let c=0;c<8;c++){board[1][c]={type:"pawn",color:"black"};board[6][c]={type:"pawn",color:"white"}}
- selected=null;moves=[];turn="white";finished=false;gameStarted=true;
+ chess.reset();syncBoard();closePromotion();
+ selected=null;moves=[];finished=false;gameStarted=true;
  document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
  document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
  document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
  document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
  document.querySelector("#match-info").textContent=`Ты играешь за ${playerColor==="white"?"белых":"чёрных"} • уровень бота ${difficultyLevel}/10`;
  document.querySelector("#opponent-name").textContent="Компьютер";
- resetButton.textContent="Новая партия";
+ resetButton.textContent="Новая партия";document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#next-puzzle").hidden=true;
  statusElement.textContent=playerColor==="white"?"Твой ход: возьми белую фигуру.":"Компьютер ходит первым…";
  render();
@@ -119,9 +122,8 @@ function startPuzzle(index){
  puzzleIndex=index;gameMode="puzzle";gameStarted=true;finished=false;
  const puzzle=puzzles[index];
  playerColor=puzzle.side;botColor=playerColor==="white"?"black":"white";
- board=Array.from({length:8},()=>Array(8).fill(null));
- for(const [r,c,type,color] of puzzle.pieces)board[r][c]={type,color};
- selected=null;moves=[];turn=playerColor;
+ chess.load(puzzle.fen);syncBoard();closePromotion();
+ selected=null;moves=[];
  document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
  document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
  document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
@@ -129,7 +131,7 @@ function startPuzzle(index){
  document.querySelector("#opponent-name").textContent="Задача";
  document.querySelector("#match-info").textContent=`Задача ${index+1}/${puzzles.length} • мат в один ход`;
  statusElement.textContent="Найди ход, после которого королю не спастись.";
- resetButton.textContent="Повторить задачу";
+ resetButton.textContent="Повторить задачу";document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#next-puzzle").hidden=true;
  render();
 }
@@ -138,120 +140,38 @@ function playPuzzleMove(fr,fc,r,c){
  if(fr!==puzzle.from[0]||fc!==puzzle.from[1]||r!==puzzle.to[0]||c!==puzzle.to[1]){
   render();statusElement.textContent="Это не мат. Попробуй другой ход.";return;
  }
- applyBoardMove(fr,fc,r,c);
+ chess.move({from:square(fr,fc),to:square(r,c)});syncBoard();
  finished=true;render();
  statusElement.textContent="Верно! Шах и мат в один ход.";
  const next=document.querySelector("#next-puzzle");
  next.textContent=puzzleIndex===puzzles.length-1?"Начать задачи заново":"Следующая задача";
  next.hidden=false;
 }
-const inside=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
-function getPseudoMoves(r,c){
- const p=board[r][c];if(!p)return [];
- const result=[];
- function add(y,x){
-  if(!inside(y,x))return false;
-  const target=board[y][x];
-  if(!target){result.push({r:y,c:x});return true}
-  if(target.color!==p.color)result.push({r:y,c:x});
-  return false;
+function getMoves(r,c){return chess.moves({square:square(r,c),verbose:true}).map(m=>({r:8-Number(m.to[1]),c:files.indexOf(m.to[0]),promotion:m.promotion}))}
+function closePromotion(){pendingPromotion=null;document.querySelector("#promotion").hidden=true}
+function needsPromotion(fr,fc,r,c){return chess.moves({square:square(fr,fc),verbose:true}).some(m=>m.to===square(r,c)&&m.promotion)}
+function requestPromotion(fr,fc,r,c){
+ pendingPromotion={fr,fc,r,c};const choices=document.querySelector("#promotion-choices");choices.replaceChildren();
+ for(const [code,label] of [["q","Ферзь"],["r","Ладья"],["b","Слон"],["n","Конь"]]){
+  const button=document.createElement("button"),img=document.createElement("img"),caption=document.createElement("span");
+  button.type="button";button.setAttribute("aria-label",label);img.src=getPieceSprite(names[code],playerColor);img.alt="";caption.textContent=label;
+  button.append(img,caption);button.addEventListener("click",()=>{const m=pendingPromotion;closePromotion();move(m.fr,m.fc,m.r,m.c,code)});choices.append(button);
  }
- function ray(dy,dx){let y=r+dy,x=c+dx;while(inside(y,x)){if(!add(y,x))break;y+=dy;x+=dx}}
- if(p.type==="pawn"){
-  const d=p.color==="white"?-1:1,home=p.color==="white"?6:1;
-  if(inside(r+d,c)&&!board[r+d][c]){
-   result.push({r:r+d,c});if(r===home&&!board[r+2*d][c])result.push({r:r+2*d,c});
-  }
-  for(const dx of [-1,1])if(inside(r+d,c+dx)&&board[r+d][c+dx]&&board[r+d][c+dx].color!==p.color)result.push({r:r+d,c:c+dx});
- }else if(p.type==="knight"){
-  for(const [dy,dx] of [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]])add(r+dy,c+dx);
- }else if(p.type==="king"){
-  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dy||dx)add(r+dy,c+dx);
-  const home=p.color==="white"?7:0;
-  if(r===home&&c===4&&!p.moved){
-   for(const rookCol of [0,7]){
-    const rook=board[r][rookCol],step=rookCol===7?1:-1;
-    if(!rook||rook.type!=="rook"||rook.color!==p.color||rook.moved)continue;
-    let clear=true;
-    for(let x=c+step;x!==rookCol;x+=step)if(board[r][x]){clear=false;break}
-    if(clear)result.push({r,c:c+2*step});
-   }
-  }
- }else{
-  if(p.type==="rook"||p.type==="queen")for(const [dy,dx] of [[1,0],[-1,0],[0,1],[0,-1]])ray(dy,dx);
-  if(p.type==="bishop"||p.type==="queen")for(const [dy,dx] of [[1,1],[1,-1],[-1,1],[-1,-1]])ray(dy,dx);
+ document.querySelector("#promotion").hidden=false;choices.firstElementChild.focus();
+}
+function repetitionCount(){
+ const replay=new Chess(),target=chess.fen().split(" ").slice(0,4).join(" ");let count=0;
+ if(replay.fen().split(" ").slice(0,4).join(" ")===target)count++;
+ for(const m of chess.history({verbose:true})){
+  replay.move({from:m.from,to:m.to,promotion:m.promotion});
+  if(replay.fen().split(" ").slice(0,4).join(" ")===target)count++;
  }
- return result;
+ return count;
 }
-function isSquareAttacked(r,c,byColor){
- for(let y=0;y<8;y++)for(let x=0;x<8;x++){
-  const p=board[y][x];if(!p||p.color!==byColor)continue;
-  const dy=r-y,dx=c-x,ay=Math.abs(dy),ax=Math.abs(dx);
-  if(p.type==="pawn"){
-   if(dy===(byColor==="white"?-1:1)&&ax===1)return true;
-   continue;
-  }
-  if(p.type==="knight"){
-   if((ay===2&&ax===1)||(ay===1&&ax===2))return true;
-   continue;
-  }
-  if(p.type==="king"){
-   if(Math.max(ay,ax)===1)return true;
-   continue;
-  }
-  const straight=(dy===0||dx===0),diagonal=ay===ax;
-  if(!((straight&&(p.type==="rook"||p.type==="queen"))||
-       (diagonal&&(p.type==="bishop"||p.type==="queen"))))continue;
-  const stepY=Math.sign(dy),stepX=Math.sign(dx);
-  let clear=true;
-  for(let yy=y+stepY,xx=x+stepX;yy!==r||xx!==c;yy+=stepY,xx+=stepX)
-   if(board[yy][xx]){clear=false;break}
-  if(clear)return true;
- }
- return false;
-}
-function inCheck(color){
- for(let r=0;r<8;r++)for(let c=0;c<8;c++)
-  if(board[r][c]?.type==="king"&&board[r][c].color===color)
-   return isSquareAttacked(r,c,color==="white"?"black":"white");
- return false;
-}
-function applyBoardMove(fr,fc,r,c){
- const piece=board[fr][fc],taken=board[r][c];
- const castling=piece.type==="king"&&Math.abs(c-fc)===2;
- const rookFrom=castling?(c>fc?7:0):-1;
- const rookTo=castling?(c>fc?c-1:c+1):-1;
- const rook=castling?board[fr][rookFrom]:null;
- board[r][c]=piece;board[fr][fc]=null;
- if(castling){board[fr][rookTo]=rook;board[fr][rookFrom]=null}
- return {rook,undo(){
-  board[fr][fc]=piece;board[r][c]=taken;
-  if(castling){board[fr][rookFrom]=rook;board[fr][rookTo]=null}
- }};
-}
-function getMoves(r,c){
- const p=board[r][c];if(!p)return [];
- return getPseudoMoves(r,c).filter(m=>{
-  const taken=board[m.r][m.c];
-  if(taken?.type==="king")return false;
-  if(p.type==="king"&&Math.abs(m.c-c)===2){
-   if(inCheck(p.color))return false;
-   const crossed=applyBoardMove(r,c,r,c+Math.sign(m.c-c));
-   const unsafe=inCheck(p.color);
-   crossed.undo();
-   if(unsafe)return false;
-  }
-  const attempted=applyBoardMove(r,c,m.r,m.c);
-  const legal=!inCheck(p.color);
-  attempted.undo();
-  return legal;
- });
-}
-function hasLegalMoves(color){
- for(let r=0;r<8;r++)for(let c=0;c<8;c++)
-  if(board[r][c]?.color===color&&getMoves(r,c).length)return true;
- return false;
-}
+function drawState(){const n=Number(chess.fen().split(" ")[4]),reps=repetitionCount();return {
+ automatic:n>=150?"75 ходов без взятия и хода пешкой":reps>=5?"пятикратное повторение позиции":null,
+ claim:n>=100?"50 ходов без взятия и хода пешкой":reps>=3?"троекратное повторение позиции":null};}
+function endMatch(result,message){finished=true;statusElement.textContent=message;document.querySelector("#claim-draw").hidden=true;recordResult(result)}
 function render(){
  boardElement.replaceChildren();
  for(let dr=0;dr<8;dr++)for(let dc=0;dc<8;dc++){
@@ -291,7 +211,7 @@ function cancelDrag(){
  drag=null;
 }
 function onPointerDown(event){
- if(!gameStarted||finished||turn!==playerColor||event.button!==0||drag)return;
+ if(!gameStarted||finished||pendingPromotion||turn!==playerColor||event.button!==0||drag)return;
  const cell=event.target.closest(".square");
  if(!cell||!boardElement.contains(cell))return;
  const r=Number(cell.dataset.row),c=Number(cell.dataset.col);
@@ -344,7 +264,7 @@ function onPointerUp(event){
  const toC=target?Number(target.dataset.col):-1;
  const valid=moves.some(m=>m.r===toR&&m.c===toC);
  cancelDrag();selected=null;moves=[];
- if(valid){if(gameMode==="puzzle")playPuzzleMove(fromR,fromC,toR,toC);else move(fromR,fromC,toR,toC)}
+ if(valid){if(gameMode==="puzzle")playPuzzleMove(fromR,fromC,toR,toC);else if(needsPromotion(fromR,fromC,toR,toC))requestPromotion(fromR,fromC,toR,toC);else move(fromR,fromC,toR,toC)}
  else{render();statusElement.textContent="Ход отменён. Возьми фигуру и перетащи её на другую клетку."}
 }
 boardElement.addEventListener("pointerdown",onPointerDown);
@@ -352,69 +272,45 @@ boardElement.addEventListener("pointermove",onPointerMove);
 boardElement.addEventListener("pointerup",onPointerUp);
 boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];if(board)render()});
 window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];if(board)render()});
-function move(fr,fc,r,c){
- const victim=board[r][c],p=board[fr][fc];
- const {rook}=applyBoardMove(fr,fc,r,c);
- p.moved=true;if(rook)rook.moved=true;
- if(p.type==="pawn"&&(r===0||r===7))p.type="queen";
- selected=null;moves=[];render();
- if(victim){impact(r,c);playHit()}
- turn=p.color==="white"?"black":"white";
- const checked=inCheck(turn);
- if(!hasLegalMoves(turn)){
-  finished=true;
-  const outcome=checked?(p.color===playerColor?"wins":"losses"):"draws";
-  statusElement.textContent=checked?(outcome==="wins"?"Шах и мат! Ты победил!":"Шах и мат! Компьютер победил!"):"Пат — ничья.";
-  recordResult(outcome);
-  return;
- }
+function move(fr,fc,r,c,promotion){
+ const played=chess.move({from:square(fr,fc),to:square(r,c),promotion});syncBoard();selected=null;moves=[];render();
+ const captured=!!played.captured;if(captured){impact(r,c);playHit()}
+ if(chess.isCheckmate()){const result=colorName(played.color)===playerColor?"wins":"losses";endMatch(result,result==="wins"?"Шах и мат! Ты победил!":"Шах и мат! Компьютер победил!");return}
+ if(chess.isStalemate()){endMatch("draws","Пат — ничья.");return}
+ if(chess.isInsufficientMaterial()){endMatch("draws","Ничья: мат невозможен при оставшихся фигурах.");return}
+ const draw=drawState();if(draw.automatic){endMatch("draws",`Ничья: ${draw.automatic}.`);return}
+ document.querySelector("#claim-draw").hidden=!(draw.claim&&turn===playerColor);
  if(turn===botColor){
-  statusElement.textContent=checked?"Шах компьютеру! Он думает…":victim?"Попадание! Компьютер думает…":"Компьютер думает…";
+  if(draw.claim){endMatch("draws",`Компьютер заявил ничью: ${draw.claim}.`);return}
+  statusElement.textContent=chess.isCheck()?"Шах компьютеру! Он думает…":captured?"Попадание! Компьютер думает…":"Компьютер думает…";
   botTimer=setTimeout(botMove,550);
- }else statusElement.textContent=checked?"Шах твоему королю! Защити его.":victim?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
+ }else statusElement.textContent=chess.isCheck()?"Шах твоему королю! Защити его.":captured?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
 }
 function botMove(){
  if(!gameStarted||finished||turn!==botColor)return;
- const options=[];
- for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.color===botColor)
-  for(const m of getMoves(r,c))options.push({fr:r,fc:c,r:m.r,c:m.c,capture:!!board[m.r][m.c]});
- if(!options.length){finished=true;const checked=inCheck(botColor);statusElement.textContent=checked?"Шах и мат! Ты победил!":"Пат — ничья.";recordResult(checked?"wins":"draws");return}
+ const options=chess.moves({verbose:true}).filter(m=>!m.promotion||m.promotion==="q");
  const choice=chooseBotMove(options,difficultyLevel);
- move(choice.fr,choice.fc,choice.r,choice.c);
+ move(8-Number(choice.from[1]),files.indexOf(choice.from[0]),8-Number(choice.to[1]),files.indexOf(choice.to[0]),choice.promotion);
 }
 const pieceValues={pawn:1,knight:3,bishop:3,rook:5,queen:9,king:0};
-function materialScore(){
- let score=0;
- for(const row of board)for(const p of row)if(p)score+=(p.color===botColor?1:-1)*pieceValues[p.type];
- return score;
-}
+function materialScore(){let score=0;for(const row of chess.board())for(const p of row)if(p)score+=(colorName(p.color)===botColor?1:-1)*pieceValues[names[p.type]];return score}
 function chooseBotMove(options,level){
  if(level===1)return options[Math.floor(Math.random()*options.length)];
- if(level<=3){
-  const hits=options.filter(o=>o.capture);
-  const pool=hits.length&&Math.random()<(level===2 ? 0.3 : 0.6)?hits:options;
-  return pool[Math.floor(Math.random()*pool.length)];
- }
- // Уровни 4–6 оценивают позицию после своего хода; 7–10 учитывают ответ игрока.
+ if(level<=3){const hits=options.filter(o=>o.captured),pool=hits.length&&Math.random()<(level===2?.3:.6)?hits:options;return pool[Math.floor(Math.random()*pool.length)]}
  let best=-Infinity,choices=[];
  for(const o of options){
-  const attempt=applyBoardMove(o.fr,o.fc,o.r,o.c);
-  let score=materialScore();
-  if(level>=7){
-   let worst=Infinity,replyExists=false;
-   for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.color===playerColor)
-    for(const reply of getMoves(r,c)){
-     replyExists=true;
-     const answer=applyBoardMove(r,c,reply.r,reply.c);
-     worst=Math.min(worst,materialScore());
-     answer.undo();
-    }
-   score=replyExists?worst:inCheck(playerColor)?1000:0;
+  chess.move({from:o.from,to:o.to,promotion:o.promotion});
+  let score=chess.isCheckmate()?1000:chess.isStalemate()||chess.isInsufficientMaterial()?0:materialScore();
+  if(level>=7&&!chess.isGameOver()){
+   let worst=Infinity;
+   for(const reply of chess.moves({verbose:true})){
+    chess.move({from:reply.from,to:reply.to,promotion:reply.promotion});
+    worst=Math.min(worst,chess.isCheckmate()?-1000:materialScore());chess.undo();
+   }
+   score=worst;
   }
-  attempt.undo();
-  score+=Math.random()*({4:3,5:2,6:1.2,7:2,8:1.1,9:.4,10:0}[level]||0);
-  if(score>best){best=score;choices=[o]}
-  else if(score===best)choices.push(o);
+  chess.undo();score+=Math.random()*({4:3,5:2,6:1.2,7:2,8:1.1,9:.4,10:0}[level]||0);
+  if(score>best){best=score;choices=[o]}else if(score===best)choices.push(o);
  }
  return choices[Math.floor(Math.random()*choices.length)];
 }
@@ -508,6 +404,10 @@ document.querySelector("#puzzle-entry").addEventListener("click",()=>{
  showScreen("game");startPuzzle(0);
 });
 document.querySelector("#back-menu").addEventListener("click",()=>{
- clearTimeout(botTimer);cancelDrag();gameStarted=false;showScreen("menu");
+ clearTimeout(botTimer);cancelDrag();closePromotion();gameStarted=false;showScreen("menu");
 });
 showStats();
+
+document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!=="match"||finished||turn!==playerColor)return;const draw=drawState();if(draw.claim)endMatch("draws",`Ничья по заявлению: ${draw.claim}.`)});
+document.querySelector("#promotion-cancel").addEventListener("click",()=>{closePromotion();render();statusElement.textContent="Превращение отменено. Выбери ход снова."});
+window.addEventListener("keydown",e=>{if(e.key==="Escape"&&pendingPromotion){closePromotion();render()}});

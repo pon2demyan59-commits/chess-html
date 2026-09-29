@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Шахматы в свободное время</title>
   <link rel="stylesheet" href="css/style.css">
-  <script src="js/game.js" defer></script>
+  <script type="module" src="js/game.js"></script>
 </head>
 <body>
   <main id="welcome" class="welcome">
@@ -86,11 +86,16 @@
       <div id="board" class="board" role="grid" aria-label="Шахматная доска"></div>
       <div class="player player--human"><span class="player__avatar" id="player-avatar">♔</span><div><strong>Игрок</strong><small id="player-side">Белые</small></div></div>
       <p id="status" class="status" role="status" aria-live="polite">Возьми белую фигуру и перетащи её.</p>
+      <div id="promotion" class="promotion" role="dialog" aria-modal="true" aria-label="Превращение пешки" hidden>
+        <h3>Превратить пешку в</h3><div id="promotion-choices" class="promotion__choices"></div>
+        <button id="promotion-cancel" class="promotion__cancel" type="button">Отмена</button>
+      </div>
+      <button id="claim-draw" class="reset" type="button" hidden>Заявить ничью</button>
       <button id="reset" class="reset" type="button">Новая партия</button>
       <button id="next-puzzle" class="reset" type="button" hidden>Следующая задача</button>
       <button id="back-menu" class="back-menu" type="button">В основное меню</button>
     </section>
-    <footer>Перетаскивай фигуры мышью или пальцем. Для рокировки перенеси короля на две клетки к ладье. Взятие на проходе добавим позже.</footer>
+    <footer>Перетаскивай фигуры мышью или пальцем. Для рокировки перенеси короля на две клетки к ладье. Взятие на проходе доступно сразу после двойного хода пешки.</footer>
   </main>
 </body>
 </html>
