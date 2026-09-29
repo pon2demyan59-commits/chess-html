@@ -265,6 +265,37 @@ function loadLevelStats(){
  return result;
 }
 const levelStats=loadLevelStats();
+async function loadPvpStats(){
+ const rating=document.querySelector("#pvp-rating");
+ const games=document.querySelector("#pvp-games");
+ const wins=document.querySelector("#pvp-wins");
+ const draws=document.querySelector("#pvp-draws");
+ const losses=document.querySelector("#pvp-losses");
+ const note=document.querySelector("#pvp-stats-note");
+ if(!rating)return;
+ const nickname=getPlayerNickname();
+ if(!nickname){
+  rating.textContent="0";games.textContent="0";wins.textContent="0";draws.textContent="0";losses.textContent="0";
+  if(note)note.textContent="Создай игровой ник, чтобы начать играть PvP.";
+  return;
+ }
+ try{
+  await ensureOnlineAuth();
+  await supabaseClient.rpc("ensure_pvp_profile",{p_nickname:nickname});
+  const {data,error}=await supabaseClient.rpc("get_my_pvp_stats");
+  if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;
+  if(!row)return;
+  rating.textContent=Number(row.rating||0).toFixed(1).replace(".0","");
+  games.textContent=row.games||0;
+  wins.textContent=row.wins||0;
+  draws.textContent=row.draws||0;
+  losses.textContent=row.losses||0;
+  if(note)note.textContent="Рейтинг используется при подборе наиболее близкого по силе соперника.";
+ }catch{
+  if(note)note.textContent="PvP-статистика временно недоступна.";
+ }
+}
 function showStats(){
  let total=0;
  for(const side of ["white","black"]){
@@ -322,7 +353,7 @@ function showScreen(name,resetScroll=true){
  try{sessionStorage.setItem(screenKey,name)}catch{}
  if(name==="menu"){showStats();document.querySelector("#menu-title").focus()}
  if(name==="puzzles"){renderPuzzleHub();renderEnergy();document.querySelector("#puzzles-title").focus()}
- if(name==="stats"){showStats();document.querySelector("#stats-title").focus()}
+ if(name==="stats"){showStats();loadPvpStats();document.querySelector("#stats-title").focus()}
  if(name==="game")document.querySelector("#game-title").focus();
  if(resetScroll)window.scrollTo(0,0);
 }
@@ -363,6 +394,7 @@ async function savePlayerNickname(){
   const user=await ensureOnlineAuth();
   if(user&&supabaseClient){
    await supabaseClient.auth.updateUser({data:{nickname}});
+   await supabaseClient.rpc("ensure_pvp_profile",{p_nickname:nickname});
   }
  }catch{}
  refreshProfileUI();
@@ -476,6 +508,7 @@ function applyOnlineMatch(row,animateRemote=true){
   finished=row.status!=="active";
   render();renderMoveList();saveGameState();
   if(finished){
+   loadPvpStats();
    const won=(row.status==="white_won"&&playerColor==="white")||(row.status==="black_won"&&playerColor==="black");
    const message=row.status==="draw"?"Ничья.":row.status==="abandoned"?"Соперник покинул партию.":won?"Шах и мат! Ты победил!":"Шах и мат! Соперник победил.";
    statusElement.textContent=message;
@@ -774,6 +807,7 @@ function move(fr,fc,r,c,promotion,dragState=null){
    const sent=await submitOnlineMove(played,onlineStatus);
    if(!sent)return;
    if(onlineStatus!=="active"){
+    loadPvpStats();
     finished=true;
     const won=(onlineStatus==="white_won"&&playerColor==="white")||(onlineStatus==="black_won"&&playerColor==="black");
     const message=onlineStatus==="draw"?"Ничья.":won?"Шах и мат! Ты победил!":"Шах и мат! Соперник победил.";
