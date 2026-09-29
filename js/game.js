@@ -175,37 +175,39 @@ function playHit(){
   osc.connect(gain);gain.connect(audioContext.destination);osc.start(t);osc.stop(t+.21);
  }catch(e){/* Если звук запрещён, партия продолжается. */}
 }
-// Деревянные шахматные фигуры в едином классическом стиле:
-// светлый клён против тёмного ореха, мягкие блики и резной контур.
+// Фэнтези-спрайты: светлая армия паладинов против темных демонических рыцарей.
+// Картинки генерируются как SVG с прозрачным фоном, поэтому не требуют внешних файлов.
 function getPieceSprite(type,color){
  const key=color+"-"+type;
  if(spriteCache[key])return spriteCache[key];
  const light=color==="white";
- const top=light?"#fff3d9":"#976746";
- const middle=light?"#d9b581":"#5b3829";
- const bottom=light?"#aa7747":"#2c1b17";
- const outline=light?"#77512e":"#1c1410";
- const shine=light?"#ffffff":"#bb8a61";
+ const palette=light?{
+  armor:"#eef2f8",armor2:"#aeb9c7",deep:"#68748b",trim:"#f5c85b",trim2:"#fff0ad",cape:"#f6f0dc",glow:"#76d7ff",outline:"#463d32",eye:"#1f67a7"
+ }:{
+  armor:"#151923",armor2:"#343947",deep:"#07080d",trim:"#8a1620",trim2:"#ff5a3f",cape:"#251019",glow:"#d33bff",outline:"#050509",eye:"#ff3b2f"
+ };
  const shape={
-  pawn:'<circle cx="60" cy="31" r="15"/><path d="M47 49 Q60 43 73 49 L71 58 Q63 68 72 86 H48 Q57 68 49 58 Z"/>',
-  rook:'<path d="M36 22 H47 V33 H55 V22 H65 V33 H73 V22 H84 V44 L79 50 H41 L36 44 Z"/><path d="M43 52 H77 L73 82 H47 Z"/>',
-  knight:'<path d="M40 84 Q44 67 41 55 L32 53 Q28 49 33 42 L43 33 L47 21 L59 30 Q69 29 75 37 Q81 48 73 55 Q66 59 64 68 L72 84 Z"/><path d="M48 24 L53 16 L64 29 Z"/><path d="M35 45 L47 45 L43 52 L33 51 Z"/>',
-  bishop:'<path d="M60 16 C75 27 83 38 76 50 Q70 57 69 61 L75 84 H45 L51 61 Q39 53 43 40 Q46 28 60 16 Z"/><path d="M60 25 L54 48" fill="none"/>',
-  queen:'<path d="M31 29 L43 47 L48 22 L60 43 L72 22 L77 47 L89 29 L81 63 H39 Z"/><path d="M43 64 H77 L72 84 H48 Z"/>',
-  king:'<path d="M57 12 H63 V23 H73 V29 H63 V38 H57 V29 H47 V23 H57 Z"/><path d="M36 43 Q60 28 84 43 L79 61 H41 Z"/><path d="M43 62 H77 L72 84 H48 Z"/>'
+  pawn:'<path d="M60 18 L78 31 L73 50 L85 62 L78 87 H42 L35 62 L47 50 L42 31 Z"/><path class="trim" d="M41 62 Q60 52 79 62 L75 75 Q60 82 45 75 Z"/><path class="shield" d="M60 42 L73 50 L69 71 Q60 79 51 71 L47 50 Z"/>',
+  rook:'<path d="M31 22 H43 V33 H52 V22 H68 V33 H77 V22 H89 V49 L82 56 H38 L31 49 Z"/><path d="M41 55 H79 L75 88 H45 Z"/><path class="trim" d="M38 42 H82 V53 H38 Z"/><path class="slit" d="M49 62 H56 V78 H49 Z"/><path class="slit" d="M64 62 H71 V78 H64 Z"/>',
+  knight:'<path d="M34 88 Q42 72 39 58 L30 55 Q25 50 31 43 L43 35 L48 21 L61 30 Q75 28 82 40 Q89 54 76 62 Q67 67 66 77 L77 88 Z"/><path class="trim" d="M47 22 L54 12 L67 31 Z"/><path class="trim" d="M34 44 L52 45 L46 54 L31 53 Z"/><path class="plate" d="M49 60 Q61 54 72 62 L68 76 H48 Z"/>',
+  bishop:'<path d="M60 13 Q78 26 82 42 Q85 57 70 66 L77 88 H43 L50 66 Q35 57 39 42 Q42 26 60 13 Z"/><path class="trim" d="M50 39 Q60 28 70 39 Q68 54 60 61 Q52 54 50 39 Z"/><path class="staff" d="M76 22 L86 15 L89 25 L82 29 L91 82"/>',
+  queen:'<path d="M28 31 L42 51 L49 20 L60 45 L71 20 L78 51 L92 31 L83 66 H37 Z"/><path d="M43 66 H77 L73 88 H47 Z"/><path class="trim" d="M36 57 Q60 47 84 57 L81 67 H39 Z"/><circle class="gem" cx="60" cy="56" r="5"/>',
+  king:'<path class="trim" d="M56 10 H64 V22 H76 V30 H64 V41 H56 V30 H44 V22 H56 Z"/><path d="M32 45 Q60 25 88 45 L80 66 H40 Z"/><path d="M43 66 H77 L73 88 H47 Z"/><path class="trim" d="M40 50 Q60 39 80 50 L77 62 H43 Z"/><circle class="gem" cx="60" cy="54" r="5"/>'
  }[type];
- const eyes=type==="knight"?'<circle cx="55" cy="43" r="3.2" fill="'+outline+'"/><path d="M40 49 Q45 51 50 48" fill="none" stroke="'+outline+'" stroke-width="2"/>':'';
- const jewel=type==="queen"?'<circle cx="60" cy="49" r="4" fill="'+(light?"#ad543b":"#d3a65e")+'" stroke="'+outline+'" stroke-width="1.5"/>':'';
+ const horn=light?"":'<path class="horn" d="M38 25 L28 10 L45 21 Z"/><path class="horn" d="M82 25 L92 10 L75 21 Z"/>';
+ const weapon=(type==="pawn"||type==="king"||type==="queen")?"":'<path class="weapon" d="M25 84 L93 16"/>';
+ const leftEye=type==="knight"?57:54;
+ const rightEye=type==="knight"?70:66;
+ const eyeY=type==="knight"?43:48;
  const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">'+
- '<defs><linearGradient id="wood" x1="0" y1="0" x2="1" y2="0"><stop stop-color="'+bottom+'"/><stop offset=".29" stop-color="'+top+'"/><stop offset=".68" stop-color="'+middle+'"/><stop offset="1" stop-color="'+bottom+'"/></linearGradient>'+
- '<linearGradient id="base" x1="0" y1="0" x2="0" y2="1"><stop stop-color="'+top+'"/><stop offset="1" stop-color="'+bottom+'"/></linearGradient></defs>'+
- '<ellipse cx="60" cy="107" rx="34" ry="6" fill="#000" opacity=".2"/>'+
- '<g fill="url(#wood)" stroke="'+outline+'" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round">'+shape+
- '<path d="M45 83 H75 Q80 83 81 88 H39 Q40 83 45 83 Z" fill="url(#base)"/>'+
- '<rect x="32" y="88" width="56" height="11" rx="4" fill="url(#base)"/>'+
- '<path d="M33 94 Q60 100 87 94" fill="none" stroke="'+outline+'" opacity=".5" stroke-width="1.7"/></g>'+
- '<path d="M46 88 H72" stroke="'+shine+'" stroke-linecap="round" stroke-width="2.2" opacity=".55"/>'+eyes+jewel+
- '</svg>';
+ '<defs><linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop stop-color="'+palette.armor+'"/><stop offset=".45" stop-color="'+palette.armor2+'"/><stop offset="1" stop-color="'+palette.deep+'"/></linearGradient><linearGradient id="trim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="'+palette.trim2+'"/><stop offset="1" stop-color="'+palette.trim+'"/></linearGradient><filter id="soft"><feDropShadow dx="0" dy="4" stdDeviation="2.2" flood-color="#000" flood-opacity=".45"/></filter></defs>'+
+ '<ellipse cx="60" cy="107" rx="35" ry="7" fill="#000" opacity=".25"/>'+
+ '<g filter="url(#soft)" stroke="'+palette.outline+'" stroke-width="3.3" stroke-linejoin="round" stroke-linecap="round">'+
+ '<path d="M40 88 H80 Q88 88 90 98 H30 Q32 88 40 88 Z" fill="url(#trim)"/><rect x="25" y="96" width="70" height="12" rx="5" fill="url(#body)"/><g fill="url(#body)">'+shape+'</g>'+horn+weapon+
+ '</g>'+
+ '<style>.trim,.horn{fill:url(#trim)}.shield,.plate{fill:'+palette.cape+';opacity:.9}.slit{fill:'+palette.deep+'}.gem{fill:'+palette.glow+';stroke:'+palette.outline+';stroke-width:2}.staff,.weapon{fill:none;stroke:url(#trim);stroke-width:4;stroke-linecap:round}.horn{stroke:'+palette.outline+';stroke-width:3}.pieceGlow{opacity:.42}</style>'+
+ '<path class="pieceGlow" d="M43 30 Q59 20 75 31" fill="none" stroke="'+palette.trim2+'" stroke-width="3" stroke-linecap="round"/>'+
+ '<circle cx="'+leftEye+'" cy="'+eyeY+'" r="3" fill="'+palette.eye+'"/><circle cx="'+rightEye+'" cy="'+eyeY+'" r="3" fill="'+palette.eye+'" opacity="'+(type==="knight"?0:1)+'"/></svg>';
  spriteCache[key]="data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg);
  return spriteCache[key];
 }
