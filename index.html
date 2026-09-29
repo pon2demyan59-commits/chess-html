@@ -32,6 +32,11 @@
         <p class="eyebrow">ШАХМАТЫ В СВОБОДНОЕ ВРЕМЯ</p>
         <h2 id="menu-title" tabindex="-1">Зал поединков</h2>
         <p>Играй партии, зарабатывай энергию и решай шахматные задачи</p>
+        <button id="open-profile" class="profile-chip" type="button">
+          <span class="profile-chip__avatar" aria-hidden="true">♞</span>
+          <span class="profile-chip__text"><small>ИГРОВОЙ ПРОФИЛЬ</small><strong id="profile-chip-name">Создать ник</strong></span>
+          <span class="profile-chip__edit">Изменить</span>
+        </button>
       </header>
 
       <section class="puzzle-hero" aria-labelledby="puzzle-title">
@@ -94,16 +99,31 @@
       </div>
     </div>
   </main>
+  <div id="profile-modal" class="profile-modal" hidden>
+    <div class="profile-modal__card" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+      <button id="profile-close" class="profile-modal__close" type="button" aria-label="Закрыть">×</button>
+      <span class="profile-modal__crest" aria-hidden="true">♞</span>
+      <p class="eyebrow">ИГРОВОЙ ПРОФИЛЬ</p>
+      <h2 id="profile-title">Твой ник</h2>
+      <p class="profile-modal__lead">Этот ник будет автоматически использоваться в онлайн-поиске соперника.</p>
+      <label class="profile-modal__label">Ник игрока
+        <input id="profile-nickname" maxlength="24" autocomplete="nickname" placeholder="Например, Ганник">
+      </label>
+      <p id="profile-error" class="profile-modal__error" hidden></p>
+      <button id="profile-save" class="profile-modal__save" type="button">Сохранить ник</button>
+    </div>
+  </div>
   <div id="online-modal" class="online-modal" hidden>
     <div class="online-modal__card" role="dialog" aria-modal="true" aria-labelledby="online-title">
       <button id="online-close" class="online-modal__close" type="button" aria-label="Закрыть">×</button>
       <span class="online-modal__crest" aria-hidden="true">⚔</span>
       <p class="eyebrow">ОНЛАЙН-ПОЕДИНОК</p>
       <h2 id="online-title">Найти соперника</h2>
-      <p class="online-modal__lead">Укажи имя, под которым тебя увидит соперник.</p>
-      <label class="online-modal__label">Твой ник
-        <input id="online-nickname" maxlength="24" autocomplete="nickname" placeholder="Например, Ганник">
-      </label>
+      <p class="online-modal__lead">Поиск будет запущен от имени:</p>
+      <div class="online-modal__nickname">
+        <span aria-hidden="true">♞</span>
+        <strong id="online-profile-name">Игрок</strong>
+      </div>
       <button id="online-search" class="online-modal__search" type="button">Начать поиск</button>
       <div id="online-waiting" class="online-waiting" hidden>
         <span class="online-waiting__spinner" aria-hidden="true"></span>
