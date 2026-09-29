@@ -414,3 +414,116 @@ footer { text-align: center; margin: 16px 10px; }
  .puzzle-hero__action{padding:13px}
  .puzzle-hero__fresh{font-size:13px}
 }
+
+
+/* Более презентабельная рамка для блока результатов. */
+.menu__panel--stats{
+ position:relative;
+ overflow:hidden;
+ border:2px solid #c79b57;
+ background:
+  linear-gradient(#152131ee,#101823f2) padding-box,
+  linear-gradient(135deg,#f0cf8a,#7e5834 46%,#d8b067 70%,#5d4029) border-box;
+ box-shadow:
+  0 18px 45px #000a,
+  inset 0 0 0 1px #fff1,
+  inset 0 0 36px #d6aa4f10;
+}
+.menu__panel--stats::before,
+.menu__panel--stats::after{
+ content:"";
+ position:absolute;
+ pointer-events:none;
+}
+.menu__panel--stats::before{
+ inset:8px;
+ border:1px solid #d8b36c55;
+ border-radius:12px;
+ box-shadow:inset 0 0 18px #0006;
+}
+.menu__panel--stats::after{
+ width:130px;
+ height:130px;
+ right:-42px;
+ top:-46px;
+ border:1px solid #f1cf8460;
+ transform:rotate(45deg);
+ box-shadow:
+  0 0 0 18px #f1cf8407,
+  0 0 0 36px #f1cf8405;
+}
+.menu__panel--stats > *{
+ position:relative;
+ z-index:1;
+}
+.menu__panel--stats #stats-title{
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ gap:10px;
+ margin:-2px 0 14px;
+ padding-bottom:12px;
+ border-bottom:1px solid #d5ad6666;
+ color:#ffe7b0;
+ font-size:26px;
+ text-align:center;
+ text-shadow:0 2px 10px #000;
+}
+.menu__panel--stats #stats-title::before,
+.menu__panel--stats #stats-title::after{
+ content:"◆";
+ color:#d7aa5d;
+ font-size:11px;
+ opacity:.9;
+}
+.menu__overall{
+ margin:0 0 14px;
+ padding:10px 12px;
+ border:1px solid #ffffff16;
+ border-radius:9px;
+ background:#ffffff08;
+ color:#f0dcc0;
+ text-align:center;
+ font-weight:700;
+}
+.menu__panel--stats .stats-scroll{
+ border:1px solid #ffffff14;
+ border-radius:10px;
+ background:#08111b66;
+ box-shadow:inset 0 0 18px #0005;
+}
+.menu__panel--stats .stats-table th,
+.menu__panel--stats .stats-table td{
+ border-bottom-color:#ffffff1f;
+}
+.menu__panel--stats .stats-table thead{
+ background:#ffffff08;
+ color:#e0c79a;
+}
+.menu__panel--stats .stats-table tbody tr:hover{
+ background:#ffffff06;
+}
+.menu__panel--stats .level-stats{
+ margin-top:18px;
+ padding-top:14px;
+ border-top:1px solid #d5ad6644;
+}
+.menu__panel--stats .level-stats summary{
+ display:inline-flex;
+ align-items:center;
+ gap:8px;
+ color:#f4d8a2;
+}
+.menu__panel--stats .level-stats summary::before{
+ content:"♜";
+ color:#d6a95e;
+}
+
+@media(max-width:700px){
+ .menu__panel--stats #stats-title{
+  font-size:22px;
+ }
+ .menu__panel--stats::before{
+  inset:6px;
+ }
+}
