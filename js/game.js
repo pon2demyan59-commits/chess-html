@@ -1,5 +1,5 @@
-// Учебные шахматы: основные ходы, простой бот и эффект взятия.
-// Пока без шаха, мата, рокировки и взятия на проходе.
+// Учебные шахматы: легальные ходы, шах/мат/пат, простой бот и эффект взятия.
+// Пока без рокировки и взятия на проходе.
 const boardElement=document.querySelector("#board");
 const statusElement=document.querySelector("#status");
 const resetButton=document.querySelector("#reset");
@@ -32,7 +32,7 @@ function startGame(){
  statusElement.textContent="Твой ход: выбери белую фигуру.";render();
 }
 const inside=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
-function getMoves(r,c){
+function getPseudoMoves(r,c,forAttack=false){
  const p=board[r][c];if(!p)return [];
  const result=[];
  function add(y,x){
@@ -42,13 +42,28 @@ function getMoves(r,c){
   if(target.color!==p.color)result.push({r:y,c:x});
   return false;
  }
- function ray(dy,dx){let y=r+dy,x=c+dx;while(inside(y,x)){if(!add(y,x))break;y+=dy;x+=dx}}
+ function ray(dy,dx){
+  let y=r+dy,x=c+dx;
+  while(inside(y,x)){
+   if(!add(y,x))break;
+   y+=dy;x+=dx;
+  }
+ }
  if(p.type==="pawn"){
   const d=p.color==="white"?-1:1,home=p.color==="white"?6:1;
-  if(inside(r+d,c)&&!board[r+d][c]){
-   result.push({r:r+d,c});if(r===home&&!board[r+2*d][c])result.push({r:r+2*d,c});
+  if(forAttack){
+   for(const dx of [-1,1])if(inside(r+d,c+dx))result.push({r:r+d,c:c+dx});
+  }else{
+   if(inside(r+d,c)&&!board[r+d][c]){
+    result.push({r:r+d,c});
+    if(r===home&&!board[r+2*d][c])result.push({r:r+2*d,c});
+   }
+   for(const dx of [-1,1]){
+    if(inside(r+d,c+dx)&&board[r+d][c+dx]&&board[r+d][c+dx].color!==p.color){
+     result.push({r:r+d,c:c+dx});
+    }
+   }
   }
-  for(const dx of [-1,1])if(inside(r+d,c+dx)&&board[r+d][c+dx]&&board[r+d][c+dx].color!==p.color)result.push({r:r+d,c:c+dx});
  }else if(p.type==="knight"){
   for(const [dy,dx] of [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]])add(r+dy,c+dx);
  }else if(p.type==="king"){
@@ -59,6 +74,86 @@ function getMoves(r,c){
  }
  return result;
 }
+
+function findKing(color){
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+  if(board[r][c]?.type==="king"&&board[r][c]?.color===color)return {r,c};
+ }
+ return null;
+}
+
+function isSquareAttacked(r,c,byColor){
+ for(let y=0;y<8;y++)for(let x=0;x<8;x++){
+  const p=board[y][x];
+  if(!p||p.color!==byColor)continue;
+  if(getPseudoMoves(y,x,true).some(m=>m.r===r&&m.c===c))return true;
+ }
+ return false;
+}
+
+function isInCheck(color){
+ const king=findKing(color);
+ if(!king)return false;
+ return isSquareAttacked(king.r,king.c,color==="white"?"black":"white");
+}
+
+function isLegalMove(fr,fc,r,c){
+ const p=board[fr][fc];
+ if(!p)return false;
+ const captured=board[r][c];
+
+ // Короля в шахматах не "срубают": партия заканчивается матом.
+ if(captured?.type==="king")return false;
+
+ board[r][c]=p;
+ board[fr][fc]=null;
+ const legal=!isInCheck(p.color);
+ board[fr][fc]=p;
+ board[r][c]=captured;
+ return legal;
+}
+
+function getMoves(r,c){
+ const p=board[r][c];
+ if(!p)return [];
+ return getPseudoMoves(r,c,false).filter(m=>isLegalMove(r,c,m.r,m.c));
+}
+
+function getAllLegalMoves(color){
+ const result=[];
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+  if(board[r][c]?.color!==color)continue;
+  for(const m of getMoves(r,c)){
+   result.push({fr:r,fc:c,r:m.r,c:m.c,capture:!!board[m.r][m.c]});
+  }
+ }
+ return result;
+}
+
+function evaluatePosition(colorToMove){
+ const legal=getAllLegalMoves(colorToMove);
+ const check=isInCheck(colorToMove);
+
+ if(!legal.length){
+  finished=true;
+  if(check){
+   statusElement.textContent=colorToMove==="white"
+    ?"Мат. Компьютер победил!"
+    :"Мат! Ты победил!";
+  }else{
+   statusElement.textContent="Пат. Ничья.";
+  }
+  return {ended:true,check,legal};
+ }
+
+ if(check){
+  statusElement.textContent=colorToMove==="white"
+   ?"Шах твоему королю!"
+   :"Шах королю компьютера!";
+ }
+ return {ended:false,check,legal};
+}
+
 function render(){
  boardElement.replaceChildren();
  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
@@ -227,26 +322,48 @@ function move(fr,fc,r,c){
 function commitMove(fr,fc,r,c){
  const victim=board[r][c],p=board[fr][fc];
  if(!p)return;
- board[r][c]=p;board[fr][fc]=null;
+
+ board[r][c]=p;
+ board[fr][fc]=null;
  if(p.type==="pawn"&&(r===0||r===7))p.type="queen";
- selected=null;moves=[];render();
+
+ selected=null;
+ moves=[];
+ render();
+
  if(victim){impact(r,c);playHit()}
- if(victim?.type==="king"){finished=true;statusElement.textContent=p.color==="white"?"Ты победил!":"Компьютер победил!";return}
+
  turn=p.color==="white"?"black":"white";
- if(turn==="black"){statusElement.textContent=victim?"Попадание! Компьютер думает…":"Компьютер думает…";botTimer=setTimeout(botMove,550)}
- else statusElement.textContent=victim?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
+ const position=evaluatePosition(turn);
+ if(position.ended)return;
+
+ if(turn==="black"){
+  statusElement.textContent=position.check
+   ?"Шах королю компьютера! Компьютер думает…"
+   :(victim?"Попадание! Компьютер думает…":"Компьютер думает…");
+  botTimer=setTimeout(botMove,550);
+ }else{
+  statusElement.textContent=position.check
+   ?"Шах твоему королю!"
+   :(victim?"Компьютер взял фигуру! Твой ход.":"Твой ход.");
+ }
 }
+
 function botMove(){
  if(finished||turn!=="black")return;
- const options=[];
- for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.color==="black")
-  for(const m of getMoves(r,c))options.push({fr:r,fc:c,r:m.r,c:m.c,capture:!!board[m.r][m.c]});
- if(!options.length){finished=true;statusElement.textContent="У компьютера нет ходов.";return}
+
+ const options=getAllLegalMoves("black");
+ if(!options.length){
+  evaluatePosition("black");
+  return;
+ }
+
  const hits=options.filter(o=>o.capture);
  const pool=hits.length&&Math.random()<.8?hits:options;
  const choice=pool[Math.floor(Math.random()*pool.length)];
  move(choice.fr,choice.fc,choice.r,choice.c);
 }
+
 function impact(r,c){
  const cell=boardElement.children[r*8+c];if(!cell)return;
  cell.classList.add("square--impact");
