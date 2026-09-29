@@ -1,5 +1,5 @@
 // Учебные шахматы: основные ходы, простой бот и эффект взятия.
-// Пока без шаха, мата, рокировки и взятия на проходе.
+// Пока без рокировки и взятия на проходе.
 const boardElement=document.querySelector("#board");
 const statusElement=document.querySelector("#status");
 const resetButton=document.querySelector("#reset");
@@ -32,7 +32,7 @@ function startGame(){
  statusElement.textContent="Твой ход: выбери белую фигуру.";render();
 }
 const inside=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
-function getMoves(r,c){
+function getPseudoMoves(r,c){
  const p=board[r][c];if(!p)return [];
  const result=[];
  function add(y,x){
@@ -58,6 +58,55 @@ function getMoves(r,c){
   if(p.type==="bishop"||p.type==="queen")for(const [dy,dx] of [[1,1],[1,-1],[-1,1],[-1,-1]])ray(dy,dx);
  }
  return result;
+}
+function isSquareAttacked(r,c,byColor){
+ for(let y=0;y<8;y++)for(let x=0;x<8;x++){
+  const p=board[y][x];if(!p||p.color!==byColor)continue;
+  const dy=r-y,dx=c-x,ay=Math.abs(dy),ax=Math.abs(dx);
+  if(p.type==="pawn"){
+   if(dy===(byColor==="white"?-1:1)&&ax===1)return true;
+   continue;
+  }
+  if(p.type==="knight"){
+   if((ay===2&&ax===1)||(ay===1&&ax===2))return true;
+   continue;
+  }
+  if(p.type==="king"){
+   if(Math.max(ay,ax)===1)return true;
+   continue;
+  }
+  const straight=(dy===0||dx===0),diagonal=ay===ax;
+  if(!((straight&&(p.type==="rook"||p.type==="queen"))||
+       (diagonal&&(p.type==="bishop"||p.type==="queen"))))continue;
+  const stepY=Math.sign(dy),stepX=Math.sign(dx);
+  let clear=true;
+  for(let yy=y+stepY,xx=x+stepX;yy!==r||xx!==c;yy+=stepY,xx+=stepX)
+   if(board[yy][xx]){clear=false;break}
+  if(clear)return true;
+ }
+ return false;
+}
+function inCheck(color){
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++)
+  if(board[r][c]?.type==="king"&&board[r][c].color===color)
+   return isSquareAttacked(r,c,color==="white"?"black":"white");
+ return false;
+}
+function getMoves(r,c){
+ const p=board[r][c];if(!p)return [];
+ return getPseudoMoves(r,c).filter(m=>{
+  const taken=board[m.r][m.c];
+  if(taken?.type==="king")return false;
+  board[m.r][m.c]=p;board[r][c]=null;
+  const legal=!inCheck(p.color);
+  board[r][c]=p;board[m.r][m.c]=taken;
+  return legal;
+ });
+}
+function hasLegalMoves(color){
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++)
+  if(board[r][c]?.color===color&&getMoves(r,c).length)return true;
+ return false;
 }
 function render(){
  boardElement.replaceChildren();
@@ -156,17 +205,24 @@ function move(fr,fc,r,c){
  if(p.type==="pawn"&&(r===0||r===7))p.type="queen";
  selected=null;moves=[];render();
  if(victim){impact(r,c);playHit()}
- if(victim?.type==="king"){finished=true;statusElement.textContent=p.color==="white"?"Ты победил!":"Компьютер победил!";return}
  turn=p.color==="white"?"black":"white";
- if(turn==="black"){statusElement.textContent=victim?"Попадание! Компьютер думает…":"Компьютер думает…";botTimer=setTimeout(botMove,550)}
- else statusElement.textContent=victim?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
+ const checked=inCheck(turn);
+ if(!hasLegalMoves(turn)){
+  finished=true;
+  statusElement.textContent=checked?(turn==="black"?"Шах и мат! Ты победил!":"Шах и мат! Компьютер победил!"):"Пат — ничья.";
+  return;
+ }
+ if(turn==="black"){
+  statusElement.textContent=checked?"Шах компьютеру! Он думает…":victim?"Попадание! Компьютер думает…":"Компьютер думает…";
+  botTimer=setTimeout(botMove,550);
+ }else statusElement.textContent=checked?"Шах твоему королю! Защити его.":victim?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
 }
 function botMove(){
  if(finished||turn!=="black")return;
  const options=[];
  for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.color==="black")
   for(const m of getMoves(r,c))options.push({fr:r,fc:c,r:m.r,c:m.c,capture:!!board[m.r][m.c]});
- if(!options.length){finished=true;statusElement.textContent="У компьютера нет ходов.";return}
+ if(!options.length){finished=true;statusElement.textContent=inCheck("black")?"Шах и мат! Ты победил!":"Пат — ничья.";return}
  const hits=options.filter(o=>o.capture);
  const pool=hits.length&&Math.random()<.8?hits:options;
  const choice=pool[Math.floor(Math.random()*pool.length)];
