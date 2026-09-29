@@ -6,7 +6,9 @@ const resetButton=document.querySelector("#reset");
 const spriteCache={};
 const customSprites={
  "white-pawn":"assets/pieces/fantasy/white-pawn.png",
- "black-pawn":"assets/pieces/fantasy/black-pawn.png"
+ "black-pawn":"assets/pieces/fantasy/black-pawn.png",
+ "white-rook":"assets/pieces/fantasy/white-rook.png",
+ "black-rook":"assets/pieces/fantasy/black-rook.png"
 };
 const firstRow=["rook","knight","bishop","queen","king","bishop","knight","rook"];
 const files="abcdefgh";
