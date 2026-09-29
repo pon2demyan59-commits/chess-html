@@ -159,6 +159,7 @@ window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];render()
 function animateMove(fr,fc,r,c,existingGhost=null,sourceCell=null){
  const p=board[fr][fc];
  if(!p)return;
+
  const fromCell=sourceCell||boardElement.children[fr*8+fc];
  const toCell=boardElement.children[r*8+c];
  if(!fromCell||!toCell){commitMove(fr,fc,r,c);return}
@@ -167,41 +168,56 @@ function animateMove(fr,fc,r,c,existingGhost=null,sourceCell=null){
  const toRect=toCell.getBoundingClientRect();
  const ghost=existingGhost||document.createElement("img");
 
+ // Для хода компьютера создаём фигуру прямо в центре исходной клетки.
+ // Для хода игрока НЕ меняем текущие координаты drag-ghost:
+ // он продолжает путь ровно от точки, где игрок отпустил мышь.
  if(!existingGhost){
   ghost.src=getPieceSprite(p.type,p.color);
   ghost.className="move-ghost";
-  ghost.alt="";ghost.draggable=false;
+  ghost.alt="";
+  ghost.draggable=false;
   ghost.style.width=fromRect.width+"px";
   ghost.style.height=fromRect.height+"px";
+  ghost.style.left=(fromRect.left+fromRect.width/2)+"px";
+  ghost.style.top=(fromRect.top+fromRect.height/2)+"px";
   document.body.append(ghost);
+ }else{
+  // У drag-ghost был scale(1.18). Считываем его текущее положение,
+  // а затем убираем увеличение без скачка координат.
+  const current=ghost.getBoundingClientRect();
+  ghost.style.left=(current.left+current.width/2)+"px";
+  ghost.style.top=(current.top+current.height/2)+"px";
  }
+
  ghost.classList.remove("drag-ghost");
  ghost.classList.add("move-ghost");
- ghost.style.left=(fromRect.left+fromRect.width/2)+"px";
- ghost.style.top=(fromRect.top+fromRect.height/2)+"px";
- ghost.style.transform="translate(-50%,-50%) scale(1)";
  ghost.style.transition="none";
+ ghost.style.transform="translate(-50%,-50%)";
 
+ // Исходная картинка на доске исчезает, а фигура-жертва остаётся
+ // видимой до момента фактического контакта.
  fromCell.classList.remove("square--drag-source");
- fromCell.querySelector(".piece-image")?.classList.add("piece-image--hidden");
- toCell.querySelector(".piece-image")?.classList.add("piece-image--target-hidden");
+ const sourcePiece=fromCell.querySelector(".piece-image");
+ if(sourcePiece)sourcePiece.style.opacity="0";
 
+ // Форсируем стартовое состояние, затем двигаем только left/top.
+ ghost.getBoundingClientRect();
  requestAnimationFrame(()=>{
-  requestAnimationFrame(()=>{
-   ghost.style.transition="left .28s cubic-bezier(.22,.72,.2,1), top .28s cubic-bezier(.22,.72,.2,1), transform .28s ease";
-   ghost.style.left=(toRect.left+toRect.width/2)+"px";
-   ghost.style.top=(toRect.top+toRect.height/2)+"px";
-   ghost.style.transform="translate(-50%,-50%) scale(1.03)";
-  });
+  ghost.style.transition="left .22s linear, top .22s linear";
+  ghost.style.left=(toRect.left+toRect.width/2)+"px";
+  ghost.style.top=(toRect.top+toRect.height/2)+"px";
  });
 
+ let done=false;
  const finish=()=>{
+  if(done)return;
+  done=true;
   ghost.removeEventListener("transitionend",finish);
   ghost.remove();
   commitMove(fr,fc,r,c);
  };
- ghost.addEventListener("transitionend",finish,{once:true});
- setTimeout(()=>{if(document.body.contains(ghost)){ghost.remove();commitMove(fr,fc,r,c)}},380);
+ ghost.addEventListener("transitionend",finish);
+ setTimeout(finish,300);
 }
 
 function move(fr,fc,r,c){
