@@ -714,7 +714,7 @@ function move(fr,fc,r,c,promotion,dragState=null){
  const legal=chess.moves({square:from,verbose:true}).find(m=>m.to===to&&m.promotion===promotion);
  if(!legal)return;
  moving=true;
- animateMoveBeforeCommit(legal,()=>{
+ animateMoveBeforeCommit(legal,async()=>{
   const played=chess.move({from,to,promotion});syncBoard();lastMove=played;
   selected=null;moves=[];
   if(gameMode==="hotseat")playerColor=turn;
