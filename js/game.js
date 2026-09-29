@@ -39,6 +39,105 @@ let lastMove=null,reviewMode=false,reviewPly=0,reviewMoves=[],reviewStartFen="",
 let playerColor="white",botColor="black",menuSide="white",difficultyLevel=5,gameStarted=false,gameMode="match",puzzleIndex=0;
 const statsKey="free-time-chess-stats-v1";
 const levelStatsKey="free-time-chess-level-stats-v1";
+const energyKey="free-time-chess-energy-v1";
+const screenKey="free-time-chess-screen-v1";
+const gameStateKey="free-time-chess-game-state-v1";
+const scrollKey="free-time-chess-scroll-v1";
+const MAX_ENERGY=6;
+let energy=loadEnergy();
+
+function loadEnergy(){
+ const saved=Number(localStorage.getItem(energyKey));
+ return Number.isInteger(saved)?Math.max(0,Math.min(MAX_ENERGY,saved)):MAX_ENERGY;
+}
+function renderEnergy(message=""){
+ const value=document.querySelector("#energy-value");
+ const max=document.querySelector("#energy-max");
+ const note=document.querySelector("#energy-note");
+ if(value)value.textContent=energy;
+ if(max)max.textContent=MAX_ENERGY;
+ if(note&&message)note.textContent=message;
+ const button=document.querySelector("#puzzle-entry");
+ if(button)button.disabled=energy<=0;
+}
+function saveEnergy(){try{localStorage.setItem(energyKey,String(energy))}catch{}}
+function addEnergy(amount,message){
+ energy=Math.min(MAX_ENERGY,energy+amount);saveEnergy();renderEnergy(message||`Энергия пополнена: ${energy}/${MAX_ENERGY}.`);
+}
+function spendEnergy(amount=1){
+ if(energy<amount){
+  renderEnergy("Энергия закончилась. Сыграй партию или пополни её за рекламу.");
+  return false;
+ }
+ energy-=amount;saveEnergy();renderEnergy();return true;
+}
+function saveGameState(){
+ if(!gameStarted||!chess)return;
+ try{
+  sessionStorage.setItem(gameStateKey,JSON.stringify({
+   fen:chess.fen(),gameMode,playerColor,botColor,menuSide,difficultyLevel,puzzleIndex,finished,
+   lastMove:lastMove?{from:lastMove.from,to:lastMove.to,san:lastMove.san}:null
+  }));
+ }catch{}
+}
+function syncMenuSelections(){
+ document.querySelector("#level-value").textContent=difficultyLevel;
+ for(const item of levelsElement.children){
+  const selected=Number(item.textContent)===difficultyLevel;
+  item.classList.toggle("is-selected",selected);item.setAttribute("aria-pressed",String(selected));
+ }
+ for(const item of document.querySelectorAll(".side-option")){
+  const selected=item.dataset.side===menuSide;
+  item.classList.toggle("is-selected",selected);item.setAttribute("aria-pressed",String(selected));
+ }
+}
+function restoreSession(){
+ let savedScreen="welcome";
+ try{savedScreen=sessionStorage.getItem(screenKey)||"welcome"}catch{}
+ if(savedScreen==="game"){
+  try{
+   const saved=JSON.parse(sessionStorage.getItem(gameStateKey)||"null");
+   if(saved?.fen){
+    gameMode=saved.gameMode==="puzzle"?"puzzle":"match";
+    playerColor=saved.playerColor==="black"?"black":"white";
+    botColor=playerColor==="white"?"black":"white";
+    menuSide=saved.menuSide==="black"?"black":"white";
+    difficultyLevel=Math.max(1,Math.min(10,Number(saved.difficultyLevel)||5));
+    puzzleIndex=Math.max(0,Math.min(puzzles.length-1,Number(saved.puzzleIndex)||0));
+    finished=!!saved.finished;gameStarted=true;
+    chess.load(saved.fen);syncBoard();closePromotion();resetReview();
+    lastMove=saved.lastMove||null;selected=null;moves=[];
+    document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
+    document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
+    document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
+    document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
+    if(gameMode==="puzzle"){
+     document.querySelector("#opponent-name").textContent="Задача";
+     document.querySelector("#match-info").textContent=`Задача ${puzzleIndex+1}/${puzzles.length} • мат в один ход`;
+     resetButton.textContent="Повторить задачу";
+     document.querySelector("#resign").hidden=true;
+    }else{
+     document.querySelector("#opponent-name").textContent="Компьютер";
+     document.querySelector("#match-info").textContent=`Ты играешь за ${playerColor==="white"?"белых":"чёрных"} • уровень бота ${difficultyLevel}/10`;
+     resetButton.textContent="Новая партия";
+     document.querySelector("#resign").hidden=finished;
+    }
+    document.querySelector("#claim-draw").hidden=true;
+    document.querySelector("#next-puzzle").hidden=true;
+    statusElement.textContent=finished?"Партия завершена.":gameMode==="puzzle"?"Продолжай решать задачу.":turn===playerColor?"Твой ход.":"Компьютер думает…";
+    syncMenuSelections();render();renderMoveList();showScreen("game",false);
+    if(!finished&&gameMode==="match"&&turn===botColor)botTimer=setTimeout(botMove,700);
+    restoreScroll();return;
+   }
+  }catch{}
+ }
+ if(savedScreen==="menu"){syncMenuSelections();showScreen("menu",false);restoreScroll();return}
+ showScreen("welcome",false);restoreScroll();
+}
+function restoreScroll(){
+ let y=0;try{y=Number(sessionStorage.getItem(scrollKey))||0}catch{}
+ requestAnimationFrame(()=>window.scrollTo(0,y));
+}
 function emptyStats(){return {white:{wins:0,losses:0,draws:0},black:{wins:0,losses:0,draws:0}}}
 function loadStats(){
  try{
@@ -93,11 +192,12 @@ function recordResult(outcome){
  }catch{/* Партия продолжается без сохранения. */}
  showStats();
 }
-function showScreen(name){
+function showScreen(name,resetScroll=true){
  for(const [key,element] of Object.entries(screens))element.hidden=key!==name;
+ try{sessionStorage.setItem(screenKey,name)}catch{}
  if(name==="menu"){showStats();document.querySelector("#menu-title").focus()}
  if(name==="game")document.querySelector("#game-title").focus();
- window.scrollTo(0,0);
+ if(resetScroll)window.scrollTo(0,0);
 }
 const displayIndex=(r,c)=>playerColor==="white"?r*8+c:(7-r)*8+(7-c);
 function startGame(){
@@ -117,7 +217,7 @@ function startGame(){
  document.querySelector("#resign").hidden=false;
  document.querySelector("#next-puzzle").hidden=true;
  statusElement.textContent=playerColor==="white"?"Твой ход: возьми белую фигуру.":"Компьютер ходит первым…";
- render();
+ render();saveGameState();
  if(playerColor==="black")botTimer=setTimeout(botMove,850);
 }
 function startPuzzle(index){
@@ -137,7 +237,7 @@ function startPuzzle(index){
  resetButton.textContent="Повторить задачу";document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#resign").hidden=true;
  document.querySelector("#next-puzzle").hidden=true;
- render();
+ render();saveGameState();
 }
 function playPuzzleMove(fr,fc,r,c,dragState=null){
  const puzzle=puzzles[puzzleIndex];
@@ -154,7 +254,7 @@ function playPuzzleMove(fr,fc,r,c,dragState=null){
   statusElement.textContent="Верно! Шах и мат в один ход.";
   const next=document.querySelector("#next-puzzle");
   next.textContent=puzzleIndex===puzzles.length-1?"Начать задачи заново":"Следующая задача";
-  next.hidden=false;
+  next.hidden=false;saveGameState();
  },dragState);
 }
 function getMoves(r,c){return chess.moves({square:square(r,c),verbose:true}).map(m=>({r:8-Number(m.to[1]),c:files.indexOf(m.to[0]),promotion:m.promotion}))}
@@ -182,10 +282,12 @@ function repetitionCount(){
 function drawState(){const n=Number(chess.fen().split(" ")[4]),reps=repetitionCount();return {
  automatic:n>=150?"75 ходов без взятия и хода пешкой":reps>=5?"пятикратное повторение позиции":null,
  claim:n>=100?"50 ходов без взятия и хода пешкой":reps>=3?"троекратное повторение позиции":null};}
-function endMatch(result,message){
+function endMatch(result,message,awardEnergy=true){
  finished=true;finalMessage=message;statusElement.textContent=message;
  document.querySelector("#claim-draw").hidden=true;document.querySelector("#resign").hidden=true;
  document.querySelector("#analysis-entry").hidden=false;recordResult(result);
+ if(awardEnergy)addEnergy(1,"Партия завершена: +1 ⚡ энергии для задач.");
+ saveGameState();
 }
 function render(){
  boardElement.replaceChildren();
@@ -316,7 +418,7 @@ function move(fr,fc,r,c,promotion,dragState=null){
  moving=true;
  animateMoveBeforeCommit(legal,()=>{
   const played=chess.move({from,to,promotion});syncBoard();lastMove=played;
-  selected=null;moves=[];render();renderMoveList();
+  selected=null;moves=[];render();renderMoveList();saveGameState();
   if(played.captured){
    const takenAt=played.isEnPassant()?square(fr,c):to;
    playCaptureEffect(takenAt,played.captured,played.color==="w"?"black":"white");
@@ -651,8 +753,13 @@ function getPieceSprite(type,color){
  return spriteCache[key];
 }
 
+function startPuzzleWithEnergy(index){
+ if(!spendEnergy(1))return false;
+ showScreen("game");startPuzzle(index);return true;
+}
+
 resetButton.addEventListener("click",()=>gameMode==="puzzle"?startPuzzle(puzzleIndex):startGame());
-document.querySelector("#next-puzzle").addEventListener("click",()=>startPuzzle((puzzleIndex+1)%puzzles.length));
+document.querySelector("#next-puzzle").addEventListener("click",()=>startPuzzleWithEnergy((puzzleIndex+1)%puzzles.length));
 for(let level=1;level<=10;level++){
  const button=document.createElement("button");
  button.type="button";button.textContent=level;
@@ -685,13 +792,22 @@ document.querySelector("#enter").addEventListener("click",()=>{
 document.querySelector("#start-match").addEventListener("click",()=>{
  showScreen("game");startGame();
 });
-document.querySelector("#puzzle-entry").addEventListener("click",()=>{
- showScreen("game");startPuzzle(0);
-});
+document.querySelector("#puzzle-entry").addEventListener("click",()=>startPuzzleWithEnergy(0));
 document.querySelector("#back-menu").addEventListener("click",()=>{
  clearTimeout(botTimer);cancelDrag();cancelMotion();clearScene();closePromotion();resetReview();gameStarted=false;showScreen("menu");
 });
-showStats();
+document.querySelector("#energy-ad").addEventListener("click",()=>{
+ const sdk=window.ysdk;
+ if(sdk?.adv?.showRewardedVideo){
+  sdk.adv.showRewardedVideo({callbacks:{
+   onRewarded:()=>addEnergy(3,"Реклама просмотрена: +3 ⚡ энергии."),
+   onError:()=>renderEnergy("Реклама сейчас недоступна. Попробуй позже.")
+  }});
+ }else{
+  renderEnergy("Наградная реклама заработает после подключения SDK Яндекс Игр.");
+ }
+});
+showStats();renderEnergy();
 
 document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!=="match"||finished||moving||turn!==playerColor)return;const draw=drawState();if(draw.claim){const message=`Ничья по заявлению: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message)}});
 document.querySelector("#promotion-cancel").addEventListener("click",()=>{closePromotion();render();statusElement.textContent="Превращение отменено. Выбери ход снова."});
@@ -700,12 +816,12 @@ window.addEventListener("keydown",e=>{if(e.key==="Escape"&&pendingPromotion){clo
 document.querySelector("#analysis-entry").addEventListener("click",openReview);
 document.querySelector("#result-analysis").addEventListener("click",openReview);
 document.querySelector("#result-new").addEventListener("click",startGame);
-document.querySelector("#result-next").addEventListener("click",()=>startPuzzle((puzzleIndex+1)%puzzles.length));
+document.querySelector("#result-next").addEventListener("click",()=>startPuzzleWithEnergy((puzzleIndex+1)%puzzles.length));
 document.querySelector("#result-menu").addEventListener("click",()=>document.querySelector("#back-menu").click());
 document.querySelector("#resign").addEventListener("click",()=>{
  if(!gameStarted||finished||gameMode!=="match")return;
  clearTimeout(botTimer);cancelMotion();clearScene();const message="Ты сдался. Победа компьютера.";
- endMatch("losses",message);showResult("resign",message);
+ endMatch("losses",message,false);showResult("resign",message);
 });
 for(const [id,position] of [["#review-first",0],["#review-prev",-1],["#review-next",1],["#review-last",Infinity]])
  document.querySelector(id).addEventListener("click",()=>setReviewPly(position===Infinity?reviewMoves.length:position===0?0:reviewPly+position));
@@ -719,3 +835,12 @@ document.querySelector("#copy-pgn").addEventListener("click",async()=>{
   document.querySelector("#copy-pgn").textContent="PGN скачан";
  }
 });
+
+
+window.addEventListener("pagehide",()=>{
+ try{
+  sessionStorage.setItem(scrollKey,String(window.scrollY||0));
+  saveGameState();
+ }catch{}
+});
+restoreSession();
