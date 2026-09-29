@@ -49,8 +49,9 @@
               <strong><span id="energy-value">6</span>/<span id="energy-max">6</span></strong>
             </div>
           </div>
-          <p id="energy-note" class="energy-note">1 задача = 1 энергия. Сыгранная партия пополняет запас.</p>
-          <button id="puzzle-entry" class="puzzle-hero__play" type="button">Решать задачу <span>−1 ⚡</span></button>
+          <p id="energy-note" class="energy-note">1 новая задача = 1 энергия. +1 ⚡ каждые 30 минут.</p>
+          <small id="energy-timer" class="energy-timer">Запас энергии полный</small>
+          <button id="puzzle-entry" class="puzzle-hero__play" type="button">Открыть задачи</button>
           <button id="energy-ad" class="puzzle-hero__ad" type="button">Получить +3 ⚡ за рекламу</button>
           <small class="puzzle-hero__adnote">Рекламная энергия подключится через SDK Яндекс Игр.</small>
         </div>
@@ -80,6 +81,77 @@
           </button>
         </section>
       </div>
+    </div>
+  </main>
+  <main id="puzzles" class="puzzles-page" hidden>
+    <div class="puzzles-page__content">
+      <header class="puzzles-page__header">
+        <p class="eyebrow">ТРЕНИРОВОЧНЫЙ ЗАЛ</p>
+        <h2 id="puzzles-title" tabindex="-1">Шахматные задачи</h2>
+        <p>Выбери направление тренировки. Решённые задачи можно повторять без энергии.</p>
+        <div class="puzzles-energy">
+          <span aria-hidden="true">⚡</span>
+          <strong><span id="puzzles-energy-value">6</span>/<span id="puzzles-energy-max">6</span></strong>
+          <small id="puzzles-energy-timer">Запас энергии полный</small>
+        </div>
+      </header>
+
+      <section class="puzzle-library" aria-labelledby="mate-library-title">
+        <div class="puzzle-library__heading">
+          <div>
+            <p class="eyebrow">МАТОВЫЕ КОМБИНАЦИИ</p>
+            <h3 id="mate-library-title">Мат за несколько ходов</h3>
+          </div>
+          <p>От простого распознавания мата до длинных форсированных комбинаций.</p>
+        </div>
+        <div class="puzzle-category-grid">
+          <button class="puzzle-category puzzle-category--active" type="button" data-puzzle-category="mate1">
+            <span class="puzzle-category__number">1</span>
+            <strong>Мат в 1 ход</strong>
+            <small>50 задач · доступно сейчас</small>
+            <span id="mate1-progress" class="puzzle-category__progress">0/50 решено</span>
+          </button>
+          <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">2</span><strong>Мат в 2 хода</strong><small>Скоро</small></button>
+          <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">3</span><strong>Мат в 3 хода</strong><small>Скоро</small></button>
+          <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">4</span><strong>Мат в 4 хода</strong><small>Скоро</small></button>
+          <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">5</span><strong>Мат в 5 ходов</strong><small>Скоро</small></button>
+        </div>
+      </section>
+
+      <section class="puzzle-library" aria-labelledby="tactics-library-title">
+        <div class="puzzle-library__heading">
+          <div>
+            <p class="eyebrow">ТАКТИЧЕСКИЕ МОТИВЫ</p>
+            <h3 id="tactics-library-title">Тактика</h3>
+          </div>
+          <p>Следующий этап после матовых задач — научиться узнавать повторяющиеся тактические идеи.</p>
+        </div>
+        <div class="tactic-category-grid">
+          <button disabled><strong>Вилка</strong><small>Скоро</small></button>
+          <button disabled><strong>Связка</strong><small>Скоро</small></button>
+          <button disabled><strong>Сквозной удар</strong><small>Скоро</small></button>
+          <button disabled><strong>Вскрытое нападение</strong><small>Скоро</small></button>
+          <button disabled><strong>Двойной шах</strong><small>Скоро</small></button>
+          <button disabled><strong>Отвлечение</strong><small>Скоро</small></button>
+          <button disabled><strong>Уничтожение защитника</strong><small>Скоро</small></button>
+          <button disabled><strong>Перекрытие</strong><small>Скоро</small></button>
+          <button disabled><strong>Жертва</strong><small>Скоро</small></button>
+        </div>
+      </section>
+
+      <section id="mate1-bank" class="puzzle-bank" aria-labelledby="mate1-title">
+        <div class="puzzle-bank__header">
+          <div>
+            <p class="eyebrow">50 ЗАДАЧ</p>
+            <h3 id="mate1-title">Мат в один ход</h3>
+            <p>Ферзь, ладья, слон, конь и пешка встречаются вперемешку. Найди единственный матующий ход.</p>
+          </div>
+          <button id="continue-puzzle" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
+        </div>
+        <div id="puzzle-grid" class="puzzle-grid" aria-label="Список задач мат в один ход"></div>
+      </section>
+
+      <button id="puzzles-back" class="puzzles-page__back" type="button">Вернуться в Зал поединков</button>
     </div>
   </main>
   <main id="stats" class="stats-page" hidden>
