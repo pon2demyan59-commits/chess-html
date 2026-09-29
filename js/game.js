@@ -10,7 +10,9 @@ const customSprites={
  "white-rook":"assets/pieces/fantasy/white-rook.png",
  "black-rook":"assets/pieces/fantasy/black-rook.png",
  "white-bishop":"assets/pieces/fantasy/white-bishop.png",
- "black-bishop":"assets/pieces/fantasy/black-bishop.png"
+ "black-bishop":"assets/pieces/fantasy/black-bishop.png",
+ "white-knight":"assets/pieces/fantasy/white-knight.png",
+ "black-knight":"assets/pieces/fantasy/black-knight.png"
 };
 const firstRow=["rook","knight","bishop","queen","king","bishop","knight","rook"];
 const files="abcdefgh";
