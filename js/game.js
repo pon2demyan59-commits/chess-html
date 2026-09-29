@@ -139,7 +139,7 @@ function startPuzzle(index){
  document.querySelector("#next-puzzle").hidden=true;
  render();
 }
-function playPuzzleMove(fr,fc,r,c){
+function playPuzzleMove(fr,fc,r,c,dragState=null){
  const puzzle=puzzles[puzzleIndex];
  if(fr!==puzzle.from[0]||fc!==puzzle.from[1]||r!==puzzle.to[0]||c!==puzzle.to[1]){
   render();statusElement.textContent="Это не мат. Попробуй другой ход.";return;
@@ -155,7 +155,7 @@ function playPuzzleMove(fr,fc,r,c){
   const next=document.querySelector("#next-puzzle");
   next.textContent=puzzleIndex===puzzles.length-1?"Начать задачи заново":"Следующая задача";
   next.hidden=false;
- });
+ },dragState);
 }
 function getMoves(r,c){return chess.moves({square:square(r,c),verbose:true}).map(m=>({r:8-Number(m.to[1]),c:files.indexOf(m.to[0]),promotion:m.promotion}))}
 function closePromotion(){pendingPromotion=null;document.querySelector("#promotion").hidden=true}
@@ -280,16 +280,34 @@ function onPointerUp(event){
  const toR=target?Number(target.dataset.row):-1;
  const toC=target?Number(target.dataset.col):-1;
  const valid=moves.some(m=>m.r===toR&&m.c===toC);
- cancelDrag();selected=null;moves=[];
- if(valid){if(gameMode==="puzzle")playPuzzleMove(fromR,fromC,toR,toC);else if(needsPromotion(fromR,fromC,toR,toC))requestPromotion(fromR,fromC,toR,toC);else move(fromR,fromC,toR,toC)}
- else{render();statusElement.textContent="Ход отменён. Возьми фигуру и перетащи её на другую клетку."}
+
+ if(valid){
+  const activeDrag=drag;
+  if(boardElement.hasPointerCapture?.(activeDrag.pointerId)){
+   boardElement.releasePointerCapture(activeDrag.pointerId);
+  }
+  activeDrag.source?.classList.remove("square--drag-source");
+  drag=null;selected=null;moves=[];
+
+  if(needsPromotion(fromR,fromC,toR,toC)){
+   activeDrag.ghost?.remove();
+   requestPromotion(fromR,fromC,toR,toC);
+  }else if(gameMode==="puzzle"){
+   playPuzzleMove(fromR,fromC,toR,toC,activeDrag);
+  }else{
+   move(fromR,fromC,toR,toC,undefined,activeDrag);
+  }
+ }else{
+  cancelDrag();selected=null;moves=[];render();
+  statusElement.textContent="Ход отменён. Возьми фигуру и перетащи её на другую клетку.";
+ }
 }
 boardElement.addEventListener("pointerdown",onPointerDown);
 boardElement.addEventListener("pointermove",onPointerMove);
 boardElement.addEventListener("pointerup",onPointerUp);
 boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];if(board&&!moving)render()});
 window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];if(board&&!moving)render()});
-function move(fr,fc,r,c,promotion){
+function move(fr,fc,r,c,promotion,dragState=null){
  if(moving)return;
  clearScene();
  const from=square(fr,fc),to=square(r,c);
@@ -321,7 +339,7 @@ function move(fr,fc,r,c,promotion){
    statusElement.textContent=check?"Шах компьютеру! Он думает…":played.captured?"Попадание! Компьютер думает…":"Компьютер думает…";
    botTimer=setTimeout(botMove,check?1700:650);
   }else statusElement.textContent=check?"Шах твоему королю! Защити его.":played.captured?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
- });
+ },dragState);
 }
 function botMove(){
  if(!gameStarted||finished||moving||turn!==botColor)return;
@@ -409,42 +427,73 @@ function cancelMotion(){
  for(const {ghost,source} of motionGhosts){ghost.remove();if(source)source.style.visibility=""}
  motionGhosts=[];
 }
-function animateMoveBeforeCommit(m,commit){
+function animateMoveBeforeCommit(m,commit,dragState=null){
  const token=++motionToken;
  const reduce=window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
  const fromCell=kingCell(m.from),toCell=kingCell(m.to);
- if(reduce||!fromCell||!toCell){moving=false;commit();return}
- const stage=document.querySelector(".board-stage"),stageRect=stage.getBoundingClientRect();
- function travellingPiece(sourceCell,destinationCell,type,color){
-  const a=sourceCell.getBoundingClientRect(),b=destinationCell.getBoundingClientRect();
-  const ghost=document.createElement("img");ghost.className="travel-piece";
-  ghost.src=getPieceSprite(type,color);ghost.alt="";
-  ghost.style.left=`${a.left-stageRect.left}px`;ghost.style.top=`${a.top-stageRect.top}px`;
-  ghost.style.width=`${a.width}px`;ghost.style.height=`${a.height}px`;
-  stage.append(ghost);
-  const source=sourceCell.querySelector(".piece-image");if(source)source.style.visibility="hidden";
-  motionGhosts.push({ghost,source});
-  return {ghost,dx:b.left-a.left,dy:b.top-a.top};
+ if(reduce||!fromCell||!toCell){
+  dragState?.ghost?.remove();
+  moving=false;commit();return;
  }
- const main=travellingPiece(fromCell,toCell,names[m.piece],colorName(m.color));
+
+ function travellingPiece(sourceCell,destinationCell,type,color,existingGhost=null){
+  const a=sourceCell.getBoundingClientRect(),b=destinationCell.getBoundingClientRect();
+  const ghost=existingGhost||document.createElement("img");
+
+  if(!existingGhost){
+   ghost.src=getPieceSprite(type,color);
+   ghost.alt="";ghost.draggable=false;
+   ghost.style.width=a.width+"px";
+   ghost.style.height=a.height+"px";
+   ghost.style.left=(a.left+a.width/2)+"px";
+   ghost.style.top=(a.top+a.height/2)+"px";
+   document.body.append(ghost);
+  }else{
+   const current=ghost.getBoundingClientRect();
+   ghost.style.left=(current.left+current.width/2)+"px";
+   ghost.style.top=(current.top+current.height/2)+"px";
+  }
+
+  ghost.classList.remove("drag-ghost","travel-piece");
+  ghost.classList.add("move-ghost");
+  ghost.style.transition="none";
+  ghost.style.transform="translate(-50%,-50%)";
+
+  const source=sourceCell.querySelector(".piece-image");
+  if(source)source.style.visibility="hidden";
+  motionGhosts.push({ghost,source});
+
+  ghost.getBoundingClientRect();
+  requestAnimationFrame(()=>{
+   ghost.style.transition="left .22s linear, top .22s linear";
+   ghost.style.left=(b.left+b.width/2)+"px";
+   ghost.style.top=(b.top+b.height/2)+"px";
+  });
+  return ghost;
+ }
+
+ const main=travellingPiece(fromCell,toCell,names[m.piece],colorName(m.color),dragState?.ghost||null);
+
  if(m.isKingsideCastle()||m.isQueensideCastle()){
   const row=8-Number(m.from[1]),start=m.isKingsideCastle()?7:0,end=m.isKingsideCastle()?5:3;
-  const rook=travellingPiece(boardElement.children[displayIndex(row,start)],boardElement.children[displayIndex(row,end)],"rook",colorName(m.color));
-  rook.ghost.animate?.([{transform:"translate(0,0)"},{transform:`translate(${rook.dx}px,${rook.dy}px)`}],{duration:580,easing:"ease-in-out",fill:"forwards"});
+  const rookFrom=boardElement.children[displayIndex(row,start)];
+  const rookTo=boardElement.children[displayIndex(row,end)];
+  travellingPiece(rookFrom,rookTo,"rook",colorName(m.color));
  }
+
  let done=false;
  function finish(){
   if(done||token!==motionToken)return;done=true;
   clearTimeout(motionTimer);motionTimer=null;
-  for(const {ghost,source} of motionGhosts){ghost.remove();if(source)source.style.visibility=""}
+  for(const {ghost,source} of motionGhosts){
+   ghost.remove();
+   if(source)source.style.visibility="";
+  }
   motionGhosts=[];moving=false;commit();
  }
- if(typeof main.ghost.animate!=="function"){finish();return}
- try{
-  const animation=main.ghost.animate([{transform:"translate(0,0)"},{transform:`translate(${main.dx}px,${main.dy}px)`}],{duration:580,easing:"ease-in-out",fill:"forwards"});
-  animation?.finished?.then(finish).catch(()=>{});
-  motionTimer=setTimeout(finish,700);
- }catch{finish()}
+
+ main.addEventListener("transitionend",finish,{once:true});
+ motionTimer=setTimeout(finish,320);
 }
 function playCaptureEffect(squareName,type,color){
  const victim=sceneAnchor(squareName,"scene-defeat scene-defeat--capture");
