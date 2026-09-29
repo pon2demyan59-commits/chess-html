@@ -135,3 +135,36 @@ footer { text-align: center; margin: 16px 10px; }
 .promotion__choices button:hover,.promotion__choices button:focus-visible { background: #725536; }
 .promotion__choices img { width: 100%; height: 100px; object-fit: contain; }
 .promotion__cancel { background: transparent; color: #f8e3b8; border: 1px solid currentColor; border-radius: 8px; padding: 8px 18px; cursor: pointer; }
+
+/* Комикс-сцена шаха, падение короля и итоговый плакат. */
+.board-stage { position: relative; width: min(100%, 760px); margin: auto; isolation: isolate; }
+.board-stage .board { width: 100%; }
+.board-effects { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.scene-anchor { position: absolute; width: 12.5%; height: 12.5%; transform: translate(-50%,-50%); pointer-events: none; }
+.scene-bubble { display: grid; place-items: center; width: max-content; max-width: min(32vw, 210px); height: auto; min-height: 42px; padding: 8px 14px; border: 3px solid #221523; border-radius: 48% 48% 42% 45%; box-shadow: 4px 5px 0 #16111bdd, 0 0 28px #f7d07099; color: #24141a; background: #fff5d1; font: 900 clamp(15px, 2.6vw, 28px)/1.05 Georgia, serif; text-align: center; text-shadow: 1px 1px #fff; white-space: normal; transform: translate(-50%,-125%) rotate(-9deg); animation: comic-pop .32s cubic-bezier(.2,1.8,.3,1) both; }
+.scene-bubble::after { content: ""; position: absolute; top: calc(100% - 4px); left: 42%; width: 15px; height: 18px; background: inherit; border-right: 3px solid #221523; border-bottom: 3px solid #221523; transform: skewY(35deg) rotate(16deg); }
+.scene-bubble--attack { z-index: 7; color: #fff3b8; background: #ae2931; text-shadow: 1px 2px #421218; transform: translate(-50%,-125%) rotate(-9deg); }
+.scene-bubble--king { z-index: 6; max-width: min(28vw, 155px); font-size: clamp(13px, 2vw, 21px); transform: translate(-50%,15%) rotate(7deg); animation-delay: .18s; }
+.square--fear .piece-image { animation: king-fear .13s linear infinite alternate; filter: drop-shadow(0 0 11px #f6e56c) drop-shadow(0 5px 3px #0008); }
+.square--king-hidden .piece-image { opacity: 0; }
+.scene-defeat { z-index: 8; }
+.scene-defeat__half { position: absolute; width: 100%; height: 100%; object-fit: contain; left: 0; top: 0; filter: drop-shadow(0 8px 3px #0008); }
+.scene-defeat__half--left { clip-path: polygon(0 0,65% 0,40% 100%,0 100%); animation: king-fall-left 1s ease-in forwards; }
+.scene-defeat__half--right { clip-path: polygon(65% 0,100% 0,100% 100%,40% 100%); animation: king-fall-right 1s ease-in forwards; }
+.scene-defeat__slash { position: absolute; top: -35%; left: 50%; width: 8%; height: 170%; border-radius: 100%; transform: rotate(22deg) scaleY(0); background: #fff8dc; box-shadow: 0 0 10px 5px #ffc951,0 0 35px 12px #f34b3f; animation: king-slash .4s ease-out forwards; }
+.result-panel[hidden] { display: none; }
+.result-panel { position: absolute; z-index: 10; inset: 17% 7%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px,2vw,18px); padding: 16px; border: 5px double #e6c17f; border-radius: 20px; background: radial-gradient(circle at 50% 25%,#7a423a,#201621 70%); box-shadow: 0 0 0 100vmax #0b0d14aa, 0 20px 60px #000c, inset 0 0 40px #f3ba5977; color: #fff0c8; text-align: center; animation: result-rise .6s cubic-bezier(.18,1.3,.3,1) both; pointer-events: none; }
+.result-panel--stalemate { background: radial-gradient(circle at 50% 25%,#4a6574,#172430 70%); }
+.result-panel__eyebrow { letter-spacing: .23em; font: 700 clamp(10px,1.7vw,18px) system-ui,sans-serif; color: #e9c286; }
+.result-panel__title { font: 900 clamp(32px,7vw,78px)/1 Georgia,serif; color: #ffda81; text-shadow: 0 4px #492821, 0 0 24px #f6ae47; }
+.result-panel__detail { font: 700 clamp(15px,2.6vw,26px)/1.25 Georgia,serif; }
+@keyframes comic-pop { from { opacity: 0; scale: .3; } to { opacity: 1; scale: 1; } }
+@keyframes king-fear { from { transform: translate(-3%,1%) rotate(-5deg); } to { transform: translate(3%,-1%) rotate(5deg); } }
+@keyframes king-fall-left { to { transform: translate(-55%,70%) rotate(-55deg); opacity: .15; } }
+@keyframes king-fall-right { to { transform: translate(55%,75%) rotate(60deg); opacity: .15; } }
+@keyframes king-slash { 35% { transform: rotate(22deg) scaleY(1); opacity: 1; } to { transform: rotate(22deg) scaleY(1.3); opacity: 0; } }
+@keyframes result-rise { from { opacity: 0; transform: translateY(25px) scale(.8); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+ .scene-bubble,.square--fear .piece-image,.scene-defeat__half,.scene-defeat__slash,.result-panel { animation: none; }
+ .scene-defeat__slash { display: none; }
+}

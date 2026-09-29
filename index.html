@@ -84,7 +84,15 @@
     </header>
     <section class="game__panel" aria-label="Шахматная партия">
       <div class="player player--opponent"><span class="player__avatar" id="opponent-avatar">♚</span><div><strong id="opponent-name">Компьютер</strong><small id="opponent-side">Чёрные</small></div></div>
-      <div id="board" class="board" role="grid" aria-label="Шахматная доска"></div>
+      <div class="board-stage">
+        <div id="board" class="board" role="grid" aria-label="Шахматная доска"></div>
+        <div id="board-effects" class="board-effects" aria-hidden="true"></div>
+        <div id="result-panel" class="result-panel" aria-hidden="true" hidden>
+          <span class="result-panel__eyebrow" id="result-eyebrow"></span>
+          <strong class="result-panel__title" id="result-title"></strong>
+          <span class="result-panel__detail" id="result-detail"></span>
+        </div>
+      </div>
       <div class="player player--human"><span class="player__avatar" id="player-avatar">♔</span><div><strong>Игрок</strong><small id="player-side">Белые</small></div></div>
       <p id="status" class="status" role="status" aria-live="polite">Возьми белую фигуру и перетащи её.</p>
       <div id="promotion" class="promotion" role="dialog" aria-modal="true" aria-label="Превращение пешки" hidden>

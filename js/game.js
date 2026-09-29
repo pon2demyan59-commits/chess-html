@@ -33,6 +33,7 @@ const puzzles=[
 ];
 let board,selected,moves,turn,finished,botTimer,audioContext;
 let drag=null,pendingPromotion=null;
+let sceneTimers=[];
 let playerColor="white",botColor="black",menuSide="white",difficultyLevel=5,gameStarted=false,gameMode="match",puzzleIndex=0;
 const statsKey="free-time-chess-stats-v1";
 const levelStatsKey="free-time-chess-level-stats-v1";
@@ -99,7 +100,7 @@ function showScreen(name){
 const displayIndex=(r,c)=>playerColor==="white"?r*8+c:(7-r)*8+(7-c);
 function startGame(){
  clearTimeout(botTimer);
- cancelDrag();
+ cancelDrag();clearScene();
  gameMode="match";
  playerColor=menuSide;botColor=playerColor==="white"?"black":"white";
  chess.reset();syncBoard();closePromotion();
@@ -117,7 +118,7 @@ function startGame(){
  if(playerColor==="black")botTimer=setTimeout(botMove,550);
 }
 function startPuzzle(index){
- clearTimeout(botTimer);cancelDrag();
+ clearTimeout(botTimer);cancelDrag();clearScene();
  puzzleIndex=index;gameMode="puzzle";gameStarted=true;finished=false;
  const puzzle=puzzles[index];
  playerColor=puzzle.side;botColor=playerColor==="white"?"black":"white";
@@ -140,7 +141,7 @@ function playPuzzleMove(fr,fc,r,c){
   render();statusElement.textContent="Это не мат. Попробуй другой ход.";return;
  }
  chess.move({from:square(fr,fc),to:square(r,c)});syncBoard();
- finished=true;render();
+ finished=true;render();playScene("mate",{to:square(r,c),color:playerColor==="white"?"w":"b"},"Верно! Мат в один ход.");
  statusElement.textContent="Верно! Шах и мат в один ход.";
  const next=document.querySelector("#next-puzzle");
  next.textContent=puzzleIndex===puzzles.length-1?"Начать задачи заново":"Следующая задача";
@@ -273,18 +274,27 @@ boardElement.addEventListener("pointerup",onPointerUp);
 boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];if(board)render()});
 window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];if(board)render()});
 function move(fr,fc,r,c,promotion){
+ clearScene();
  const played=chess.move({from:square(fr,fc),to:square(r,c),promotion});syncBoard();selected=null;moves=[];render();
  const captured=!!played.captured;if(captured){impact(r,c);playHit()}
- if(chess.isCheckmate()){const result=colorName(played.color)===playerColor?"wins":"losses";endMatch(result,result==="wins"?"Шах и мат! Ты победил!":"Шах и мат! Компьютер победил!");return}
- if(chess.isStalemate()){endMatch("draws","Пат — ничья.");return}
+ if(chess.isCheckmate()){
+  const result=colorName(played.color)===playerColor?"wins":"losses";
+  const message=result==="wins"?"Шах и мат! Ты победил!":"Шах и мат! Компьютер победил!";
+  endMatch(result,message);playScene("mate",played,message);return;
+ }
+ if(chess.isStalemate()){
+  endMatch("draws","Пат — ничья.");playScene("stalemate",played,"Пат — ничья.");return;
+ }
  if(chess.isInsufficientMaterial()){endMatch("draws","Ничья: мат невозможен при оставшихся фигурах.");return}
  const draw=drawState();if(draw.automatic){endMatch("draws",`Ничья: ${draw.automatic}.`);return}
  document.querySelector("#claim-draw").hidden=!(draw.claim&&turn===playerColor);
+ const check=chess.isCheck();
+ if(check)playScene("check",played);
  if(turn===botColor){
   if(draw.claim){endMatch("draws",`Компьютер заявил ничью: ${draw.claim}.`);return}
-  statusElement.textContent=chess.isCheck()?"Шах компьютеру! Он думает…":captured?"Попадание! Компьютер думает…":"Компьютер думает…";
-  botTimer=setTimeout(botMove,550);
- }else statusElement.textContent=chess.isCheck()?"Шах твоему королю! Защити его.":captured?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
+  statusElement.textContent=check?"Шах компьютеру! Он думает…":captured?"Попадание! Компьютер думает…":"Компьютер думает…";
+  botTimer=setTimeout(botMove,check?1700:550);
+ }else statusElement.textContent=check?"Шах твоему королю! Защити его.":captured?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
 }
 function botMove(){
  if(!gameStarted||finished||turn!==botColor)return;
@@ -319,6 +329,97 @@ function impact(r,c){
  cell.classList.add("square--impact");
  for(let i=0;i<8;i++){const spark=document.createElement("span");spark.className="spark";spark.style.setProperty("--angle",i*45+"deg");cell.append(spark)}
  setTimeout(()=>{cell.classList.remove("square--impact");cell.querySelectorAll(".spark").forEach(s=>s.remove())},650);
+}
+// Сцены поверх поля не участвуют в выборе клетки и не меняют шахматную позицию.
+function clearScene(){
+ for(const timer of sceneTimers)clearTimeout(timer);sceneTimers=[];
+ document.querySelector("#board-effects").replaceChildren();
+ document.querySelector("#result-panel").hidden=true;
+ boardElement.querySelectorAll(".square--fear,.square--king-hidden").forEach(el=>el.classList.remove("square--fear","square--king-hidden"));
+ try{window.speechSynthesis?.cancel()}catch{}
+}
+function sceneAfter(delay,fn){sceneTimers.push(setTimeout(fn,delay))}
+function kingSquare(){
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.type==="king"&&board[r][c].color===turn)return square(r,c);
+ return null;
+}
+function sceneAnchor(squareName,className,content){
+ if(!squareName)return null;
+ const r=8-Number(squareName[1]),c=files.indexOf(squareName[0]);
+ const dr=playerColor==="white"?r:7-r,dc=playerColor==="white"?c:7-c;
+ const anchor=document.createElement("div");anchor.className=`scene-anchor ${className}`;
+ anchor.style.left=`${(dc+.5)*12.5}%`;anchor.style.top=`${(dr+.5)*12.5}%`;
+ if(content)anchor.textContent=content;
+ document.querySelector("#board-effects").append(anchor);
+ return anchor;
+}
+function kingCell(squareName){
+ if(!squareName)return null;
+ const r=8-Number(squareName[1]),c=files.indexOf(squareName[0]);
+ return boardElement.children[displayIndex(r,c)];
+}
+function showResult(kind,message){
+ const panel=document.querySelector("#result-panel");panel.className=`result-panel result-panel--${kind}`;
+ document.querySelector("#result-eyebrow").textContent=kind==="mate"?"БИТВА ОКОНЧЕНА":"ХОДОВ БОЛЬШЕ НЕТ";
+ document.querySelector("#result-title").textContent=kind==="mate"?"ШАХ И МАТ!":"ПАТ!";
+ document.querySelector("#result-detail").textContent=message;
+ panel.hidden=false;
+}
+function playScene(kind,played,message){
+ const king=kingSquare(),cell=kingCell(king);
+ if(kind!=="stalemate"){
+  const attackers=king?chess.attackers(king,played.color):[];
+  sceneAnchor(attackers.includes(played.to)?played.to:attackers[0]||played.to,"scene-bubble scene-bubble--attack",kind==="mate"?"ШАХ И МАТ!":"ШАХ!");
+  sceneAnchor(king,"scene-bubble scene-bubble--king",kind==="mate"?"А-а-а!":"Ой! Шах!");
+  cell?.classList.add("square--fear");
+  playVoice("Шах!");playDramaSound("shout");
+ }else{
+  sceneAnchor(king,"scene-bubble scene-bubble--king","Ходить некуда…");
+  cell?.classList.add("square--fear");playDramaSound("stalemate");
+ }
+ if(kind==="check"){
+  sceneAfter(1450,()=>{document.querySelector("#board-effects").replaceChildren();cell?.classList.remove("square--fear")});return;
+ }
+ if(kind==="stalemate"){sceneAfter(850,()=>showResult(kind,message));return}
+ sceneAfter(720,()=>{
+  cell?.classList.remove("square--fear");cell?.classList.add("square--king-hidden");
+  const victim=sceneAnchor(king,"scene-defeat");
+  if(victim){
+   for(const side of ["left","right"]){
+    const half=document.createElement("img");half.className=`scene-defeat__half scene-defeat__half--${side}`;
+    half.src=getPieceSprite("king",turn);half.alt="";victim.append(half);
+   }
+   const slash=document.createElement("span");slash.className="scene-defeat__slash";victim.append(slash);
+  }
+  playDramaSound("slash");playVoice("А-а-а!");
+ });
+ sceneAfter(1750,()=>{document.querySelector("#board-effects").replaceChildren();showResult(kind,message);playDramaSound("fanfare")});
+}
+function playVoice(line){
+ try{
+  if(!window.speechSynthesis||!window.SpeechSynthesisUtterance)return;
+  const voice=new window.SpeechSynthesisUtterance(line);
+  voice.lang="ru-RU";voice.rate=line==="Шах!"?1.15:1.35;voice.pitch=line==="Шах!"?.65:1.55;voice.volume=.8;
+  window.speechSynthesis.speak(voice);
+ }catch{/* Текст в облачках остаётся видимым без голосового движка. */}
+}
+function playDramaSound(kind){
+ try{
+  const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)return;
+  audioContext ||= new Ctx();if(audioContext.state==="suspended")audioContext.resume();
+  const t=audioContext.currentTime;
+  const notes=kind==="shout"?[[290,160,.2],[180,95,.26]]:kind==="slash"?[[900,60,.35],[130,45,.38]]:kind==="stalemate"?[[240,185,.28],[175,130,.4]]:[[260,390,.16],[330,495,.16],[390,590,.34]];
+  let offset=0;
+  for(const [start,end,duration] of notes){
+   const osc=audioContext.createOscillator(),gain=audioContext.createGain();
+   osc.type=kind==="slash"?"sawtooth":"triangle";
+   osc.frequency.setValueAtTime(start,t+offset);osc.frequency.exponentialRampToValueAtTime(end,t+offset+duration);
+   gain.gain.setValueAtTime(.0001,t+offset);gain.gain.exponentialRampToValueAtTime(.13,t+offset+.015);
+   gain.gain.exponentialRampToValueAtTime(.0001,t+offset+duration);
+   osc.connect(gain);gain.connect(audioContext.destination);osc.start(t+offset);osc.stop(t+offset+duration+.02);
+   offset+=kind==="fanfare"?duration*.85:duration*.42;
+  }
+ }catch{/* Без звука анимация продолжится. */}
 }
 function playHit(){
  try{
@@ -396,7 +497,10 @@ for(const button of document.querySelectorAll(".side-option"))button.addEventLis
   item.setAttribute("aria-pressed",String(selected));
  }
 });
-document.querySelector("#enter").addEventListener("click",()=>showScreen("menu"));
+document.querySelector("#enter").addEventListener("click",()=>{
+ try{const Ctx=window.AudioContext||window.webkitAudioContext;if(Ctx){audioContext ||= new Ctx();audioContext.resume()}}catch{}
+ showScreen("menu");
+});
 document.querySelector("#start-match").addEventListener("click",()=>{
  showScreen("game");startGame();
 });
@@ -404,7 +508,7 @@ document.querySelector("#puzzle-entry").addEventListener("click",()=>{
  showScreen("game");startPuzzle(0);
 });
 document.querySelector("#back-menu").addEventListener("click",()=>{
- clearTimeout(botTimer);cancelDrag();closePromotion();gameStarted=false;showScreen("menu");
+ clearTimeout(botTimer);cancelDrag();clearScene();closePromotion();gameStarted=false;showScreen("menu");
 });
 showStats();
 
