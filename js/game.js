@@ -4,6 +4,9 @@ const boardElement=document.querySelector("#board");
 const statusElement=document.querySelector("#status");
 const resetButton=document.querySelector("#reset");
 const spriteCache={};
+const customSprites={
+ "white-pawn":"assets/pieces/fantasy/white-pawn.png"
+};
 const firstRow=["rook","knight","bishop","queen","king","bishop","knight","rook"];
 const files="abcdefgh";
 let board,selected,moves,turn,finished,botTimer,audioContext;
@@ -179,6 +182,7 @@ function playHit(){
 // Картинки генерируются как SVG с прозрачным фоном, поэтому не требуют внешних файлов.
 function getPieceSprite(type,color){
  const key=color+"-"+type;
+ if(customSprites[key])return customSprites[key];
  if(spriteCache[key])return spriteCache[key];
  const light=color==="white";
  const palette=light?{
