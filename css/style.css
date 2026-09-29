@@ -1180,3 +1180,70 @@ footer { text-align: center; margin: 16px 10px; }
  background:#263644;color:#dce4e8;cursor:pointer;
 }
 @keyframes online-spin{to{transform:rotate(360deg)}}
+
+
+/* Игровой профиль и ник */
+.profile-chip{
+ display:inline-grid;
+ grid-template-columns:auto 1fr auto;
+ align-items:center;
+ gap:10px;
+ margin-top:14px;
+ padding:9px 12px;
+ border:1px solid #8f7a58;
+ border-radius:12px;
+ background:#101a27b8;
+ color:#f0dfbf;
+ cursor:pointer;
+ box-shadow:inset 0 1px #fff1;
+}
+.profile-chip:hover{filter:brightness(1.12)}
+.profile-chip__avatar{
+ display:grid;place-items:center;
+ width:34px;height:34px;border-radius:50%;
+ background:#d5aa5c;color:#25170a;font-size:20px;
+}
+.profile-chip__text{display:grid;text-align:left;gap:1px}
+.profile-chip__text small{color:#9f927d;font-size:9px;font-weight:900;letter-spacing:.12em}
+.profile-chip__text strong{font:800 15px Georgia,serif}
+.profile-chip__edit{color:#d2b478;font-size:11px}
+
+.profile-modal{
+ position:fixed;z-index:10060;inset:0;
+ display:grid;place-items:center;padding:18px;
+ background:#050b13d9;backdrop-filter:blur(7px);
+}
+.profile-modal__card{
+ position:relative;width:min(100%,420px);
+ padding:28px;border:2px solid #cfa65d;border-radius:20px;
+ background:radial-gradient(circle at 50% 0,#d59c3a24,transparent 36%),linear-gradient(145deg,#172637,#171522);
+ box-shadow:0 24px 70px #000c,inset 0 1px #fff2;
+ color:#f7e6c7;text-align:center;
+}
+.profile-modal__close{
+ position:absolute;right:12px;top:9px;border:0;background:transparent;color:#c9b99d;font-size:28px;cursor:pointer;
+}
+.profile-modal__crest{
+ display:grid;place-items:center;width:68px;height:68px;margin:0 auto 10px;
+ border-radius:50%;background:#d9ad56;color:#29190b;font-size:36px;box-shadow:0 0 26px #e3b95c44;
+}
+.profile-modal h2{margin:5px 0 8px;color:#ffe3a8;font:900 34px Georgia,serif}
+.profile-modal__lead{margin:0 0 18px;color:#abb8c0;font-size:14px;line-height:1.45}
+.profile-modal__label{display:grid;gap:7px;text-align:left;color:#d7c7aa;font-size:12px;font-weight:700}
+.profile-modal__label input{
+ width:100%;padding:13px 14px;border:1px solid #6f8494;border-radius:9px;
+ background:#0c1724;color:#fff0d1;font:700 16px system-ui,sans-serif;outline:none;
+}
+.profile-modal__label input:focus{border-color:#e6bd6d;box-shadow:0 0 0 3px #e6bd6d22}
+.profile-modal__error{margin:9px 0 0;color:#ffb2a7;font-size:12px}
+.profile-modal__save{
+ width:100%;margin-top:14px;padding:14px;border:1px solid #ffe09b;border-radius:9px;
+ background:linear-gradient(#efc56e,#a86630);color:#28190c;font:900 18px Georgia,serif;cursor:pointer;
+ box-shadow:0 4px 0 #6d3f20;
+}
+.online-modal__nickname{
+ display:flex;align-items:center;justify-content:center;gap:10px;
+ margin:0 0 14px;padding:12px;border:1px solid #ffffff18;border-radius:10px;background:#ffffff08;
+}
+.online-modal__nickname span{font-size:24px;color:#e6bf70}
+.online-modal__nickname strong{font:800 19px Georgia,serif;color:#ffe4ae}
