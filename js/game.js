@@ -327,6 +327,49 @@ function showScreen(name,resetScroll=true){
  if(resetScroll)window.scrollTo(0,0);
 }
 const displayIndex=(r,c)=>playerColor==="white"?r*8+c:(7-r)*8+(7-c);
+const nicknameKey="chess-online-nickname";
+function getPlayerNickname(){
+ return (localStorage.getItem(nicknameKey)||"").trim();
+}
+function refreshProfileUI(){
+ const nickname=getPlayerNickname();
+ const chip=document.querySelector("#profile-chip-name");
+ const onlineName=document.querySelector("#online-profile-name");
+ if(chip)chip.textContent=nickname||"Создать ник";
+ if(onlineName)onlineName.textContent=nickname||"Игрок";
+}
+function openProfileModal(focus=true){
+ const modal=document.querySelector("#profile-modal");
+ const input=document.querySelector("#profile-nickname");
+ const error=document.querySelector("#profile-error");
+ if(error)error.hidden=true;
+ input.value=getPlayerNickname();
+ modal.hidden=false;
+ if(focus)setTimeout(()=>input.focus(),0);
+}
+function closeProfileModal(){
+ document.querySelector("#profile-modal").hidden=true;
+}
+async function savePlayerNickname(){
+ const input=document.querySelector("#profile-nickname");
+ const error=document.querySelector("#profile-error");
+ const nickname=input.value.trim().replace(/\s+/g," ").slice(0,24);
+ if(nickname.length<2){
+  error.textContent="Ник должен содержать минимум 2 символа.";
+  error.hidden=false;input.focus();return false;
+ }
+ localStorage.setItem(nicknameKey,nickname);
+ try{
+  const user=await ensureOnlineAuth();
+  if(user&&supabaseClient){
+   await supabaseClient.auth.updateUser({data:{nickname}});
+  }
+ }catch{}
+ refreshProfileUI();
+ closeProfileModal();
+ return true;
+}
+
 async function ensureOnlineAuth(){
  if(!supabaseClient)throw new Error("Supabase не загрузился");
  const {data:{session}}=await supabaseClient.auth.getSession();
@@ -336,12 +379,13 @@ async function ensureOnlineAuth(){
  return data.user;
 }
 function openOnlineModal(){
+ const nickname=getPlayerNickname();
+ if(!nickname){openProfileModal();return}
  const modal=document.querySelector("#online-modal");
+ refreshProfileUI();
  modal.hidden=false;
- document.querySelector("#online-nickname").value=localStorage.getItem("chess-online-nickname")||"";
  document.querySelector("#online-waiting").hidden=true;
  document.querySelector("#online-search").hidden=false;
- setTimeout(()=>document.querySelector("#online-nickname").focus(),0);
 }
 async function cancelOnlineSearch(close=true){
  clearInterval(matchmakingTimer);matchmakingTimer=null;onlinePolling=false;
@@ -376,10 +420,8 @@ async function pollMatchmaking(nickname){
  }finally{onlinePolling=false}
 }
 async function beginOnlineSearch(){
- const input=document.querySelector("#online-nickname");
- const nickname=input.value.trim().slice(0,24);
- if(!nickname){input.focus();return}
- localStorage.setItem("chess-online-nickname",nickname);
+ const nickname=getPlayerNickname();
+ if(!nickname){document.querySelector("#online-modal").hidden=true;openProfileModal();return}
  document.querySelector("#online-search").hidden=true;
  document.querySelector("#online-waiting").hidden=false;
  document.querySelector("#online-status").textContent="Подключаемся…";
@@ -1198,7 +1240,10 @@ document.querySelector("#start-online").addEventListener("click",openOnlineModal
 document.querySelector("#online-close").addEventListener("click",()=>cancelOnlineSearch(true));
 document.querySelector("#online-cancel").addEventListener("click",()=>cancelOnlineSearch(true));
 document.querySelector("#online-search").addEventListener("click",beginOnlineSearch);
-document.querySelector("#online-nickname").addEventListener("keydown",e=>{if(e.key==="Enter")beginOnlineSearch()});
+document.querySelector("#open-profile").addEventListener("click",()=>openProfileModal());
+document.querySelector("#profile-close").addEventListener("click",closeProfileModal);
+document.querySelector("#profile-save").addEventListener("click",savePlayerNickname);
+document.querySelector("#profile-nickname").addEventListener("keydown",e=>{if(e.key==="Enter")savePlayerNickname()});
 document.querySelector("#start-match").addEventListener("click",()=>{
  showScreen("game");startGame();
 });
@@ -1231,7 +1276,7 @@ function requestRewardedEnergy(){
 }
 document.querySelector("#energy-ad").addEventListener("click",requestRewardedEnergy);
 document.querySelector("#puzzles-energy-ad").addEventListener("click",requestRewardedEnergy);
-showStats();renderEnergy();renderPuzzleHub();
+showStats();renderEnergy();renderPuzzleHub();refreshProfileUI();
 setInterval(()=>renderEnergy(),1000);
 
 document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!=="match"||finished||moving||turn!==playerColor)return;const draw=drawState();if(draw.claim){const message=`Ничья по заявлению: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message)}});
