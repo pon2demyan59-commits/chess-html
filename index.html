@@ -84,14 +84,39 @@
     </header>
     <section class="game__panel" aria-label="Шахматная партия">
       <div class="player player--opponent"><span class="player__avatar" id="opponent-avatar">♚</span><div><strong id="opponent-name">Компьютер</strong><small id="opponent-side">Чёрные</small></div></div>
+      <div class="game__arena">
       <div class="board-stage">
         <div id="board" class="board" role="grid" aria-label="Шахматная доска"></div>
         <div id="board-effects" class="board-effects" aria-hidden="true"></div>
-        <div id="result-panel" class="result-panel" aria-hidden="true" hidden>
+        <div id="result-panel" class="result-panel" role="dialog" aria-label="Итог партии" hidden>
           <span class="result-panel__eyebrow" id="result-eyebrow"></span>
           <strong class="result-panel__title" id="result-title"></strong>
           <span class="result-panel__detail" id="result-detail"></span>
+          <div class="result-panel__actions">
+            <button id="result-analysis" type="button">Разбор партии</button>
+            <button id="result-new" type="button">Новая партия</button>
+            <button id="result-next" type="button" hidden>Следующая задача</button>
+            <button id="result-menu" type="button">В меню</button>
+          </div>
         </div>
+      </div>
+        <aside class="moves-panel" aria-label="Запись партии">
+          <h3>Ходы партии</h3>
+          <div id="moves-list" class="moves-list"><p class="moves-empty">Пока ходов нет</p></div>
+          <div id="review-controls" class="review-controls" hidden>
+            <p id="review-position" class="review-position"></p>
+            <div class="review-controls__buttons">
+              <button id="review-first" type="button" aria-label="К началу">⏮</button>
+              <button id="review-prev" type="button" aria-label="Предыдущий ход">◀</button>
+              <button id="review-next" type="button" aria-label="Следующий ход">▶</button>
+              <button id="review-last" type="button" aria-label="К концу">⏭</button>
+            </div>
+            <button id="copy-pgn" class="review-copy" type="button">Скопировать PGN</button>
+            <a class="review-lichess" href="https://lichess.org/paste" target="_blank" rel="noopener noreferrer">Открыть анализ Lichess ↗</a>
+            <p class="review-hint">Для оценки ходов вставь скопированный PGN на Lichess.</p>
+            <button id="review-close" class="review-copy" type="button">Закрыть разбор</button>
+          </div>
+        </aside>
       </div>
       <div class="player player--human"><span class="player__avatar" id="player-avatar">♔</span><div><strong>Игрок</strong><small id="player-side">Белые</small></div></div>
       <p id="status" class="status" role="status" aria-live="polite">Возьми белую фигуру и перетащи её.</p>
@@ -99,6 +124,8 @@
         <h3>Превратить пешку в</h3><div id="promotion-choices" class="promotion__choices"></div>
         <button id="promotion-cancel" class="promotion__cancel" type="button">Отмена</button>
       </div>
+      <button id="analysis-entry" class="reset" type="button" hidden>Разбор партии</button>
+      <button id="resign" class="back-menu" type="button">Сдаться</button>
       <button id="claim-draw" class="reset" type="button" hidden>Заявить ничью</button>
       <button id="reset" class="reset" type="button">Новая партия</button>
       <button id="next-puzzle" class="reset" type="button" hidden>Следующая задача</button>

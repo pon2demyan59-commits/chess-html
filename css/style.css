@@ -168,3 +168,51 @@ footer { text-align: center; margin: 16px 10px; }
  .scene-bubble,.square--fear .piece-image,.scene-defeat__half,.scene-defeat__slash,.result-panel { animation: none; }
  .scene-defeat__slash { display: none; }
 }
+
+/* Запись ходов и просмотр завершённой партии. */
+.game { width: min(100% - 32px, 1130px); }
+.game__arena { display: grid; grid-template-columns: minmax(0,760px) minmax(220px,270px); align-items: stretch; justify-content: center; gap: 16px; }
+.game__arena .board-stage { width: 100%; }
+.moves-panel { display: flex; flex-direction: column; min-width: 0; max-height: 760px; padding: 14px; border: 1px solid #96714b; border-radius: 12px; background: linear-gradient(#293947,#1c2933); color: #f7e5c3; }
+.moves-panel h3 { font: 700 22px Georgia,serif; margin: 0 0 12px; }
+.moves-list { min-height: 80px; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: #a27c50 #263640; }
+.moves-empty { color: #abbac0; font-size: 14px; }
+.moves-row { display: grid; grid-template-columns: 38px 1fr 1fr; align-items: stretch; gap: 4px; margin-bottom: 4px; }
+.moves-row__number { padding: 8px 2px; color: #b9a78b; }
+.moves-row__move { min-height: 38px; padding: 6px; border: 1px solid transparent; border-radius: 6px; background: #ffffff0d; color: #f7e5c3; font: 700 16px Georgia,serif; text-align: left; }
+.moves-row__move:not(:disabled) { cursor: pointer; }
+.moves-row__move:not(:disabled):hover,.moves-row__move.is-current { background: #677947; border-color: #c7df87; }
+.review-controls { display: grid; gap: 8px; border-top: 1px solid #7a6d5c; margin-top: 12px; padding-top: 10px; }
+.review-controls[hidden],.result-panel__actions button[hidden] { display: none; }
+.review-position { margin: 0; min-height: 22px; color: #e5d29e; font-size: 14px; }
+.review-controls__buttons { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; }
+.review-controls button { border: 1px solid #9f815b; border-radius: 6px; background: #354b58; color: #fff1ce; padding: 8px 5px; cursor: pointer; }
+.review-controls button:disabled { opacity: .4; cursor: default; }
+.review-controls .review-copy { width: 100%; }
+.square--last-from { background: #b4c77b; box-shadow: inset 0 0 0 4px #75ac49; }
+.square--last-to { background: #97b665; box-shadow: inset 0 0 0 4px #5d9d37; }
+.square--selected { outline: 4px solid #f8db6f; }
+.scene-bubble { max-width: min(25vw,165px); min-height: 32px; padding: 6px 10px; border-width: 2px; font-size: clamp(12px,2vw,19px); }
+.scene-bubble--king { max-width: min(24vw,130px); font-size: clamp(11px,1.6vw,16px); }
+.scene-bubble::after { width: 11px; height: 13px; border-width: 2px; }
+.result-panel { inset: 12% 5%; gap: clamp(6px,1.5vw,12px); }
+.result-panel__title { font-size: clamp(27px,5.6vw,62px); }
+.result-panel__detail { font-size: clamp(13px,2vw,21px); }
+.result-panel__actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 7px; max-width: 420px; pointer-events: auto; }
+.result-panel__actions button { padding: 9px 11px; border: 1px solid #d9ae70; border-radius: 8px; color: #201b17; background: #f1d39a; font: 700 clamp(11px,1.4vw,15px) system-ui,sans-serif; cursor: pointer; }
+.result-panel__actions button:hover { background: #ffe8bd; }
+@media (max-width: 800px) {
+ .game__arena { grid-template-columns: 1fr; gap: 10px; }
+ .moves-panel { max-height: 220px; padding: 10px; }
+ .moves-panel h3 { font-size: 17px; margin-bottom: 6px; }
+ .moves-list { min-height: 48px; }
+ .moves-row__move { min-height: 32px; padding: 4px; font-size: 14px; }
+ .review-controls { margin-top: 6px; }
+ .result-panel__actions button { padding: 6px 8px; font-size: 11px; }
+ .result-panel__detail { font-size: 13px; }
+}
+
+.review-lichess { display: block; padding: 8px; border: 1px solid #bca477; border-radius: 6px; color: #fff2ce; text-align: center; text-decoration: none; }
+.review-lichess:hover { background: #425b61; }
+.review-hint { margin: 0; color: #afc0c3; font-size: 12px; line-height: 1.35; }
+@media (max-width: 800px) { .moves-panel { max-height: 340px; } }

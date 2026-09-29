@@ -34,6 +34,7 @@ const puzzles=[
 let board,selected,moves,turn,finished,botTimer,audioContext;
 let drag=null,pendingPromotion=null;
 let sceneTimers=[];
+let lastMove=null,reviewMode=false,reviewPly=0,reviewMoves=[],reviewStartFen="",finalMessage="";
 let playerColor="white",botColor="black",menuSide="white",difficultyLevel=5,gameStarted=false,gameMode="match",puzzleIndex=0;
 const statsKey="free-time-chess-stats-v1";
 const levelStatsKey="free-time-chess-level-stats-v1";
@@ -103,7 +104,7 @@ function startGame(){
  cancelDrag();clearScene();
  gameMode="match";
  playerColor=menuSide;botColor=playerColor==="white"?"black":"white";
- chess.reset();syncBoard();closePromotion();
+ chess.reset();syncBoard();closePromotion();resetReview();
  selected=null;moves=[];finished=false;gameStarted=true;
  document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
  document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
@@ -112,17 +113,18 @@ function startGame(){
  document.querySelector("#match-info").textContent=`Ты играешь за ${playerColor==="white"?"белых":"чёрных"} • уровень бота ${difficultyLevel}/10`;
  document.querySelector("#opponent-name").textContent="Компьютер";
  resetButton.textContent="Новая партия";document.querySelector("#claim-draw").hidden=true;
+ document.querySelector("#resign").hidden=false;
  document.querySelector("#next-puzzle").hidden=true;
  statusElement.textContent=playerColor==="white"?"Твой ход: возьми белую фигуру.":"Компьютер ходит первым…";
  render();
- if(playerColor==="black")botTimer=setTimeout(botMove,550);
+ if(playerColor==="black")botTimer=setTimeout(botMove,850);
 }
 function startPuzzle(index){
  clearTimeout(botTimer);cancelDrag();clearScene();
  puzzleIndex=index;gameMode="puzzle";gameStarted=true;finished=false;
  const puzzle=puzzles[index];
  playerColor=puzzle.side;botColor=playerColor==="white"?"black":"white";
- chess.load(puzzle.fen);syncBoard();closePromotion();
+ chess.load(puzzle.fen);syncBoard();closePromotion();resetReview();
  selected=null;moves=[];
  document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
  document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
@@ -132,6 +134,7 @@ function startPuzzle(index){
  document.querySelector("#match-info").textContent=`Задача ${index+1}/${puzzles.length} • мат в один ход`;
  statusElement.textContent="Найди ход, после которого королю не спастись.";
  resetButton.textContent="Повторить задачу";document.querySelector("#claim-draw").hidden=true;
+ document.querySelector("#resign").hidden=true;
  document.querySelector("#next-puzzle").hidden=true;
  render();
 }
@@ -140,8 +143,8 @@ function playPuzzleMove(fr,fc,r,c){
  if(fr!==puzzle.from[0]||fc!==puzzle.from[1]||r!==puzzle.to[0]||c!==puzzle.to[1]){
   render();statusElement.textContent="Это не мат. Попробуй другой ход.";return;
  }
- chess.move({from:square(fr,fc),to:square(r,c)});syncBoard();
- finished=true;render();playScene("mate",{to:square(r,c),color:playerColor==="white"?"w":"b"},"Верно! Мат в один ход.");
+ chess.move({from:square(fr,fc),to:square(r,c)});syncBoard();lastMove=chess.history({verbose:true}).at(-1);
+ finished=true;render();renderMoveList();playScene("mate",{to:square(r,c),color:playerColor==="white"?"w":"b"},"Верно! Мат в один ход.");
  statusElement.textContent="Верно! Шах и мат в один ход.";
  const next=document.querySelector("#next-puzzle");
  next.textContent=puzzleIndex===puzzles.length-1?"Начать задачи заново":"Следующая задача";
@@ -172,7 +175,11 @@ function repetitionCount(){
 function drawState(){const n=Number(chess.fen().split(" ")[4]),reps=repetitionCount();return {
  automatic:n>=150?"75 ходов без взятия и хода пешкой":reps>=5?"пятикратное повторение позиции":null,
  claim:n>=100?"50 ходов без взятия и хода пешкой":reps>=3?"троекратное повторение позиции":null};}
-function endMatch(result,message){finished=true;statusElement.textContent=message;document.querySelector("#claim-draw").hidden=true;recordResult(result)}
+function endMatch(result,message){
+ finished=true;finalMessage=message;statusElement.textContent=message;
+ document.querySelector("#claim-draw").hidden=true;document.querySelector("#resign").hidden=true;
+ document.querySelector("#analysis-entry").hidden=false;recordResult(result);
+}
 function render(){
  boardElement.replaceChildren();
  for(let dr=0;dr<8;dr++)for(let dc=0;dc<8;dc++){
@@ -180,6 +187,8 @@ function render(){
   const cell=document.createElement("button"),p=board[r][c],canGo=moves.some(m=>m.r===r&&m.c===c);
   cell.type="button";cell.className="square "+((r+c)%2?"square--dark":"square--light");
   cell.setAttribute("role","gridcell");cell.setAttribute("aria-label",files[c]+(8-r)+(p?" "+p.color+" "+p.type:" пусто"));
+  if(lastMove?.from===square(r,c))cell.classList.add("square--last-from");
+  if(lastMove?.to===square(r,c))cell.classList.add("square--last-to");
   if(selected&&selected.r===r&&selected.c===c)cell.classList.add("square--selected");
   if(canGo)cell.classList.add(p?"square--capture":"square--move");
   if(p){
@@ -212,7 +221,7 @@ function cancelDrag(){
  drag=null;
 }
 function onPointerDown(event){
- if(!gameStarted||finished||pendingPromotion||turn!==playerColor||event.button!==0||drag)return;
+ if(!gameStarted||finished||reviewMode||pendingPromotion||turn!==playerColor||event.button!==0||drag)return;
  const cell=event.target.closest(".square");
  if(!cell||!boardElement.contains(cell))return;
  const r=Number(cell.dataset.row),c=Number(cell.dataset.col);
@@ -275,7 +284,8 @@ boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;mo
 window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];if(board)render()});
 function move(fr,fc,r,c,promotion){
  clearScene();
- const played=chess.move({from:square(fr,fc),to:square(r,c),promotion});syncBoard();selected=null;moves=[];render();
+ const played=chess.move({from:square(fr,fc),to:square(r,c),promotion});
+ syncBoard();lastMove=played;selected=null;moves=[];render();renderMoveList();animatePlayedMove(played);
  const captured=!!played.captured;if(captured){impact(r,c);playHit()}
  if(chess.isCheckmate()){
   const result=colorName(played.color)===playerColor?"wins":"losses";
@@ -285,15 +295,15 @@ function move(fr,fc,r,c,promotion){
  if(chess.isStalemate()){
   endMatch("draws","Пат — ничья.");playScene("stalemate",played,"Пат — ничья.");return;
  }
- if(chess.isInsufficientMaterial()){endMatch("draws","Ничья: мат невозможен при оставшихся фигурах.");return}
- const draw=drawState();if(draw.automatic){endMatch("draws",`Ничья: ${draw.automatic}.`);return}
+ if(chess.isInsufficientMaterial()){const message="Ничья: мат невозможен при оставшихся фигурах.";endMatch("draws",message);showResult("draw",message);return}
+ const draw=drawState();if(draw.automatic){const message=`Ничья: ${draw.automatic}.`;endMatch("draws",message);showResult("draw",message);return}
  document.querySelector("#claim-draw").hidden=!(draw.claim&&turn===playerColor);
+ if(turn===botColor&&draw.claim){const message=`Компьютер заявил ничью: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message);return}
  const check=chess.isCheck();
  if(check)playScene("check",played);
  if(turn===botColor){
-  if(draw.claim){endMatch("draws",`Компьютер заявил ничью: ${draw.claim}.`);return}
   statusElement.textContent=check?"Шах компьютеру! Он думает…":captured?"Попадание! Компьютер думает…":"Компьютер думает…";
-  botTimer=setTimeout(botMove,check?1700:550);
+  botTimer=setTimeout(botMove,check?1900:850);
  }else statusElement.textContent=check?"Шах твоему королю! Защити его.":captured?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
 }
 function botMove(){
@@ -330,6 +340,67 @@ function impact(r,c){
  for(let i=0;i<8;i++){const spark=document.createElement("span");spark.className="spark";spark.style.setProperty("--angle",i*45+"deg");cell.append(spark)}
  setTimeout(()=>{cell.classList.remove("square--impact");cell.querySelectorAll(".spark").forEach(s=>s.remove())},650);
 }
+function resetReview(){
+ reviewMode=false;reviewPly=0;reviewMoves=[];reviewStartFen="";finalMessage="";lastMove=null;
+ document.querySelector("#analysis-entry").hidden=true;
+ document.querySelector("#review-controls").hidden=true;
+ renderMoveList();
+}
+function renderMoveList(){
+ const list=document.querySelector("#moves-list");list.replaceChildren();
+ const history=reviewMode?reviewMoves:chess.history({verbose:true});
+ if(!history.length){const empty=document.createElement("p");empty.className="moves-empty";empty.textContent="Пока ходов нет";list.append(empty);return}
+ for(let i=0;i<history.length;i+=2){
+  const row=document.createElement("div");row.className="moves-row";
+  const number=document.createElement("span");number.className="moves-row__number";number.textContent=`${Math.floor(i/2)+1}.`;row.append(number);
+  for(let j=i;j<Math.min(i+2,history.length);j++){
+   const item=document.createElement("button");item.type="button";item.className="moves-row__move";
+   item.textContent=history[j].san;item.title=`Ход ${j+1}: ${history[j].san}`;
+   item.disabled=!reviewMode;
+   if(reviewMode&&reviewPly===j+1)item.classList.add("is-current");
+   item.addEventListener("click",()=>setReviewPly(j+1));row.append(item);
+  }
+  list.append(row);
+ }
+ if(!reviewMode)list.scrollTop=list.scrollHeight;
+}
+function setReviewPly(ply){
+ if(!reviewMode)return;
+ reviewPly=Math.max(0,Math.min(reviewMoves.length,ply));
+ const replay=new Chess(reviewStartFen);
+ for(let i=0;i<reviewPly;i++){const m=reviewMoves[i];replay.move({from:m.from,to:m.to,promotion:m.promotion})}
+ board=replay.board().map(row=>row.map(p=>p&&{type:names[p.type],color:colorName(p.color)}));
+ lastMove=reviewMoves[reviewPly-1]||null;selected=null;moves=[];render();renderMoveList();
+ document.querySelector("#review-position").textContent=reviewPly?`Ход ${Math.ceil(reviewPly/2)}: ${lastMove.san}`:"Начальная позиция";
+ for(const [id,disabled] of [["#review-first",!reviewPly],["#review-prev",!reviewPly],["#review-next",reviewPly===reviewMoves.length],["#review-last",reviewPly===reviewMoves.length]])document.querySelector(id).disabled=disabled;
+}
+function openReview(){
+ if(gameMode!=="match"||!finished)return;
+ clearScene();reviewMoves=chess.history({verbose:true});reviewStartFen=reviewMoves[0]?.before||chess.fen();reviewMode=true;
+ document.querySelector("#analysis-entry").hidden=true;document.querySelector("#review-controls").hidden=false;
+ setReviewPly(reviewMoves.length);
+ statusElement.textContent="Разбор партии: выбирай ход в записи или листай стрелками.";
+ document.querySelector("#review-controls").scrollIntoView?.({block:"nearest",behavior:"smooth"});
+}
+function closeReview(){
+ if(!reviewMode)return;reviewMode=false;syncBoard();lastMove=chess.history({verbose:true}).at(-1)||null;
+ render();renderMoveList();document.querySelector("#review-controls").hidden=true;
+ document.querySelector("#analysis-entry").hidden=false;statusElement.textContent=finalMessage;
+}
+function animatePlayedMove(m){
+ const fr=8-Number(m.from[1]),fc=files.indexOf(m.from[0]),r=8-Number(m.to[1]),c=files.indexOf(m.to[0]);
+ const source=boardElement.children[displayIndex(fr,fc)],destination=boardElement.children[displayIndex(r,c)];
+ const img=destination?.querySelector?.(".piece-image");
+ if(!source||!img||window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)return;
+ const a=source.getBoundingClientRect(),b=destination.getBoundingClientRect();
+ img.animate?.([{transform:`translate(${a.left-b.left}px, ${a.top-b.top}px) scale(1.08)`},{transform:"translate(0,0) scale(1)"}],{duration:500,easing:"cubic-bezier(.18,.65,.25,1)"});
+ if(m.isKingsideCastle?.()||m.isQueensideCastle?.()){
+  const rookFrom=m.isKingsideCastle()?7:0,rookTo=m.isKingsideCastle()?5:3;
+  const rookStart=boardElement.children[displayIndex(fr,rookFrom)],rookEnd=boardElement.children[displayIndex(fr,rookTo)];
+  const rookImg=rookEnd?.querySelector?.(".piece-image");
+  if(rookImg){const x=rookStart.getBoundingClientRect(),y=rookEnd.getBoundingClientRect();rookImg.animate?.([{transform:`translate(${x.left-y.left}px,${x.top-y.top}px)`},{transform:"translate(0,0)"}],{duration:500,easing:"ease-out"})}
+ }
+}
 // Сцены поверх поля не участвуют в выборе клетки и не меняют шахматную позицию.
 function clearScene(){
  for(const timer of sceneTimers)clearTimeout(timer);sceneTimers=[];
@@ -360,9 +431,12 @@ function kingCell(squareName){
 }
 function showResult(kind,message){
  const panel=document.querySelector("#result-panel");panel.className=`result-panel result-panel--${kind}`;
- document.querySelector("#result-eyebrow").textContent=kind==="mate"?"БИТВА ОКОНЧЕНА":"ХОДОВ БОЛЬШЕ НЕТ";
- document.querySelector("#result-title").textContent=kind==="mate"?"ШАХ И МАТ!":"ПАТ!";
+ document.querySelector("#result-eyebrow").textContent=kind==="mate"?"БИТВА ОКОНЧЕНА":kind==="stalemate"?"ХОДОВ БОЛЬШЕ НЕТ":"ПАРТИЯ ЗАВЕРШЕНА";
+ document.querySelector("#result-title").textContent=kind==="mate"?"ШАХ И МАТ!":kind==="stalemate"?"ПАТ!":kind==="resign"?"ПОРАЖЕНИЕ":"НИЧЬЯ";
  document.querySelector("#result-detail").textContent=message;
+ document.querySelector("#result-analysis").hidden=gameMode!=="match";
+ document.querySelector("#result-new").hidden=gameMode!=="match";
+ document.querySelector("#result-next").hidden=gameMode!=="puzzle";
  panel.hidden=false;
 }
 function playScene(kind,played,message){
@@ -508,10 +582,33 @@ document.querySelector("#puzzle-entry").addEventListener("click",()=>{
  showScreen("game");startPuzzle(0);
 });
 document.querySelector("#back-menu").addEventListener("click",()=>{
- clearTimeout(botTimer);cancelDrag();clearScene();closePromotion();gameStarted=false;showScreen("menu");
+ clearTimeout(botTimer);cancelDrag();clearScene();closePromotion();resetReview();gameStarted=false;showScreen("menu");
 });
 showStats();
 
-document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!=="match"||finished||turn!==playerColor)return;const draw=drawState();if(draw.claim)endMatch("draws",`Ничья по заявлению: ${draw.claim}.`)});
+document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!=="match"||finished||turn!==playerColor)return;const draw=drawState();if(draw.claim){const message=`Ничья по заявлению: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message)}});
 document.querySelector("#promotion-cancel").addEventListener("click",()=>{closePromotion();render();statusElement.textContent="Превращение отменено. Выбери ход снова."});
 window.addEventListener("keydown",e=>{if(e.key==="Escape"&&pendingPromotion){closePromotion();render()}});
+
+document.querySelector("#analysis-entry").addEventListener("click",openReview);
+document.querySelector("#result-analysis").addEventListener("click",openReview);
+document.querySelector("#result-new").addEventListener("click",startGame);
+document.querySelector("#result-next").addEventListener("click",()=>startPuzzle((puzzleIndex+1)%puzzles.length));
+document.querySelector("#result-menu").addEventListener("click",()=>document.querySelector("#back-menu").click());
+document.querySelector("#resign").addEventListener("click",()=>{
+ if(!gameStarted||finished||gameMode!=="match")return;
+ clearTimeout(botTimer);clearScene();const message="Ты сдался. Победа компьютера.";
+ endMatch("losses",message);showResult("resign",message);
+});
+for(const [id,position] of [["#review-first",0],["#review-prev",-1],["#review-next",1],["#review-last",Infinity]])
+ document.querySelector(id).addEventListener("click",()=>setReviewPly(position===Infinity?reviewMoves.length:position===0?0:reviewPly+position));
+document.querySelector("#review-close").addEventListener("click",closeReview);
+document.querySelector("#copy-pgn").addEventListener("click",async()=>{
+ const pgn=chess.pgn();
+ try{await navigator.clipboard.writeText(pgn);document.querySelector("#copy-pgn").textContent="PGN скопирован"}
+ catch{
+  const file=new Blob([pgn],{type:"application/x-chess-pgn;charset=utf-8"}),url=URL.createObjectURL(file),link=document.createElement("a");
+  link.href=url;link.download="partiya.pgn";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  document.querySelector("#copy-pgn").textContent="PGN скачан";
+ }
+});
