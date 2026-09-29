@@ -47,7 +47,9 @@ const MAX_ENERGY=6;
 let energy=loadEnergy();
 
 function loadEnergy(){
- const saved=Number(localStorage.getItem(energyKey));
+ const raw=localStorage.getItem(energyKey);
+ if(raw===null)return MAX_ENERGY;
+ const saved=Number(raw);
  return Number.isInteger(saved)?Math.max(0,Math.min(MAX_ENERGY,saved)):MAX_ENERGY;
 }
 function renderEnergy(message=""){
@@ -242,6 +244,7 @@ function startPuzzle(index){
 function playPuzzleMove(fr,fc,r,c,dragState=null){
  const puzzle=puzzles[puzzleIndex];
  if(fr!==puzzle.from[0]||fc!==puzzle.from[1]||r!==puzzle.to[0]||c!==puzzle.to[1]){
+  dragState?.ghost?.remove();
   render();statusElement.textContent="Это не мат. Попробуй другой ход.";return;
  }
  const from=square(fr,fc),to=square(r,c);
