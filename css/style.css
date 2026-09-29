@@ -42,6 +42,17 @@ body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, 
 .stats-table th:first-child { text-align: left; }
 .stats-table thead { color: #c9d1dc; font-size: 12px; }
 .stats-table tbody th { color: #f5dfb8; }
+.level-stats { margin-top: 22px; border-top: 1px solid #ffffff2b; padding-top: 16px; }
+.level-stats summary { color: #f2d6a0; font: 700 18px Georgia, serif; cursor: pointer; margin-bottom: 10px; }
+.level-stats .stats-scroll { max-height: 300px; overflow: auto; }
+.level-stats .stats-table th, .level-stats .stats-table td { padding: 7px 6px; }
+.puzzle-entry { width: 100%; display: flex; align-items: center; gap: 12px; margin-top: 22px; padding: 10px 12px; border: 1px solid #d6aa67; border-radius: 12px; background: linear-gradient(110deg, #29465b, #433049); color: #f9e5bc; text-align: left; cursor: pointer; box-shadow: inset 0 1px #fff2, 0 8px 20px #0005; }
+.puzzle-entry:hover { filter: brightness(1.14); }
+.puzzle-entry img { width: 66px; height: 70px; object-fit: contain; filter: drop-shadow(0 3px 4px #0008); }
+.puzzle-entry span:not(.puzzle-entry__arrow) { display: grid; gap: 5px; }
+.puzzle-entry strong { font: 700 21px Georgia, serif; }
+.puzzle-entry small { color: #d5d8dc; font-size: 13px; }
+.puzzle-entry__arrow { margin-left: auto; font-size: 38px; line-height: 1; }
 .back-menu { display: block; margin: 12px auto 0; padding: 8px 12px; border: 0; background: transparent; color: #d6c299; text-decoration: underline; font: inherit; cursor: pointer; }
 .menu button:focus-visible, .back-menu:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .game { width: min(100% - 32px, 900px); margin: 0 auto; padding: 20px 0 32px; }

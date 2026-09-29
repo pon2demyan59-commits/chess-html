@@ -22,10 +22,16 @@ const customSprites={
 };
 const firstRow=["rook","knight","bishop","queen","king","bishop","knight","rook"];
 const files="abcdefgh";
+const puzzles=[
+ {side:"white",pieces:[[0,0,"king","black"],[2,2,"king","white"],[2,1,"queen","white"]],from:[2,1],to:[1,1]},
+ {side:"white",pieces:[[0,7,"king","black"],[2,5,"king","white"],[2,6,"queen","white"]],from:[2,6],to:[1,6]},
+ {side:"black",pieces:[[7,7,"king","white"],[5,5,"king","black"],[5,6,"queen","black"]],from:[5,6],to:[6,6]}
+];
 let board,selected,moves,turn,finished,botTimer,audioContext;
 let drag=null;
-let playerColor="white",botColor="black",difficultyLevel=5,gameStarted=false;
+let playerColor="white",botColor="black",menuSide="white",difficultyLevel=5,gameStarted=false,gameMode="match",puzzleIndex=0;
 const statsKey="free-time-chess-stats-v1";
+const levelStatsKey="free-time-chess-level-stats-v1";
 function emptyStats(){return {white:{wins:0,losses:0,draws:0},black:{wins:0,losses:0,draws:0}}}
 function loadStats(){
  try{
@@ -37,6 +43,16 @@ function loadStats(){
  }catch{return emptyStats()}
 }
 const stats=loadStats();
+function loadLevelStats(){
+ const result=Array.from({length:10},()=>({wins:0,losses:0,draws:0}));
+ try{
+  const saved=JSON.parse(localStorage.getItem(levelStatsKey));
+  for(let i=0;i<10;i++)for(const outcome of ["wins","losses","draws"])
+   if(Number.isSafeInteger(saved?.[i]?.[outcome])&&saved[i][outcome]>=0)result[i][outcome]=saved[i][outcome];
+ }catch{/* Новая статистика. */}
+ return result;
+}
+const levelStats=loadLevelStats();
 function showStats(){
  let total=0;
  for(const side of ["white","black"]){
@@ -48,11 +64,26 @@ function showStats(){
   document.querySelector(`#${side}-rate`).textContent=`${games?Math.round(stats[side].wins/games*100):0}%`;
  }
  document.querySelector("#overall-stats").textContent=`Сыграно партий: ${total}`;
+ const body=document.querySelector("#level-stats-body");body.replaceChildren();
+ for(let i=0;i<10;i++){
+  const row=document.createElement("tr"),data=levelStats[i];
+  const cells=[i+1,data.wins+data.losses+data.draws,data.wins,data.losses,data.draws];
+  cells.forEach((value,j)=>{
+   const cell=document.createElement(j===0?"th":"td");
+   if(j===0)cell.setAttribute("scope","row");
+   cell.textContent=value;row.append(cell);
+  });
+  body.append(row);
+ }
 }
 function recordResult(outcome){
- if(!gameStarted)return;
+ if(!gameStarted||gameMode!=="match")return;
  stats[playerColor][outcome]++;
- try{localStorage.setItem(statsKey,JSON.stringify(stats))}catch{/* Партия продолжается без сохранения. */}
+ levelStats[difficultyLevel-1][outcome]++;
+ try{
+  localStorage.setItem(statsKey,JSON.stringify(stats));
+  localStorage.setItem(levelStatsKey,JSON.stringify(levelStats));
+ }catch{/* Партия продолжается без сохранения. */}
  showStats();
 }
 function showScreen(name){
@@ -65,6 +96,8 @@ const displayIndex=(r,c)=>playerColor==="white"?r*8+c:(7-r)*8+(7-c);
 function startGame(){
  clearTimeout(botTimer);
  cancelDrag();
+ gameMode="match";
+ playerColor=menuSide;botColor=playerColor==="white"?"black":"white";
  board=Array.from({length:8},()=>Array(8).fill(null));
  firstRow.forEach((type,c)=>{board[0][c]={type,color:"black"};board[7][c]={type,color:"white"}});
  for(let c=0;c<8;c++){board[1][c]={type:"pawn",color:"black"};board[6][c]={type:"pawn",color:"white"}}
@@ -74,9 +107,43 @@ function startGame(){
  document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
  document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
  document.querySelector("#match-info").textContent=`Ты играешь за ${playerColor==="white"?"белых":"чёрных"} • уровень бота ${difficultyLevel}/10`;
+ document.querySelector("#opponent-name").textContent="Компьютер";
+ resetButton.textContent="Новая партия";
+ document.querySelector("#next-puzzle").hidden=true;
  statusElement.textContent=playerColor==="white"?"Твой ход: возьми белую фигуру.":"Компьютер ходит первым…";
  render();
  if(playerColor==="black")botTimer=setTimeout(botMove,550);
+}
+function startPuzzle(index){
+ clearTimeout(botTimer);cancelDrag();
+ puzzleIndex=index;gameMode="puzzle";gameStarted=true;finished=false;
+ const puzzle=puzzles[index];
+ playerColor=puzzle.side;botColor=playerColor==="white"?"black":"white";
+ board=Array.from({length:8},()=>Array(8).fill(null));
+ for(const [r,c,type,color] of puzzle.pieces)board[r][c]={type,color};
+ selected=null;moves=[];turn=playerColor;
+ document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
+ document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
+ document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
+ document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
+ document.querySelector("#opponent-name").textContent="Задача";
+ document.querySelector("#match-info").textContent=`Задача ${index+1}/${puzzles.length} • мат в один ход`;
+ statusElement.textContent="Найди ход, после которого королю не спастись.";
+ resetButton.textContent="Повторить задачу";
+ document.querySelector("#next-puzzle").hidden=true;
+ render();
+}
+function playPuzzleMove(fr,fc,r,c){
+ const puzzle=puzzles[puzzleIndex];
+ if(fr!==puzzle.from[0]||fc!==puzzle.from[1]||r!==puzzle.to[0]||c!==puzzle.to[1]){
+  render();statusElement.textContent="Это не мат. Попробуй другой ход.";return;
+ }
+ applyBoardMove(fr,fc,r,c);
+ finished=true;render();
+ statusElement.textContent="Верно! Шах и мат в один ход.";
+ const next=document.querySelector("#next-puzzle");
+ next.textContent=puzzleIndex===puzzles.length-1?"Начать задачи заново":"Следующая задача";
+ next.hidden=false;
 }
 const inside=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
 function getPseudoMoves(r,c){
@@ -277,7 +344,7 @@ function onPointerUp(event){
  const toC=target?Number(target.dataset.col):-1;
  const valid=moves.some(m=>m.r===toR&&m.c===toC);
  cancelDrag();selected=null;moves=[];
- if(valid){move(fromR,fromC,toR,toC)}
+ if(valid){if(gameMode==="puzzle")playPuzzleMove(fromR,fromC,toR,toC);else move(fromR,fromC,toR,toC)}
  else{render();statusElement.textContent="Ход отменён. Возьми фигуру и перетащи её на другую клетку."}
 }
 boardElement.addEventListener("pointerdown",onPointerDown);
@@ -406,7 +473,8 @@ function getPieceSprite(type,color){
  return spriteCache[key];
 }
 
-resetButton.addEventListener("click",startGame);
+resetButton.addEventListener("click",()=>gameMode==="puzzle"?startPuzzle(puzzleIndex):startGame());
+document.querySelector("#next-puzzle").addEventListener("click",()=>startPuzzle((puzzleIndex+1)%puzzles.length));
 for(let level=1;level<=10;level++){
  const button=document.createElement("button");
  button.type="button";button.textContent=level;
@@ -425,7 +493,7 @@ for(let level=1;level<=10;level++){
  levelsElement.append(button);
 }
 for(const button of document.querySelectorAll(".side-option"))button.addEventListener("click",()=>{
- playerColor=button.dataset.side;botColor=playerColor==="white"?"black":"white";
+ menuSide=button.dataset.side;
  for(const item of document.querySelectorAll(".side-option")){
   const selected=item===button;
   item.classList.toggle("is-selected",selected);
@@ -435,6 +503,9 @@ for(const button of document.querySelectorAll(".side-option"))button.addEventLis
 document.querySelector("#enter").addEventListener("click",()=>showScreen("menu"));
 document.querySelector("#start-match").addEventListener("click",()=>{
  showScreen("game");startGame();
+});
+document.querySelector("#puzzle-entry").addEventListener("click",()=>{
+ showScreen("game");startPuzzle(0);
 });
 document.querySelector("#back-menu").addEventListener("click",()=>{
  clearTimeout(botTimer);cancelDrag();gameStarted=false;showScreen("menu");

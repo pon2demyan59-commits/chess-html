@@ -56,6 +56,21 @@
             </table>
           </div>
           <p class="menu__hint">Результаты сохраняются на этом устройстве после завершения партии.</p>
+          <details class="level-stats" open>
+            <summary>Игры по уровням сложности</summary>
+            <p class="menu__hint">Учёт по уровням начался с этого обновления.</p>
+            <div class="stats-scroll">
+              <table class="stats-table">
+                <thead><tr><th scope="col">Уровень</th><th scope="col">Партий</th><th scope="col">Победы</th><th scope="col">Поражения</th><th scope="col">Ничьи</th></tr></thead>
+                <tbody id="level-stats-body"></tbody>
+              </table>
+            </div>
+          </details>
+          <button id="puzzle-entry" class="puzzle-entry" type="button">
+            <img src="assets/pieces/fantasy/white-knight.png" alt="">
+            <span><strong>Решение задач</strong><small>Найди мат в один ход</small></span>
+            <span class="puzzle-entry__arrow" aria-hidden="true">›</span>
+          </button>
         </section>
       </div>
     </div>
@@ -67,11 +82,12 @@
       <p id="match-info" class="subtitle">Партия против компьютера</p>
     </header>
     <section class="game__panel" aria-label="Шахматная партия">
-      <div class="player player--opponent"><span class="player__avatar" id="opponent-avatar">♚</span><div><strong>Компьютер</strong><small id="opponent-side">Чёрные</small></div></div>
+      <div class="player player--opponent"><span class="player__avatar" id="opponent-avatar">♚</span><div><strong id="opponent-name">Компьютер</strong><small id="opponent-side">Чёрные</small></div></div>
       <div id="board" class="board" role="grid" aria-label="Шахматная доска"></div>
       <div class="player player--human"><span class="player__avatar" id="player-avatar">♔</span><div><strong>Игрок</strong><small id="player-side">Белые</small></div></div>
       <p id="status" class="status" role="status" aria-live="polite">Возьми белую фигуру и перетащи её.</p>
       <button id="reset" class="reset" type="button">Новая партия</button>
+      <button id="next-puzzle" class="reset" type="button" hidden>Следующая задача</button>
       <button id="back-menu" class="back-menu" type="button">В основное меню</button>
     </section>
     <footer>Перетаскивай фигуры мышью или пальцем. Для рокировки перенеси короля на две клетки к ладье. Взятие на проходе добавим позже.</footer>
