@@ -30,8 +30,32 @@
       <header class="menu__header">
         <p class="eyebrow">ШАХМАТЫ В СВОБОДНОЕ ВРЕМЯ</p>
         <h2 id="menu-title" tabindex="-1">Зал поединков</h2>
-        <p>Выбери сторону и силу соперника</p>
+        <p>Играй партии, зарабатывай энергию и решай шахматные задачи</p>
       </header>
+
+      <section class="puzzle-hero" aria-labelledby="puzzle-title">
+        <div class="puzzle-hero__copy">
+          <span class="puzzle-hero__badge">ГЛАВНАЯ ФИШКА</span>
+          <p class="puzzle-hero__kicker">ТРЕНИРОВКА МЫШЛЕНИЯ</p>
+          <h3 id="puzzle-title">Шахматные задачи</h3>
+          <p class="puzzle-hero__lead">Находи победный ход, ставь мат и собирай серии правильных решений.</p>
+          <p class="puzzle-hero__fresh">Новые задачи будут регулярно пополняться.</p>
+        </div>
+        <div class="puzzle-hero__action">
+          <div class="energy-card" aria-label="Энергия для решения задач">
+            <span class="energy-card__icon" aria-hidden="true">⚡</span>
+            <div>
+              <small>Энергия</small>
+              <strong><span id="energy-value">6</span>/<span id="energy-max">6</span></strong>
+            </div>
+          </div>
+          <p id="energy-note" class="energy-note">1 задача = 1 энергия. Сыгранная партия пополняет запас.</p>
+          <button id="puzzle-entry" class="puzzle-hero__play" type="button">Решать задачу <span>−1 ⚡</span></button>
+          <button id="energy-ad" class="puzzle-hero__ad" type="button">Получить +3 ⚡ за рекламу</button>
+          <small class="puzzle-hero__adnote">Рекламная энергия подключится через SDK Яндекс Игр.</small>
+        </div>
+      </section>
+
       <div class="menu__columns">
         <section class="menu__panel" aria-labelledby="side-title">
           <h3 id="side-title">За кого играть</h3>
@@ -67,11 +91,6 @@
               </table>
             </div>
           </details>
-          <button id="puzzle-entry" class="puzzle-entry" type="button">
-            <img src="assets/pieces/fantasy/white-knight.png" alt="">
-            <span><strong>Решение задач</strong><small>Найди мат в один ход</small></span>
-            <span class="puzzle-entry__arrow" aria-hidden="true">›</span>
-          </button>
         </section>
       </div>
     </div>
