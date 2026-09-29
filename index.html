@@ -6,6 +6,7 @@
   <title>Шахматы в свободное время</title>
   <link rel="stylesheet" href="css/style.css">
   <script src="vendor/chess.js/chess.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="js/game.js" defer></script>
 </head>
 <body>
@@ -67,6 +68,12 @@
           <h3 id="level-title">Сложность бота: <output id="level-value">Офицер</output></h3>
           <div id="levels" class="levels" role="group" aria-labelledby="level-title"></div>
           <p class="menu__hint">Пешка — самый простой соперник, Король — самый сильный.</p>
+          <button id="start-online" class="online-cta" type="button">
+            <span class="online-cta__pulse" aria-hidden="true"></span>
+            <span class="online-cta__icon" aria-hidden="true">⚔</span>
+            <span class="online-cta__copy"><small>ОНЛАЙН</small><strong>Найти соперника</strong><span>Случайный игрок в сети</span></span>
+            <span class="online-cta__arrow" aria-hidden="true">›</span>
+          </button>
           <button id="start-match" class="menu__start" type="button">Играть с компьютером</button>
           <button id="start-hotseat" class="menu__hotseat" type="button">
             <span aria-hidden="true">♔ ♚</span>
@@ -87,6 +94,26 @@
       </div>
     </div>
   </main>
+  <div id="online-modal" class="online-modal" hidden>
+    <div class="online-modal__card" role="dialog" aria-modal="true" aria-labelledby="online-title">
+      <button id="online-close" class="online-modal__close" type="button" aria-label="Закрыть">×</button>
+      <span class="online-modal__crest" aria-hidden="true">⚔</span>
+      <p class="eyebrow">ОНЛАЙН-ПОЕДИНОК</p>
+      <h2 id="online-title">Найти соперника</h2>
+      <p class="online-modal__lead">Укажи имя, под которым тебя увидит соперник.</p>
+      <label class="online-modal__label">Твой ник
+        <input id="online-nickname" maxlength="24" autocomplete="nickname" placeholder="Например, Ганник">
+      </label>
+      <button id="online-search" class="online-modal__search" type="button">Начать поиск</button>
+      <div id="online-waiting" class="online-waiting" hidden>
+        <span class="online-waiting__spinner" aria-hidden="true"></span>
+        <strong>Ищем соперника…</strong>
+        <span id="online-wait-time">00:00</span>
+        <small id="online-status">Ожидаем свободного игрока</small>
+        <button id="online-cancel" type="button">Отменить поиск</button>
+      </div>
+    </div>
+  </div>
   <main id="puzzles" class="puzzles-page" hidden>
     <div class="puzzles-page__content">
       <header class="puzzles-page__header">
