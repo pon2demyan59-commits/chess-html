@@ -3,6 +3,7 @@
 const boardElement=document.querySelector("#board");
 const statusElement=document.querySelector("#status");
 const resetButton=document.querySelector("#reset");
+const difficultyElement=document.querySelector("#difficulty");
 const spriteCache={};
 const customSprites={
  "white-pawn":"assets/pieces/fantasy/white-pawn.png",
@@ -223,10 +224,42 @@ function botMove(){
  for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.color==="black")
   for(const m of getMoves(r,c))options.push({fr:r,fc:c,r:m.r,c:m.c,capture:!!board[m.r][m.c]});
  if(!options.length){finished=true;statusElement.textContent=inCheck("black")?"Шах и мат! Ты победил!":"Пат — ничья.";return}
- const hits=options.filter(o=>o.capture);
- const pool=hits.length&&Math.random()<.8?hits:options;
- const choice=pool[Math.floor(Math.random()*pool.length)];
+ const choice=chooseBotMove(options,difficultyElement.value);
  move(choice.fr,choice.fc,choice.r,choice.c);
+}
+const pieceValues={pawn:1,knight:3,bishop:3,rook:5,queen:9,king:0};
+function materialScore(){
+ let score=0;
+ for(const row of board)for(const p of row)if(p)score+=(p.color==="black"?1:-1)*pieceValues[p.type];
+ return score;
+}
+function chooseBotMove(options,difficulty){
+ if(difficulty==="easy")return options[Math.floor(Math.random()*options.length)];
+ if(difficulty==="normal"){
+  const hits=options.filter(o=>o.capture);
+  const pool=hits.length&&Math.random()<.8?hits:options;
+  return pool[Math.floor(Math.random()*pool.length)];
+ }
+ // Сложный бот оценивает каждый свой ход и лучший материальный ответ игрока.
+ let best=-Infinity,choices=[];
+ for(const o of options){
+  const p=board[o.fr][o.fc],taken=board[o.r][o.c];
+  board[o.r][o.c]=p;board[o.fr][o.fc]=null;
+  let worst=Infinity,replyExists=false;
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.color==="white")
+   for(const reply of getMoves(r,c)){
+    replyExists=true;
+    const white=board[r][c],victim=board[reply.r][reply.c];
+    board[reply.r][reply.c]=white;board[r][c]=null;
+    worst=Math.min(worst,materialScore());
+    board[r][c]=white;board[reply.r][reply.c]=victim;
+   }
+  const score=replyExists?worst:inCheck("white")?1000:0;
+  board[o.fr][o.fc]=p;board[o.r][o.c]=taken;
+  if(score>best){best=score;choices=[o]}
+  else if(score===best)choices.push(o);
+ }
+ return choices[Math.floor(Math.random()*choices.length)];
 }
 function impact(r,c){
  const cell=boardElement.children[r*8+c];if(!cell)return;
