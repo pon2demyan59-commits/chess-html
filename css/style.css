@@ -235,3 +235,11 @@ footer { text-align: center; margin: 16px 10px; }
  filter:drop-shadow(0 7px 7px #0008);
  will-change:left,top;
 }
+
+
+/* Разбор партии отключён: оставляем только запись ходов во время игры. */
+#analysis-entry,
+#result-analysis,
+#review-controls {
+ display: none !important;
+}
