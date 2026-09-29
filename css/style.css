@@ -14,6 +14,36 @@ body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, 
 .welcome__button:hover { filter: brightness(1.12); transform: translateY(-2px); }
 .welcome__button:active { transform: translateY(3px); box-shadow: 0 2px 0 #5c321b, 0 6px 16px #000a; }
 .welcome__button:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+.menu { min-height: 100vh; min-height: 100svh; padding: 36px 16px 48px; background: linear-gradient(#06101fd9, #0a1024b8), url('../assets/menu/throne-hall.webp') center/cover fixed; }
+.menu__content { max-width: 1080px; margin: auto; }
+.menu__header { text-align: center; margin-bottom: 26px; text-shadow: 0 3px 12px #000; }
+.menu__header h2 { margin: 6px 0; color: #f9dfaa; font: 700 clamp(36px, 6vw, 62px)/1.1 Georgia, serif; }
+.menu__header p:last-child { margin: 8px 0; color: #ddd5c5; }
+.menu__columns { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.menu__panel { padding: clamp(18px, 3vw, 30px); border: 1px solid #b38a55; border-radius: 16px; background: #101a29e8; box-shadow: 0 18px 42px #0009, inset 0 1px #fff2; backdrop-filter: blur(6px); }
+.menu__panel h3 { margin: 0 0 16px; color: #f2d6a0; font: 700 23px Georgia, serif; }
+.side-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 28px; }
+.side-option { display: grid; justify-items: center; gap: 3px; min-width: 0; padding: 10px 6px 12px; border: 2px solid #63758a; border-radius: 12px; background: #223044; color: #fff2d8; cursor: pointer; font: inherit; }
+.side-option[data-side="black"] { background: #35212d; }
+.side-option.is-selected { border-color: #ffd686; box-shadow: 0 0 0 2px #f0c67066, inset 0 0 22px #ffd98220; }
+.side-option img { width: min(100%, 106px); height: 108px; object-fit: contain; }
+.side-option span { font: 700 20px Georgia, serif; }
+.side-option small { color: #d0c8c0; }
+.levels { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px; }
+.levels button { min-width: 0; min-height: 42px; padding: 0; border: 1px solid #997b5f; border-radius: 7px; background: #283a4b; color: #fff1d7; font: 700 16px system-ui, sans-serif; cursor: pointer; }
+.levels button.is-selected { color: #261908; background: #e8bf75; border-color: #ffe2a3; box-shadow: 0 0 0 2px #e8bf7555; }
+.menu__hint { margin: 12px 0 0; color: #b9c1c9; font-size: 13px; line-height: 1.45; }
+.menu__start { display: block; width: 100%; margin-top: 28px; padding: 15px; border: 1px solid #ffe1a0; border-radius: 9px; background: linear-gradient(#efc779, #ab6d38); color: #281b0d; font: 700 20px Georgia, serif; cursor: pointer; }
+.menu__start:hover, .side-option:hover, .levels button:hover { filter: brightness(1.12); }
+.menu__overall { color: #d7c9b3; }
+.stats-scroll { overflow-x: auto; }
+.stats-table { width: 100%; border-collapse: collapse; white-space: nowrap; text-align: center; }
+.stats-table th, .stats-table td { padding: 12px 7px; border-bottom: 1px solid #ffffff2b; }
+.stats-table th:first-child { text-align: left; }
+.stats-table thead { color: #c9d1dc; font-size: 12px; }
+.stats-table tbody th { color: #f5dfb8; }
+.back-menu { display: block; margin: 12px auto 0; padding: 8px 12px; border: 0; background: transparent; color: #d6c299; text-decoration: underline; font: inherit; cursor: pointer; }
+.menu button:focus-visible, .back-menu:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .game { width: min(100% - 32px, 900px); margin: 0 auto; padding: 20px 0 32px; }
 .game__header { text-align: center; margin-bottom: 12px; }
 .eyebrow { color: #e6c17f; font-size: 12px; font-weight: 700; letter-spacing: .2em; }
@@ -42,6 +72,12 @@ body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, 
 footer { text-align: center; margin: 16px 10px; }
 @media (max-width: 700px) { .welcome h1 { font-size: clamp(32px, 8vw, 52px); } .welcome__content { padding-top: 30px; padding-bottom: 42px; } }
 @media (max-width: 700px) {
+ .menu { padding: 20px 10px 36px; background-attachment: scroll; }
+ .menu__header { margin-bottom: 18px; }
+ .menu__columns { grid-template-columns: 1fr; gap: 14px; }
+ .menu__panel { padding: 18px 14px; }
+ .side-option img { height: 80px; }
+ .levels { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
  .game { width: 100%; padding: 12px 8px 24px; }
  .game__header { margin-bottom: 8px; }
  .game h2 { font-size: clamp(24px, 6vw, 34px); }

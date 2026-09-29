@@ -24,18 +24,55 @@
       </div>
     </div>
   </main>
+  <main id="menu" class="menu" hidden>
+    <div class="menu__content">
+      <header class="menu__header">
+        <p class="eyebrow">ШАХМАТЫ В СВОБОДНОЕ ВРЕМЯ</p>
+        <h2 id="menu-title" tabindex="-1">Зал поединков</h2>
+        <p>Выбери сторону и силу соперника</p>
+      </header>
+      <div class="menu__columns">
+        <section class="menu__panel" aria-labelledby="side-title">
+          <h3 id="side-title">За кого играть</h3>
+          <div class="side-options" role="group" aria-label="Выбор стороны">
+            <button class="side-option is-selected" type="button" data-side="white" aria-pressed="true"><img src="assets/pieces/fantasy/white-king.png" alt=""><span>Белые</span><small>Первый ход твой</small></button>
+            <button class="side-option" type="button" data-side="black" aria-pressed="false"><img src="assets/pieces/fantasy/black-king.png" alt=""><span>Чёрные</span><small>Первым ходит бот</small></button>
+          </div>
+          <h3 id="level-title">Сложность бота <output id="level-value">5</output>/10</h3>
+          <div id="levels" class="levels" role="group" aria-labelledby="level-title"></div>
+          <p class="menu__hint">1 — новичок, 10 — самый внимательный соперник</p>
+          <button id="start-match" class="menu__start" type="button">Начать партию</button>
+        </section>
+        <section class="menu__panel menu__panel--stats" aria-labelledby="stats-title">
+          <h3 id="stats-title">Твои результаты</h3>
+          <p id="overall-stats" class="menu__overall">Сыграно партий: 0</p>
+          <div class="stats-scroll">
+            <table class="stats-table">
+              <thead><tr><th scope="col">Сторона</th><th scope="col">Партий</th><th scope="col">Победы</th><th scope="col">Поражения</th><th scope="col">Ничьи</th><th scope="col">Побед %</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Белые</th><td id="white-games">0</td><td id="white-wins">0</td><td id="white-losses">0</td><td id="white-draws">0</td><td id="white-rate">0%</td></tr>
+                <tr><th scope="row">Чёрные</th><td id="black-games">0</td><td id="black-wins">0</td><td id="black-losses">0</td><td id="black-draws">0</td><td id="black-rate">0%</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="menu__hint">Результаты сохраняются на этом устройстве после завершения партии.</p>
+        </section>
+      </div>
+    </div>
+  </main>
   <main id="game" class="game" hidden>
     <header class="game__header">
       <p class="eyebrow">ШАХМАТНАЯ АРЕНА</p>
       <h2 id="game-title" tabindex="-1">Шахматы в свободное время</h2>
-      <p class="subtitle">Шахматы против компьютера • эффектные взятия</p>
+      <p id="match-info" class="subtitle">Партия против компьютера</p>
     </header>
     <section class="game__panel" aria-label="Шахматная партия">
-      <div class="player player--black"><span class="player__avatar">♚</span><div><strong>Компьютер</strong><small>Чёрные</small></div><label class="difficulty">Сложность <select id="difficulty" aria-label="Сложность компьютера"><option value="easy">Легко</option><option value="normal" selected>Средне</option><option value="hard">Сложно</option></select></label></div>
+      <div class="player player--opponent"><span class="player__avatar" id="opponent-avatar">♚</span><div><strong>Компьютер</strong><small id="opponent-side">Чёрные</small></div></div>
       <div id="board" class="board" role="grid" aria-label="Шахматная доска"></div>
-      <div class="player player--white"><span class="player__avatar">♔</span><div><strong>Игрок</strong><small>Белые</small></div></div>
+      <div class="player player--human"><span class="player__avatar" id="player-avatar">♔</span><div><strong>Игрок</strong><small id="player-side">Белые</small></div></div>
       <p id="status" class="status" role="status" aria-live="polite">Возьми белую фигуру и перетащи её.</p>
       <button id="reset" class="reset" type="button">Новая партия</button>
+      <button id="back-menu" class="back-menu" type="button">В основное меню</button>
     </section>
     <footer>Перетаскивай фигуры мышью или пальцем. Для рокировки перенеси короля на две клетки к ладье. Взятие на проходе добавим позже.</footer>
   </main>

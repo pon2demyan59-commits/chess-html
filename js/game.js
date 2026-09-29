@@ -3,7 +3,8 @@
 const boardElement=document.querySelector("#board");
 const statusElement=document.querySelector("#status");
 const resetButton=document.querySelector("#reset");
-const difficultyElement=document.querySelector("#difficulty");
+const screens={welcome:document.querySelector("#welcome"),menu:document.querySelector("#menu"),game:document.querySelector("#game")};
+const levelsElement=document.querySelector("#levels");
 const spriteCache={};
 const customSprites={
  "white-pawn":"assets/pieces/fantasy/white-pawn.png",
@@ -23,14 +24,59 @@ const firstRow=["rook","knight","bishop","queen","king","bishop","knight","rook"
 const files="abcdefgh";
 let board,selected,moves,turn,finished,botTimer,audioContext;
 let drag=null;
+let playerColor="white",botColor="black",difficultyLevel=5,gameStarted=false;
+const statsKey="free-time-chess-stats-v1";
+function emptyStats(){return {white:{wins:0,losses:0,draws:0},black:{wins:0,losses:0,draws:0}}}
+function loadStats(){
+ try{
+  const saved=JSON.parse(localStorage.getItem(statsKey));
+  const result=emptyStats();
+  for(const side of ["white","black"])for(const outcome of ["wins","losses","draws"])
+   if(Number.isSafeInteger(saved?.[side]?.[outcome])&&saved[side][outcome]>=0)result[side][outcome]=saved[side][outcome];
+  return result;
+ }catch{return emptyStats()}
+}
+const stats=loadStats();
+function showStats(){
+ let total=0;
+ for(const side of ["white","black"]){
+  const games=stats[side].wins+stats[side].losses+stats[side].draws;
+  total+=games;
+  for(const outcome of ["wins","losses","draws"])
+   document.querySelector(`#${side}-${outcome}`).textContent=stats[side][outcome];
+  document.querySelector(`#${side}-games`).textContent=games;
+  document.querySelector(`#${side}-rate`).textContent=`${games?Math.round(stats[side].wins/games*100):0}%`;
+ }
+ document.querySelector("#overall-stats").textContent=`Сыграно партий: ${total}`;
+}
+function recordResult(outcome){
+ if(!gameStarted)return;
+ stats[playerColor][outcome]++;
+ try{localStorage.setItem(statsKey,JSON.stringify(stats))}catch{/* Партия продолжается без сохранения. */}
+ showStats();
+}
+function showScreen(name){
+ for(const [key,element] of Object.entries(screens))element.hidden=key!==name;
+ if(name==="menu"){showStats();document.querySelector("#menu-title").focus()}
+ if(name==="game")document.querySelector("#game-title").focus();
+ window.scrollTo(0,0);
+}
+const displayIndex=(r,c)=>playerColor==="white"?r*8+c:(7-r)*8+(7-c);
 function startGame(){
  clearTimeout(botTimer);
  cancelDrag();
  board=Array.from({length:8},()=>Array(8).fill(null));
  firstRow.forEach((type,c)=>{board[0][c]={type,color:"black"};board[7][c]={type,color:"white"}});
  for(let c=0;c<8;c++){board[1][c]={type:"pawn",color:"black"};board[6][c]={type:"pawn",color:"white"}}
- selected=null;moves=[];turn="white";finished=false;
- statusElement.textContent="Твой ход: выбери белую фигуру.";render();
+ selected=null;moves=[];turn="white";finished=false;gameStarted=true;
+ document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
+ document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
+ document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
+ document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
+ document.querySelector("#match-info").textContent=`Ты играешь за ${playerColor==="white"?"белых":"чёрных"} • уровень бота ${difficultyLevel}/10`;
+ statusElement.textContent=playerColor==="white"?"Твой ход: возьми белую фигуру.":"Компьютер ходит первым…";
+ render();
+ if(playerColor==="black")botTimer=setTimeout(botMove,550);
 }
 const inside=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
 function getPseudoMoves(r,c){
@@ -141,7 +187,8 @@ function hasLegalMoves(color){
 }
 function render(){
  boardElement.replaceChildren();
- for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+ for(let dr=0;dr<8;dr++)for(let dc=0;dc<8;dc++){
+  const r=playerColor==="white"?dr:7-dr,c=playerColor==="white"?dc:7-dc;
   const cell=document.createElement("button"),p=board[r][c],canGo=moves.some(m=>m.r===r&&m.c===c);
   cell.type="button";cell.className="square "+((r+c)%2?"square--dark":"square--light");
   cell.setAttribute("role","gridcell");cell.setAttribute("aria-label",files[c]+(8-r)+(p?" "+p.color+" "+p.type:" пусто"));
@@ -155,11 +202,11 @@ function render(){
    fig.draggable=false;
    cell.append(fig);
   }
-  if(c===0){
+  if(dc===0){
    const rank=document.createElement("span");
    rank.className="square__rank";rank.textContent=8-r;rank.setAttribute("aria-hidden","true");cell.append(rank);
   }
-  if(r===7){
+  if(dr===7){
    const file=document.createElement("span");
    file.className="square__file";file.textContent=files[c];file.setAttribute("aria-hidden","true");cell.append(file);
   }
@@ -177,15 +224,15 @@ function cancelDrag(){
  drag=null;
 }
 function onPointerDown(event){
- if(finished||turn!=="white"||event.button!==0||drag)return;
+ if(!gameStarted||finished||turn!==playerColor||event.button!==0||drag)return;
  const cell=event.target.closest(".square");
  if(!cell||!boardElement.contains(cell))return;
  const r=Number(cell.dataset.row),c=Number(cell.dataset.col);
  const piece=board[r][c];
- if(!piece||piece.color!=="white")return;
+ if(!piece||piece.color!==playerColor)return;
  event.preventDefault();
  selected={r,c};moves=getMoves(r,c);render();
- const source=boardElement.children[r*8+c];
+ const source=boardElement.children[displayIndex(r,c)];
  const rect=source.getBoundingClientRect();
  const ghost=document.createElement("img");
  ghost.src=getPieceSprite(piece.type,piece.color);
@@ -236,8 +283,8 @@ function onPointerUp(event){
 boardElement.addEventListener("pointerdown",onPointerDown);
 boardElement.addEventListener("pointermove",onPointerMove);
 boardElement.addEventListener("pointerup",onPointerUp);
-boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];render()});
-window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];render()});
+boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];if(board)render()});
+window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];if(board)render()});
 function move(fr,fc,r,c){
  const victim=board[r][c],p=board[fr][fc];
  const {rook}=applyBoardMove(fr,fc,r,c);
@@ -249,57 +296,63 @@ function move(fr,fc,r,c){
  const checked=inCheck(turn);
  if(!hasLegalMoves(turn)){
   finished=true;
-  statusElement.textContent=checked?(turn==="black"?"Шах и мат! Ты победил!":"Шах и мат! Компьютер победил!"):"Пат — ничья.";
+  const outcome=checked?(p.color===playerColor?"wins":"losses"):"draws";
+  statusElement.textContent=checked?(outcome==="wins"?"Шах и мат! Ты победил!":"Шах и мат! Компьютер победил!"):"Пат — ничья.";
+  recordResult(outcome);
   return;
  }
- if(turn==="black"){
+ if(turn===botColor){
   statusElement.textContent=checked?"Шах компьютеру! Он думает…":victim?"Попадание! Компьютер думает…":"Компьютер думает…";
   botTimer=setTimeout(botMove,550);
  }else statusElement.textContent=checked?"Шах твоему королю! Защити его.":victim?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
 }
 function botMove(){
- if(finished||turn!=="black")return;
+ if(!gameStarted||finished||turn!==botColor)return;
  const options=[];
- for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.color==="black")
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.color===botColor)
   for(const m of getMoves(r,c))options.push({fr:r,fc:c,r:m.r,c:m.c,capture:!!board[m.r][m.c]});
- if(!options.length){finished=true;statusElement.textContent=inCheck("black")?"Шах и мат! Ты победил!":"Пат — ничья.";return}
- const choice=chooseBotMove(options,difficultyElement.value);
+ if(!options.length){finished=true;const checked=inCheck(botColor);statusElement.textContent=checked?"Шах и мат! Ты победил!":"Пат — ничья.";recordResult(checked?"wins":"draws");return}
+ const choice=chooseBotMove(options,difficultyLevel);
  move(choice.fr,choice.fc,choice.r,choice.c);
 }
 const pieceValues={pawn:1,knight:3,bishop:3,rook:5,queen:9,king:0};
 function materialScore(){
  let score=0;
- for(const row of board)for(const p of row)if(p)score+=(p.color==="black"?1:-1)*pieceValues[p.type];
+ for(const row of board)for(const p of row)if(p)score+=(p.color===botColor?1:-1)*pieceValues[p.type];
  return score;
 }
-function chooseBotMove(options,difficulty){
- if(difficulty==="easy")return options[Math.floor(Math.random()*options.length)];
- if(difficulty==="normal"){
+function chooseBotMove(options,level){
+ if(level===1)return options[Math.floor(Math.random()*options.length)];
+ if(level<=3){
   const hits=options.filter(o=>o.capture);
-  const pool=hits.length&&Math.random()<.8?hits:options;
+  const pool=hits.length&&Math.random()<(level===2 ? 0.3 : 0.6)?hits:options;
   return pool[Math.floor(Math.random()*pool.length)];
  }
- // Сложный бот оценивает каждый свой ход и лучший материальный ответ игрока.
+ // Уровни 4–6 оценивают позицию после своего хода; 7–10 учитывают ответ игрока.
  let best=-Infinity,choices=[];
  for(const o of options){
   const attempt=applyBoardMove(o.fr,o.fc,o.r,o.c);
-  let worst=Infinity,replyExists=false;
-  for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.color==="white")
-   for(const reply of getMoves(r,c)){
-    replyExists=true;
-    const answer=applyBoardMove(r,c,reply.r,reply.c);
-    worst=Math.min(worst,materialScore());
-    answer.undo();
-   }
-  const score=replyExists?worst:inCheck("white")?1000:0;
+  let score=materialScore();
+  if(level>=7){
+   let worst=Infinity,replyExists=false;
+   for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.color===playerColor)
+    for(const reply of getMoves(r,c)){
+     replyExists=true;
+     const answer=applyBoardMove(r,c,reply.r,reply.c);
+     worst=Math.min(worst,materialScore());
+     answer.undo();
+    }
+   score=replyExists?worst:inCheck(playerColor)?1000:0;
+  }
   attempt.undo();
+  score+=Math.random()*({4:3,5:2,6:1.2,7:2,8:1.1,9:.4,10:0}[level]||0);
   if(score>best){best=score;choices=[o]}
   else if(score===best)choices.push(o);
  }
  return choices[Math.floor(Math.random()*choices.length)];
 }
 function impact(r,c){
- const cell=boardElement.children[r*8+c];if(!cell)return;
+ const cell=boardElement.children[displayIndex(r,c)];if(!cell)return;
  cell.classList.add("square--impact");
  for(let i=0;i<8;i++){const spark=document.createElement("span");spark.className="spark";spark.style.setProperty("--angle",i*45+"deg");cell.append(spark)}
  setTimeout(()=>{cell.classList.remove("square--impact");cell.querySelectorAll(".spark").forEach(s=>s.remove())},650);
@@ -354,10 +407,36 @@ function getPieceSprite(type,color){
 }
 
 resetButton.addEventListener("click",startGame);
-startGame();
-document.querySelector("#enter").addEventListener("click",()=>{
- document.querySelector("#welcome").hidden=true;
- document.querySelector("#game").hidden=false;
- window.scrollTo(0,0);
- document.querySelector("#game-title").focus();
+for(let level=1;level<=10;level++){
+ const button=document.createElement("button");
+ button.type="button";button.textContent=level;
+ button.setAttribute("aria-label",`Уровень сложности ${level}`);
+ button.addEventListener("click",()=>{
+  difficultyLevel=level;
+  document.querySelector("#level-value").textContent=level;
+  for(const item of levelsElement.children){
+   const selected=item===button;
+   item.classList.toggle("is-selected",selected);
+   item.setAttribute("aria-pressed",String(selected));
+  }
+ });
+ button.classList.toggle("is-selected",level===difficultyLevel);
+ button.setAttribute("aria-pressed",String(level===difficultyLevel));
+ levelsElement.append(button);
+}
+for(const button of document.querySelectorAll(".side-option"))button.addEventListener("click",()=>{
+ playerColor=button.dataset.side;botColor=playerColor==="white"?"black":"white";
+ for(const item of document.querySelectorAll(".side-option")){
+  const selected=item===button;
+  item.classList.toggle("is-selected",selected);
+  item.setAttribute("aria-pressed",String(selected));
+ }
 });
+document.querySelector("#enter").addEventListener("click",()=>showScreen("menu"));
+document.querySelector("#start-match").addEventListener("click",()=>{
+ showScreen("game");startGame();
+});
+document.querySelector("#back-menu").addEventListener("click",()=>{
+ clearTimeout(botTimer);cancelDrag();gameStarted=false;showScreen("menu");
+});
+showStats();
