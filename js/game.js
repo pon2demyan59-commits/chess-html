@@ -1,5 +1,5 @@
 // Учебные шахматы: основные ходы, простой бот и эффект взятия.
-// Пока без рокировки и взятия на проходе.
+// Пока без взятия на проходе.
 const boardElement=document.querySelector("#board");
 const statusElement=document.querySelector("#status");
 const resetButton=document.querySelector("#reset");
@@ -54,6 +54,16 @@ function getPseudoMoves(r,c){
   for(const [dy,dx] of [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]])add(r+dy,c+dx);
  }else if(p.type==="king"){
   for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dy||dx)add(r+dy,c+dx);
+  const home=p.color==="white"?7:0;
+  if(r===home&&c===4&&!p.moved){
+   for(const rookCol of [0,7]){
+    const rook=board[r][rookCol],step=rookCol===7?1:-1;
+    if(!rook||rook.type!=="rook"||rook.color!==p.color||rook.moved)continue;
+    let clear=true;
+    for(let x=c+step;x!==rookCol;x+=step)if(board[r][x]){clear=false;break}
+    if(clear)result.push({r,c:c+2*step});
+   }
+  }
  }else{
   if(p.type==="rook"||p.type==="queen")for(const [dy,dx] of [[1,0],[-1,0],[0,1],[0,-1]])ray(dy,dx);
   if(p.type==="bishop"||p.type==="queen")for(const [dy,dx] of [[1,1],[1,-1],[-1,1],[-1,-1]])ray(dy,dx);
@@ -93,14 +103,34 @@ function inCheck(color){
    return isSquareAttacked(r,c,color==="white"?"black":"white");
  return false;
 }
+function applyBoardMove(fr,fc,r,c){
+ const piece=board[fr][fc],taken=board[r][c];
+ const castling=piece.type==="king"&&Math.abs(c-fc)===2;
+ const rookFrom=castling?(c>fc?7:0):-1;
+ const rookTo=castling?(c>fc?c-1:c+1):-1;
+ const rook=castling?board[fr][rookFrom]:null;
+ board[r][c]=piece;board[fr][fc]=null;
+ if(castling){board[fr][rookTo]=rook;board[fr][rookFrom]=null}
+ return {rook,undo(){
+  board[fr][fc]=piece;board[r][c]=taken;
+  if(castling){board[fr][rookFrom]=rook;board[fr][rookTo]=null}
+ }};
+}
 function getMoves(r,c){
  const p=board[r][c];if(!p)return [];
  return getPseudoMoves(r,c).filter(m=>{
   const taken=board[m.r][m.c];
   if(taken?.type==="king")return false;
-  board[m.r][m.c]=p;board[r][c]=null;
+  if(p.type==="king"&&Math.abs(m.c-c)===2){
+   if(inCheck(p.color))return false;
+   const crossed=applyBoardMove(r,c,r,c+Math.sign(m.c-c));
+   const unsafe=inCheck(p.color);
+   crossed.undo();
+   if(unsafe)return false;
+  }
+  const attempted=applyBoardMove(r,c,m.r,m.c);
   const legal=!inCheck(p.color);
-  board[r][c]=p;board[m.r][m.c]=taken;
+  attempted.undo();
   return legal;
  });
 }
@@ -202,7 +232,8 @@ boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;mo
 window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];render()});
 function move(fr,fc,r,c){
  const victim=board[r][c],p=board[fr][fc];
- board[r][c]=p;board[fr][fc]=null;
+ const {rook}=applyBoardMove(fr,fc,r,c);
+ p.moved=true;if(rook)rook.moved=true;
  if(p.type==="pawn"&&(r===0||r===7))p.type="queen";
  selected=null;moves=[];render();
  if(victim){impact(r,c);playHit()}
@@ -243,19 +274,17 @@ function chooseBotMove(options,difficulty){
  // Сложный бот оценивает каждый свой ход и лучший материальный ответ игрока.
  let best=-Infinity,choices=[];
  for(const o of options){
-  const p=board[o.fr][o.fc],taken=board[o.r][o.c];
-  board[o.r][o.c]=p;board[o.fr][o.fc]=null;
+  const attempt=applyBoardMove(o.fr,o.fc,o.r,o.c);
   let worst=Infinity,replyExists=false;
   for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.color==="white")
    for(const reply of getMoves(r,c)){
     replyExists=true;
-    const white=board[r][c],victim=board[reply.r][reply.c];
-    board[reply.r][reply.c]=white;board[r][c]=null;
+    const answer=applyBoardMove(r,c,reply.r,reply.c);
     worst=Math.min(worst,materialScore());
-    board[r][c]=white;board[reply.r][reply.c]=victim;
+    answer.undo();
    }
   const score=replyExists?worst:inCheck("white")?1000:0;
-  board[o.fr][o.fc]=p;board[o.r][o.c]=taken;
+  attempt.undo();
   if(score>best){best=score;choices=[o]}
   else if(score===best)choices.push(o);
  }
