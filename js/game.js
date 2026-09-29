@@ -25,6 +25,44 @@ const customSprites={
  "white-king":"assets/pieces/fantasy/white-king.png",
  "black-king":"assets/pieces/fantasy/black-king.png"
 };
+const pieceThemeKey="chess-piece-theme-v1";
+let pieceTheme=localStorage.getItem(pieceThemeKey)||"fantasy";
+const pieceGlyphs={
+ white:{king:"♔",queen:"♕",rook:"♖",bishop:"♗",knight:"♘",pawn:"♙"},
+ black:{king:"♚",queen:"♛",rook:"♜",bishop:"♝",knight:"♞",pawn:"♟"}
+};
+function themedGlyphSprite(type,color,theme){
+ const glyph=pieceGlyphs[color]?.[type]||"♟";
+ const palettes={
+  classic:color==="white"
+   ?{fill:"#f7f1df",stroke:"#28231f",glow:"transparent"}
+   :{fill:"#24211f",stroke:"#eadfc7",glow:"transparent"},
+  wood:color==="white"
+   ?{fill:"#e1b56e",stroke:"#5b3219",glow:"#b36d2a"}
+   :{fill:"#6f3e20",stroke:"#e0b16c",glow:"#4b240f"},
+  neon:color==="white"
+   ?{fill:"#9ff5ff",stroke:"#e9feff",glow:"#24d7ff"}
+   :{fill:"#ff6bd5",stroke:"#ffe4f7",glow:"#ff2bbf"}
+ };
+ const p=palettes[theme]||palettes.classic;
+ const filter=theme==="neon"
+  ?`<filter id="g"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`
+  :"";
+ const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">${filter}<text x="60" y="91" text-anchor="middle" font-size="91" font-family="Georgia,Times New Roman,serif" font-weight="700" fill="${p.fill}" stroke="${p.stroke}" stroke-width="2.2" paint-order="stroke" ${theme==="neon"?'filter="url(#g)"':""}>${glyph}</text></svg>`;
+ return "data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg);
+}
+function setPieceTheme(theme){
+ if(!["fantasy","classic","wood","neon"].includes(theme))theme="fantasy";
+ pieceTheme=theme;
+ try{localStorage.setItem(pieceThemeKey,theme)}catch{}
+ document.documentElement.dataset.pieceTheme=theme;
+ document.querySelectorAll("[data-piece-theme]").forEach(button=>{
+  const selected=button.dataset.pieceTheme===theme;
+  button.classList.toggle("is-selected",selected);
+  button.setAttribute("aria-pressed",String(selected));
+ });
+ if(boardElement&&typeof board!=="undefined")render();
+}
 const names={p:"pawn",n:"knight",b:"bishop",r:"rook",q:"queen",k:"king"};
 const colorName=x=>x==="w"?"white":"black";
 let chess=new Chess();
@@ -267,6 +305,7 @@ function loadLevelStats(){
 const levelStats=loadLevelStats();
 async function loadPvpStats(){
  const rating=document.querySelector("#pvp-rating");
+ const menuRating=document.querySelector("#menu-pvp-rating");
  const games=document.querySelector("#pvp-games");
  const wins=document.querySelector("#pvp-wins");
  const draws=document.querySelector("#pvp-draws");
@@ -275,7 +314,7 @@ async function loadPvpStats(){
  if(!rating)return;
  const nickname=getPlayerNickname();
  if(!nickname){
-  rating.textContent="0";games.textContent="0";wins.textContent="0";draws.textContent="0";losses.textContent="0";
+  rating.textContent="0";if(menuRating)menuRating.textContent="0";games.textContent="0";wins.textContent="0";draws.textContent="0";losses.textContent="0";
   if(note)note.textContent="Создай игровой ник, чтобы начать играть PvP.";
   return;
  }
@@ -287,6 +326,7 @@ async function loadPvpStats(){
   const row=Array.isArray(data)?data[0]:data;
   if(!row)return;
   rating.textContent=Number(row.rating||0).toFixed(1).replace(".0","");
+  if(menuRating)menuRating.textContent=rating.textContent;
   games.textContent=row.games||0;
   wins.textContent=row.wins||0;
   draws.textContent=row.draws||0;
@@ -351,7 +391,7 @@ function recordResult(outcome){
 function showScreen(name,resetScroll=true){
  for(const [key,element] of Object.entries(screens))element.hidden=key!==name;
  try{sessionStorage.setItem(screenKey,name)}catch{}
- if(name==="menu"){showStats();document.querySelector("#menu-title").focus()}
+ if(name==="menu"){showStats();loadPvpStats();document.querySelector("#menu-title").focus()}
  if(name==="puzzles"){renderPuzzleHub();renderEnergy();document.querySelector("#puzzles-title").focus()}
  if(name==="stats"){showStats();loadPvpStats();document.querySelector("#stats-title").focus()}
  if(name==="game")document.querySelector("#game-title").focus();
@@ -1192,6 +1232,7 @@ function playMetalClash(){
 // Картинки генерируются как SVG с прозрачным фоном, поэтому не требуют внешних файлов.
 function getPieceSprite(type,color){
  const key=color+"-"+type;
+ if(pieceTheme!=="fantasy")return themedGlyphSprite(type,color,pieceTheme);
  if(customSprites[key])return customSprites[key];
  if(spriteCache[key])return spriteCache[key];
  const light=color==="white";
@@ -1270,6 +1311,8 @@ document.querySelector("#enter").addEventListener("click",()=>{
 });
 document.querySelector("#open-stats").addEventListener("click",()=>showScreen("stats"));
 document.querySelector("#stats-back").addEventListener("click",()=>showScreen("menu"));
+document.querySelectorAll("[data-piece-theme]").forEach(button=>button.addEventListener("click",()=>setPieceTheme(button.dataset.pieceTheme)));
+setPieceTheme(pieceTheme);
 document.querySelector("#start-online").addEventListener("click",openOnlineModal);
 document.querySelector("#online-close").addEventListener("click",()=>cancelOnlineSearch(true));
 document.querySelector("#online-cancel").addEventListener("click",()=>cancelOnlineSearch(true));
