@@ -101,7 +101,9 @@ function renderEnergy(message=""){
   const el=document.querySelector(id);if(el)el.textContent=timerText;
  }
  const note=document.querySelector("#energy-note");
+ const puzzleMessage=document.querySelector("#puzzles-energy-message");
  if(note&&message)note.textContent=message;
+ if(puzzleMessage&&message)puzzleMessage.textContent=message;
 }
 function saveEnergy(){
  try{
@@ -908,7 +910,7 @@ document.querySelector("#continue-puzzle").addEventListener("click",()=>startPuz
 document.querySelector("#back-menu").addEventListener("click",()=>{
  clearTimeout(botTimer);cancelDrag();cancelMotion();clearScene();closePromotion();resetReview();gameStarted=false;showScreen("menu");
 });
-document.querySelector("#energy-ad").addEventListener("click",()=>{
+function requestRewardedEnergy(){
  const sdk=window.ysdk;
  if(sdk?.adv?.showRewardedVideo){
   sdk.adv.showRewardedVideo({callbacks:{
@@ -918,7 +920,9 @@ document.querySelector("#energy-ad").addEventListener("click",()=>{
  }else{
   renderEnergy("Наградная реклама заработает после подключения SDK Яндекс Игр.");
  }
-});
+}
+document.querySelector("#energy-ad").addEventListener("click",requestRewardedEnergy);
+document.querySelector("#puzzles-energy-ad").addEventListener("click",requestRewardedEnergy);
 showStats();renderEnergy();renderPuzzleHub();
 setInterval(()=>renderEnergy(),1000);
 
