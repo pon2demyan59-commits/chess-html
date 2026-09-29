@@ -93,7 +93,7 @@
           <strong class="result-panel__title" id="result-title"></strong>
           <span class="result-panel__detail" id="result-detail"></span>
           <div class="result-panel__actions">
-            <button id="result-analysis" type="button">Разбор партии</button>
+            <button id="result-analysis" type="button" hidden aria-hidden="true">Разбор партии</button>
             <button id="result-new" type="button">Новая партия</button>
             <button id="result-next" type="button" hidden>Следующая задача</button>
             <button id="result-menu" type="button">В меню</button>
@@ -112,8 +112,6 @@
               <button id="review-last" type="button" aria-label="К концу">⏭</button>
             </div>
             <button id="copy-pgn" class="review-copy" type="button">Скопировать PGN</button>
-            <a class="review-lichess" href="https://lichess.org/paste" target="_blank" rel="noopener noreferrer">Открыть анализ Lichess ↗</a>
-            <p class="review-hint">Для оценки ходов вставь скопированный PGN на Lichess.</p>
             <button id="review-close" class="review-copy" type="button">Закрыть разбор</button>
           </div>
         </aside>
@@ -124,7 +122,7 @@
         <h3>Превратить пешку в</h3><div id="promotion-choices" class="promotion__choices"></div>
         <button id="promotion-cancel" class="promotion__cancel" type="button">Отмена</button>
       </div>
-      <button id="analysis-entry" class="reset" type="button" hidden>Разбор партии</button>
+      <button id="analysis-entry" class="reset" type="button" hidden aria-hidden="true">Разбор партии</button>
       <button id="resign" class="back-menu" type="button">Сдаться</button>
       <button id="claim-draw" class="reset" type="button" hidden>Заявить ничью</button>
       <button id="reset" class="reset" type="button">Новая партия</button>
