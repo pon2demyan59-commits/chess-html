@@ -3,7 +3,7 @@
 const boardElement=document.querySelector("#board");
 const statusElement=document.querySelector("#status");
 const resetButton=document.querySelector("#reset");
-const symbols={white:{king:"♔",queen:"♕",rook:"♖",bishop:"♗",knight:"♘",pawn:"♙"},black:{king:"♚",queen:"♛",rook:"♜",bishop:"♝",knight:"♞",pawn:"♟"}};
+const spriteCache={};
 const firstRow=["rook","knight","bishop","queen","king","bishop","knight","rook"];
 const files="abcdefgh";
 let board,selected,moves,turn,finished,botTimer,audioContext;
@@ -51,7 +51,14 @@ function render(){
   cell.setAttribute("role","gridcell");cell.setAttribute("aria-label",files[c]+(8-r)+(p?" "+p.color+" "+p.type:" пусто"));
   if(selected&&selected.r===r&&selected.c===c)cell.classList.add("square--selected");
   if(canGo)cell.classList.add(p?"square--capture":"square--move");
-  if(p){const fig=document.createElement("span");fig.className="piece piece--"+p.color;fig.textContent=symbols[p.color][p.type];cell.append(fig)}
+  if(p){
+   const fig=document.createElement("img");
+   fig.className="piece-image";
+   fig.src=getPieceSprite(p.type,p.color);
+   fig.alt="";
+   fig.draggable=false;
+   cell.append(fig);
+  }
   cell.addEventListener("click",()=>onSquare(r,c));boardElement.append(cell);
  }
 }
@@ -101,5 +108,27 @@ function playHit(){
   osc.connect(gain);gain.connect(audioContext.destination);osc.start(t);osc.stop(t+.21);
  }catch(e){/* Если звук запрещён, партия продолжается. */}
 }
+function getPieceSprite(type,color){
+ const key=color+"-"+type;
+ if(spriteCache[key])return spriteCache[key];
+ const light=color==="white";
+ const body=light?"#fff0c7":"#5a527d";
+ const shade=light?"#f3b84f":"#9a7cff";
+ const edge=light?"#6c4932":"#f1e8ff";
+ const face=light?"#4a3428":"#ffffff";
+ const accent=light?"#56c8ff":"#ff8c7a";
+ const top={
+  pawn:'<circle cx="60" cy="30" r="15"/><path d="M42 55 Q60 40 78 55 L75 85 H45 Z"/>',
+  rook:'<path d="M34 25 H47 V36 H55 V25 H65 V36 H73 V25 H86 V53 H34 Z"/><rect x="41" y="53" width="38" height="31" rx="8"/>',
+  knight:'<path d="M39 83 V59 Q39 43 52 36 L46 27 Q63 22 76 31 Q82 40 79 52 Q76 63 68 67 L78 83 Z"/><path d="M50 35 L61 20 L69 35"/>',
+  bishop:'<path d="M60 16 Q79 20 79 39 Q79 51 69 59 L73 82 H47 L51 59 Q41 51 41 39 Q41 20 60 16 Z"/><path d="M53 34 L67 34"/>',
+  queen:'<path d="M36 43 L45 24 L59 36 L73 24 L84 43 L78 58 H42 Z"/><rect x="43" y="58" width="34" height="25" rx="9"/>',
+  king:'<path d="M56 10 H64 V23 H73 V31 H64 V39 H56 V31 H47 V23 H56 Z"/><path d="M36 46 L47 30 L60 41 L73 30 L84 46 L78 59 H42 Z"/><rect x="43" y="59" width="34" height="24" rx="9"/>'
+ }[type];
+ const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><ellipse cx="60" cy="105" rx="31" ry="7" fill="rgba(0,0,0,.18)"/><g fill="'+body+'" stroke="'+edge+'" stroke-width="4" stroke-linejoin="round">'+top+'<rect x="34" y="83" width="52" height="14" rx="7" fill="'+shade+'"/></g><circle cx="53" cy="57" r="3.5" fill="'+face+'"/><circle cx="67" cy="57" r="3.5" fill="'+face+'"/><path d="M52 67 Q60 74 68 67" fill="none" stroke="'+face+'" stroke-width="3" stroke-linecap="round"/><circle cx="60" cy="44" r="3.5" fill="'+accent+'"/></svg>';
+ spriteCache[key]="data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg);
+ return spriteCache[key];
+}
+
 resetButton.addEventListener("click",startGame);
 startGame();
