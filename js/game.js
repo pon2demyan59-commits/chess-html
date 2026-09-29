@@ -141,17 +141,76 @@ function onPointerUp(event){
  const toR=target?Number(target.dataset.row):-1;
  const toC=target?Number(target.dataset.col):-1;
  const valid=moves.some(m=>m.r===toR&&m.c===toC);
- cancelDrag();selected=null;moves=[];
- if(valid){move(fromR,fromC,toR,toC)}
- else{render();statusElement.textContent="Ход отменён. Возьми фигуру и перетащи её на другую клетку."}
+ if(valid){
+  const activeDrag=drag;
+  drag=null;
+  selected=null;moves=[];
+  animateMove(fromR,fromC,toR,toC,activeDrag.ghost,activeDrag.source);
+ }else{
+  cancelDrag();selected=null;moves=[];render();
+  statusElement.textContent="Ход отменён. Возьми фигуру и перетащи её на другую клетку.";
+ }
 }
 boardElement.addEventListener("pointerdown",onPointerDown);
 boardElement.addEventListener("pointermove",onPointerMove);
 boardElement.addEventListener("pointerup",onPointerUp);
 boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];render()});
 window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];render()});
+function animateMove(fr,fc,r,c,existingGhost=null,sourceCell=null){
+ const p=board[fr][fc];
+ if(!p)return;
+ const fromCell=sourceCell||boardElement.children[fr*8+fc];
+ const toCell=boardElement.children[r*8+c];
+ if(!fromCell||!toCell){commitMove(fr,fc,r,c);return}
+
+ const fromRect=fromCell.getBoundingClientRect();
+ const toRect=toCell.getBoundingClientRect();
+ const ghost=existingGhost||document.createElement("img");
+
+ if(!existingGhost){
+  ghost.src=getPieceSprite(p.type,p.color);
+  ghost.className="move-ghost";
+  ghost.alt="";ghost.draggable=false;
+  ghost.style.width=fromRect.width+"px";
+  ghost.style.height=fromRect.height+"px";
+  document.body.append(ghost);
+ }
+ ghost.classList.remove("drag-ghost");
+ ghost.classList.add("move-ghost");
+ ghost.style.left=(fromRect.left+fromRect.width/2)+"px";
+ ghost.style.top=(fromRect.top+fromRect.height/2)+"px";
+ ghost.style.transform="translate(-50%,-50%) scale(1)";
+ ghost.style.transition="none";
+
+ fromCell.classList.remove("square--drag-source");
+ fromCell.querySelector(".piece-image")?.classList.add("piece-image--hidden");
+ toCell.querySelector(".piece-image")?.classList.add("piece-image--target-hidden");
+
+ requestAnimationFrame(()=>{
+  requestAnimationFrame(()=>{
+   ghost.style.transition="left .28s cubic-bezier(.22,.72,.2,1), top .28s cubic-bezier(.22,.72,.2,1), transform .28s ease";
+   ghost.style.left=(toRect.left+toRect.width/2)+"px";
+   ghost.style.top=(toRect.top+toRect.height/2)+"px";
+   ghost.style.transform="translate(-50%,-50%) scale(1.03)";
+  });
+ });
+
+ const finish=()=>{
+  ghost.removeEventListener("transitionend",finish);
+  ghost.remove();
+  commitMove(fr,fc,r,c);
+ };
+ ghost.addEventListener("transitionend",finish,{once:true});
+ setTimeout(()=>{if(document.body.contains(ghost)){ghost.remove();commitMove(fr,fc,r,c)}},380);
+}
+
 function move(fr,fc,r,c){
+ animateMove(fr,fc,r,c);
+}
+
+function commitMove(fr,fc,r,c){
  const victim=board[r][c],p=board[fr][fc];
+ if(!p)return;
  board[r][c]=p;board[fr][fc]=null;
  if(p.type==="pawn"&&(r===0||r===7))p.type="queen";
  selected=null;moves=[];render();
