@@ -34,6 +34,7 @@ const puzzles=[
 let board,selected,moves,turn,finished,botTimer,audioContext;
 let drag=null,pendingPromotion=null;
 let sceneTimers=[];
+let moving=false,motionToken=0,motionTimer=null,motionGhosts=[];
 let lastMove=null,reviewMode=false,reviewPly=0,reviewMoves=[],reviewStartFen="",finalMessage="";
 let playerColor="white",botColor="black",menuSide="white",difficultyLevel=5,gameStarted=false,gameMode="match",puzzleIndex=0;
 const statsKey="free-time-chess-stats-v1";
@@ -101,7 +102,7 @@ function showScreen(name){
 const displayIndex=(r,c)=>playerColor==="white"?r*8+c:(7-r)*8+(7-c);
 function startGame(){
  clearTimeout(botTimer);
- cancelDrag();clearScene();
+ cancelDrag();cancelMotion();clearScene();
  gameMode="match";
  playerColor=menuSide;botColor=playerColor==="white"?"black":"white";
  chess.reset();syncBoard();closePromotion();resetReview();
@@ -120,7 +121,7 @@ function startGame(){
  if(playerColor==="black")botTimer=setTimeout(botMove,850);
 }
 function startPuzzle(index){
- clearTimeout(botTimer);cancelDrag();clearScene();
+ clearTimeout(botTimer);cancelDrag();cancelMotion();clearScene();
  puzzleIndex=index;gameMode="puzzle";gameStarted=true;finished=false;
  const puzzle=puzzles[index];
  playerColor=puzzle.side;botColor=playerColor==="white"?"black":"white";
@@ -143,12 +144,18 @@ function playPuzzleMove(fr,fc,r,c){
  if(fr!==puzzle.from[0]||fc!==puzzle.from[1]||r!==puzzle.to[0]||c!==puzzle.to[1]){
   render();statusElement.textContent="Это не мат. Попробуй другой ход.";return;
  }
- chess.move({from:square(fr,fc),to:square(r,c)});syncBoard();lastMove=chess.history({verbose:true}).at(-1);
- finished=true;render();renderMoveList();playScene("mate",{to:square(r,c),color:playerColor==="white"?"w":"b"},"Верно! Мат в один ход.");
- statusElement.textContent="Верно! Шах и мат в один ход.";
- const next=document.querySelector("#next-puzzle");
- next.textContent=puzzleIndex===puzzles.length-1?"Начать задачи заново":"Следующая задача";
- next.hidden=false;
+ const from=square(fr,fc),to=square(r,c);
+ const legal=chess.moves({square:from,verbose:true}).find(m=>m.to===to);
+ moving=true;
+ animateMoveBeforeCommit(legal,()=>{
+  chess.move({from,to});syncBoard();lastMove=chess.history({verbose:true}).at(-1);
+  finished=true;render();renderMoveList();
+  playScene("mate",{to,color:playerColor==="white"?"w":"b"},"Верно! Мат в один ход.");
+  statusElement.textContent="Верно! Шах и мат в один ход.";
+  const next=document.querySelector("#next-puzzle");
+  next.textContent=puzzleIndex===puzzles.length-1?"Начать задачи заново":"Следующая задача";
+  next.hidden=false;
+ });
 }
 function getMoves(r,c){return chess.moves({square:square(r,c),verbose:true}).map(m=>({r:8-Number(m.to[1]),c:files.indexOf(m.to[0]),promotion:m.promotion}))}
 function closePromotion(){pendingPromotion=null;document.querySelector("#promotion").hidden=true}
@@ -221,7 +228,7 @@ function cancelDrag(){
  drag=null;
 }
 function onPointerDown(event){
- if(!gameStarted||finished||reviewMode||pendingPromotion||turn!==playerColor||event.button!==0||drag)return;
+ if(!gameStarted||finished||reviewMode||moving||pendingPromotion||turn!==playerColor||event.button!==0||drag)return;
  const cell=event.target.closest(".square");
  if(!cell||!boardElement.contains(cell))return;
  const r=Number(cell.dataset.row),c=Number(cell.dataset.col);
@@ -280,34 +287,44 @@ function onPointerUp(event){
 boardElement.addEventListener("pointerdown",onPointerDown);
 boardElement.addEventListener("pointermove",onPointerMove);
 boardElement.addEventListener("pointerup",onPointerUp);
-boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];if(board)render()});
-window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];if(board)render()});
+boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];if(board&&!moving)render()});
+window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];if(board&&!moving)render()});
 function move(fr,fc,r,c,promotion){
+ if(moving)return;
  clearScene();
- const played=chess.move({from:square(fr,fc),to:square(r,c),promotion});
- syncBoard();lastMove=played;selected=null;moves=[];render();renderMoveList();animatePlayedMove(played);
- const captured=!!played.captured;if(captured){impact(r,c);playHit()}
- if(chess.isCheckmate()){
-  const result=colorName(played.color)===playerColor?"wins":"losses";
-  const message=result==="wins"?"Шах и мат! Ты победил!":"Шах и мат! Компьютер победил!";
-  endMatch(result,message);playScene("mate",played,message);return;
- }
- if(chess.isStalemate()){
-  endMatch("draws","Пат — ничья.");playScene("stalemate",played,"Пат — ничья.");return;
- }
- if(chess.isInsufficientMaterial()){const message="Ничья: мат невозможен при оставшихся фигурах.";endMatch("draws",message);showResult("draw",message);return}
- const draw=drawState();if(draw.automatic){const message=`Ничья: ${draw.automatic}.`;endMatch("draws",message);showResult("draw",message);return}
- document.querySelector("#claim-draw").hidden=!(draw.claim&&turn===playerColor);
- if(turn===botColor&&draw.claim){const message=`Компьютер заявил ничью: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message);return}
- const check=chess.isCheck();
- if(check)playScene("check",played);
- if(turn===botColor){
-  statusElement.textContent=check?"Шах компьютеру! Он думает…":captured?"Попадание! Компьютер думает…":"Компьютер думает…";
-  botTimer=setTimeout(botMove,check?1900:850);
- }else statusElement.textContent=check?"Шах твоему королю! Защити его.":captured?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
+ const from=square(fr,fc),to=square(r,c);
+ const legal=chess.moves({square:from,verbose:true}).find(m=>m.to===to&&m.promotion===promotion);
+ if(!legal)return;
+ moving=true;
+ animateMoveBeforeCommit(legal,()=>{
+  const played=chess.move({from,to,promotion});syncBoard();lastMove=played;
+  selected=null;moves=[];render();renderMoveList();
+  if(played.captured){
+   const takenAt=played.isEnPassant()?square(fr,c):to;
+   playCaptureEffect(takenAt,played.captured,played.color==="w"?"black":"white");
+   impact(8-Number(takenAt[1]),files.indexOf(takenAt[0]));playMetalClash();
+  }
+  if(chess.isCheckmate()){
+   const result=colorName(played.color)===playerColor?"wins":"losses";
+   const message=result==="wins"?"Шах и мат! Ты победил!":"Шах и мат! Компьютер победил!";
+   endMatch(result,message);playScene("mate",played,message);return;
+  }
+  if(chess.isStalemate()){
+   endMatch("draws","Пат — ничья.");playScene("stalemate",played,"Пат — ничья.");return;
+  }
+  if(chess.isInsufficientMaterial()){const message="Ничья: мат невозможен при оставшихся фигурах.";endMatch("draws",message);showResult("draw",message);return}
+  const draw=drawState();if(draw.automatic){const message=`Ничья: ${draw.automatic}.`;endMatch("draws",message);showResult("draw",message);return}
+  document.querySelector("#claim-draw").hidden=!(draw.claim&&turn===playerColor);
+  if(turn===botColor&&draw.claim){const message=`Компьютер заявил ничью: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message);return}
+  const check=chess.isCheck();if(check)playScene("check",played);
+  if(turn===botColor){
+   statusElement.textContent=check?"Шах компьютеру! Он думает…":played.captured?"Попадание! Компьютер думает…":"Компьютер думает…";
+   botTimer=setTimeout(botMove,check?1700:650);
+  }else statusElement.textContent=check?"Шах твоему королю! Защити его.":played.captured?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
+ });
 }
 function botMove(){
- if(!gameStarted||finished||turn!==botColor)return;
+ if(!gameStarted||finished||moving||turn!==botColor)return;
  const options=chess.moves({verbose:true}).filter(m=>!m.promotion||m.promotion==="q");
  const choice=chooseBotMove(options,difficultyLevel);
  move(8-Number(choice.from[1]),files.indexOf(choice.from[0]),8-Number(choice.to[1]),files.indexOf(choice.to[0]),choice.promotion);
@@ -387,19 +404,57 @@ function closeReview(){
  render();renderMoveList();document.querySelector("#review-controls").hidden=true;
  document.querySelector("#analysis-entry").hidden=false;statusElement.textContent=finalMessage;
 }
-function animatePlayedMove(m){
- const fr=8-Number(m.from[1]),fc=files.indexOf(m.from[0]),r=8-Number(m.to[1]),c=files.indexOf(m.to[0]);
- const source=boardElement.children[displayIndex(fr,fc)],destination=boardElement.children[displayIndex(r,c)];
- const img=destination?.querySelector?.(".piece-image");
- if(!source||!img||window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)return;
- const a=source.getBoundingClientRect(),b=destination.getBoundingClientRect();
- img.animate?.([{transform:`translate(${a.left-b.left}px, ${a.top-b.top}px) scale(1.08)`},{transform:"translate(0,0) scale(1)"}],{duration:500,easing:"cubic-bezier(.18,.65,.25,1)"});
- if(m.isKingsideCastle?.()||m.isQueensideCastle?.()){
-  const rookFrom=m.isKingsideCastle()?7:0,rookTo=m.isKingsideCastle()?5:3;
-  const rookStart=boardElement.children[displayIndex(fr,rookFrom)],rookEnd=boardElement.children[displayIndex(fr,rookTo)];
-  const rookImg=rookEnd?.querySelector?.(".piece-image");
-  if(rookImg){const x=rookStart.getBoundingClientRect(),y=rookEnd.getBoundingClientRect();rookImg.animate?.([{transform:`translate(${x.left-y.left}px,${x.top-y.top}px)`},{transform:"translate(0,0)"}],{duration:500,easing:"ease-out"})}
+function cancelMotion(){
+ motionToken++;clearTimeout(motionTimer);motionTimer=null;moving=false;
+ for(const {ghost,source} of motionGhosts){ghost.remove();if(source)source.style.visibility=""}
+ motionGhosts=[];
+}
+function animateMoveBeforeCommit(m,commit){
+ const token=++motionToken;
+ const reduce=window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+ const fromCell=kingCell(m.from),toCell=kingCell(m.to);
+ if(reduce||!fromCell||!toCell){moving=false;commit();return}
+ const stage=document.querySelector(".board-stage"),stageRect=stage.getBoundingClientRect();
+ function travellingPiece(sourceCell,destinationCell,type,color){
+  const a=sourceCell.getBoundingClientRect(),b=destinationCell.getBoundingClientRect();
+  const ghost=document.createElement("img");ghost.className="travel-piece";
+  ghost.src=getPieceSprite(type,color);ghost.alt="";
+  ghost.style.left=`${a.left-stageRect.left}px`;ghost.style.top=`${a.top-stageRect.top}px`;
+  ghost.style.width=`${a.width}px`;ghost.style.height=`${a.height}px`;
+  stage.append(ghost);
+  const source=sourceCell.querySelector(".piece-image");if(source)source.style.visibility="hidden";
+  motionGhosts.push({ghost,source});
+  return {ghost,dx:b.left-a.left,dy:b.top-a.top};
  }
+ const main=travellingPiece(fromCell,toCell,names[m.piece],colorName(m.color));
+ if(m.isKingsideCastle()||m.isQueensideCastle()){
+  const row=8-Number(m.from[1]),start=m.isKingsideCastle()?7:0,end=m.isKingsideCastle()?5:3;
+  const rook=travellingPiece(boardElement.children[displayIndex(row,start)],boardElement.children[displayIndex(row,end)],"rook",colorName(m.color));
+  rook.ghost.animate?.([{transform:"translate(0,0)"},{transform:`translate(${rook.dx}px,${rook.dy}px)`}],{duration:580,easing:"ease-in-out",fill:"forwards"});
+ }
+ let done=false;
+ function finish(){
+  if(done||token!==motionToken)return;done=true;
+  clearTimeout(motionTimer);motionTimer=null;
+  for(const {ghost,source} of motionGhosts){ghost.remove();if(source)source.style.visibility=""}
+  motionGhosts=[];moving=false;commit();
+ }
+ if(typeof main.ghost.animate!=="function"){finish();return}
+ try{
+  const animation=main.ghost.animate([{transform:"translate(0,0)"},{transform:`translate(${main.dx}px,${main.dy}px)`}],{duration:580,easing:"ease-in-out",fill:"forwards"});
+  animation?.finished?.then(finish).catch(()=>{});
+  motionTimer=setTimeout(finish,700);
+ }catch{finish()}
+}
+function playCaptureEffect(squareName,type,color){
+ const victim=sceneAnchor(squareName,"scene-defeat scene-defeat--capture");
+ if(!victim)return;
+ for(const side of ["left","right"]){
+  const half=document.createElement("img");half.className=`scene-defeat__half scene-defeat__half--${side}`;
+  half.src=getPieceSprite(names[type],color);half.alt="";victim.append(half);
+ }
+ const slash=document.createElement("span");slash.className="scene-defeat__slash";victim.append(slash);
+ sceneAfter(980,()=>victim.remove());
 }
 // Сцены поверх поля не участвуют в выборе клетки и не меняют шахматную позицию.
 function clearScene(){
@@ -407,7 +462,6 @@ function clearScene(){
  document.querySelector("#board-effects").replaceChildren();
  document.querySelector("#result-panel").hidden=true;
  boardElement.querySelectorAll(".square--fear,.square--king-hidden").forEach(el=>el.classList.remove("square--fear","square--king-hidden"));
- try{window.speechSynthesis?.cancel()}catch{}
 }
 function sceneAfter(delay,fn){sceneTimers.push(setTimeout(fn,delay))}
 function kingSquare(){
@@ -446,7 +500,7 @@ function playScene(kind,played,message){
   sceneAnchor(attackers.includes(played.to)?played.to:attackers[0]||played.to,"scene-bubble scene-bubble--attack",kind==="mate"?"ШАХ И МАТ!":"ШАХ!");
   sceneAnchor(king,"scene-bubble scene-bubble--king",kind==="mate"?"А-а-а!":"Ой! Шах!");
   cell?.classList.add("square--fear");
-  playVoice("Шах!");playDramaSound("shout");
+
  }else{
   sceneAnchor(king,"scene-bubble scene-bubble--king","Ходить некуда…");
   cell?.classList.add("square--fear");playDramaSound("stalemate");
@@ -465,17 +519,9 @@ function playScene(kind,played,message){
    }
    const slash=document.createElement("span");slash.className="scene-defeat__slash";victim.append(slash);
   }
-  playDramaSound("slash");playVoice("А-а-а!");
+  playMetalClash();
  });
  sceneAfter(1750,()=>{document.querySelector("#board-effects").replaceChildren();showResult(kind,message);playDramaSound("fanfare")});
-}
-function playVoice(line){
- try{
-  if(!window.speechSynthesis||!window.SpeechSynthesisUtterance)return;
-  const voice=new window.SpeechSynthesisUtterance(line);
-  voice.lang="ru-RU";voice.rate=line==="Шах!"?1.15:1.35;voice.pitch=line==="Шах!"?.65:1.55;voice.volume=.8;
-  window.speechSynthesis.speak(voice);
- }catch{/* Текст в облачках остаётся видимым без голосового движка. */}
 }
 function playDramaSound(kind){
  try{
@@ -495,16 +541,28 @@ function playDramaSound(kind){
   }
  }catch{/* Без звука анимация продолжится. */}
 }
-function playHit(){
+function playMetalClash(){
  try{
   const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)return;
-  audioContext ||= new Ctx();
-  if(audioContext.state==="suspended")audioContext.resume();
-  const t=audioContext.currentTime,osc=audioContext.createOscillator(),gain=audioContext.createGain();
-  osc.type="sawtooth";osc.frequency.setValueAtTime(170,t);osc.frequency.exponentialRampToValueAtTime(55,t+.17);
-  gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(.15,t+.009);gain.gain.exponentialRampToValueAtTime(.0001,t+.2);
-  osc.connect(gain);gain.connect(audioContext.destination);osc.start(t);osc.stop(t+.21);
- }catch(e){/* Если звук запрещён, партия продолжается. */}
+  audioContext ||= new Ctx();if(audioContext.state==="suspended")audioContext.resume();
+  const t=audioContext.currentTime;
+  // Несовпадающие частоты дают короткий звон металла, без голосовой озвучки.
+  if(audioContext.createBuffer&&audioContext.createBufferSource&&audioContext.createBiquadFilter){
+   const length=Math.floor(audioContext.sampleRate*.09),buffer=audioContext.createBuffer(1,length,audioContext.sampleRate);
+   const data=buffer.getChannelData(0);for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);
+   const noise=audioContext.createBufferSource(),filter=audioContext.createBiquadFilter(),noiseGain=audioContext.createGain();
+   noise.buffer=buffer;filter.type="highpass";filter.frequency.value=1700;
+   noiseGain.gain.setValueAtTime(.13,t);noiseGain.gain.exponentialRampToValueAtTime(.0001,t+.09);
+   noise.connect(filter);filter.connect(noiseGain);noiseGain.connect(audioContext.destination);noise.start(t);
+  }
+  for(const [frequency,duration,volume] of [[560,.26,.10],[910,.38,.065],[1490,.51,.035],[2240,.25,.018]]){
+   const osc=audioContext.createOscillator(),gain=audioContext.createGain();osc.type="sine";
+   osc.frequency.setValueAtTime(frequency,t);osc.frequency.exponentialRampToValueAtTime(frequency*.82,t+duration);
+   gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(volume,t+.008);
+   gain.gain.exponentialRampToValueAtTime(.0001,t+duration);
+   osc.connect(gain);gain.connect(audioContext.destination);osc.start(t);osc.stop(t+duration+.02);
+  }
+ }catch{/* Партия продолжается без звука. */}
 }
 // Фэнтези-спрайты: светлая армия паладинов против темных демонических рыцарей.
 // Картинки генерируются как SVG с прозрачным фоном, поэтому не требуют внешних файлов.
@@ -582,11 +640,11 @@ document.querySelector("#puzzle-entry").addEventListener("click",()=>{
  showScreen("game");startPuzzle(0);
 });
 document.querySelector("#back-menu").addEventListener("click",()=>{
- clearTimeout(botTimer);cancelDrag();clearScene();closePromotion();resetReview();gameStarted=false;showScreen("menu");
+ clearTimeout(botTimer);cancelDrag();cancelMotion();clearScene();closePromotion();resetReview();gameStarted=false;showScreen("menu");
 });
 showStats();
 
-document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!=="match"||finished||turn!==playerColor)return;const draw=drawState();if(draw.claim){const message=`Ничья по заявлению: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message)}});
+document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!=="match"||finished||moving||turn!==playerColor)return;const draw=drawState();if(draw.claim){const message=`Ничья по заявлению: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message)}});
 document.querySelector("#promotion-cancel").addEventListener("click",()=>{closePromotion();render();statusElement.textContent="Превращение отменено. Выбери ход снова."});
 window.addEventListener("keydown",e=>{if(e.key==="Escape"&&pendingPromotion){closePromotion();render()}});
 
@@ -597,7 +655,7 @@ document.querySelector("#result-next").addEventListener("click",()=>startPuzzle(
 document.querySelector("#result-menu").addEventListener("click",()=>document.querySelector("#back-menu").click());
 document.querySelector("#resign").addEventListener("click",()=>{
  if(!gameStarted||finished||gameMode!=="match")return;
- clearTimeout(botTimer);clearScene();const message="Ты сдался. Победа компьютера.";
+ clearTimeout(botTimer);cancelMotion();clearScene();const message="Ты сдался. Победа компьютера.";
  endMatch("losses",message);showResult("resign",message);
 });
 for(const [id,position] of [["#review-first",0],["#review-prev",-1],["#review-next",1],["#review-last",Infinity]])

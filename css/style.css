@@ -216,3 +216,9 @@ footer { text-align: center; margin: 16px 10px; }
 .review-lichess:hover { background: #425b61; }
 .review-hint { margin: 0; color: #afc0c3; font-size: 12px; line-height: 1.35; }
 @media (max-width: 800px) { .moves-panel { max-height: 340px; } }
+
+/* Фигура летит из исходной клетки; доска меняется после завершения движения. */
+.travel-piece { position: absolute; z-index: 9; display: block; pointer-events: none; object-fit: contain; filter: drop-shadow(0 9px 6px #0009); will-change: transform; }
+.scene-defeat--capture { z-index: 8; }
+.square--impact::before { background: radial-gradient(circle,#ffffff,#cfebf4 23%,#8cb0c999 43%,transparent 72%); }
+.spark { background: #d9f2ff; }
