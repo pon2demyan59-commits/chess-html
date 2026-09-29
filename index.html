@@ -39,9 +39,35 @@
         </button>
       </header>
 
-      <section class="puzzle-hero" aria-labelledby="puzzle-title">
+      <section class="online-hero" aria-labelledby="online-hero-title">
+        <div class="online-hero__glow" aria-hidden="true"></div>
+        <div class="online-hero__main">
+          <div class="online-hero__badge"><span></span> ГЛАВНЫЙ РЕЖИМ</div>
+          <p class="online-hero__kicker">ОНЛАЙН PvP</p>
+          <h3 id="online-hero-title">Вызвать соперника</h3>
+          <p>Найди реального игрока, сыграй рейтинговую партию и поднимайся по очкам PvP.</p>
+          <div class="online-hero__meta">
+            <span>Победа <b>+5</b></span>
+            <span>Ничья <b>+2.5</b></span>
+            <span>Поражение <b>−2</b></span>
+          </div>
+        </div>
+        <div class="online-hero__action">
+          <div class="online-hero__rating">
+            <small>ТВОЙ PvP-РЕЙТИНГ</small>
+            <strong id="menu-pvp-rating">0</strong>
+          </div>
+          <button id="start-online" class="online-hero__button" type="button">
+            <span class="online-hero__swords" aria-hidden="true">⚔</span>
+            <span><small>ИГРОКИ В СЕТИ</small><strong>Найти соперника</strong></span>
+            <span class="online-hero__arrow" aria-hidden="true">›</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="puzzle-hero puzzle-hero--secondary" aria-labelledby="puzzle-title">
         <div class="puzzle-hero__copy">
-          <span class="puzzle-hero__badge">ГЛАВНАЯ ФИШКА</span>
+          <span class="puzzle-hero__badge">ТРЕНИРОВОЧНЫЙ РЕЖИМ</span>
           <p class="puzzle-hero__kicker">ТРЕНИРОВКА МЫШЛЕНИЯ</p>
           <h3 id="puzzle-title">Шахматные задачи</h3>
           <p class="puzzle-hero__lead">Находи победный ход, ставь мат и собирай серии правильных решений.</p>
@@ -63,6 +89,34 @@
         </div>
       </section>
 
+      <section class="piece-style-picker" aria-labelledby="piece-style-title">
+        <div class="piece-style-picker__head">
+          <div>
+            <p class="eyebrow">ОФОРМЛЕНИЕ ДОСКИ</p>
+            <h3 id="piece-style-title">Вид шахматных фигур</h3>
+          </div>
+          <span>Можно менять в любой момент</span>
+        </div>
+        <div class="piece-style-options" role="group" aria-labelledby="piece-style-title">
+          <button class="piece-style-option is-selected" type="button" data-piece-theme="fantasy" aria-pressed="true">
+            <span class="piece-style-option__preview piece-style-option__preview--fantasy">♔♞</span>
+            <strong>Наш стиль</strong><small>Фэнтези</small>
+          </button>
+          <button class="piece-style-option" type="button" data-piece-theme="classic" aria-pressed="false">
+            <span class="piece-style-option__preview piece-style-option__preview--classic">♔♞</span>
+            <strong>Классика</strong><small>Турнирный</small>
+          </button>
+          <button class="piece-style-option" type="button" data-piece-theme="wood" aria-pressed="false">
+            <span class="piece-style-option__preview piece-style-option__preview--wood">♔♞</span>
+            <strong>Дерево</strong><small>Тёплый</small>
+          </button>
+          <button class="piece-style-option" type="button" data-piece-theme="neon" aria-pressed="false">
+            <span class="piece-style-option__preview piece-style-option__preview--neon">♔♞</span>
+            <strong>Неон</strong><small>Аркадный</small>
+          </button>
+        </div>
+      </section>
+
       <div class="menu__columns">
         <section class="menu__panel" aria-labelledby="side-title">
           <h3 id="side-title">За кого играть</h3>
@@ -73,12 +127,6 @@
           <h3 id="level-title">Сложность бота: <output id="level-value">Офицер</output></h3>
           <div id="levels" class="levels" role="group" aria-labelledby="level-title"></div>
           <p class="menu__hint">Пешка — самый простой соперник, Король — самый сильный.</p>
-          <button id="start-online" class="online-cta" type="button">
-            <span class="online-cta__pulse" aria-hidden="true"></span>
-            <span class="online-cta__icon" aria-hidden="true">⚔</span>
-            <span class="online-cta__copy"><small>ОНЛАЙН</small><strong>Найти соперника</strong><span>Случайный игрок в сети</span></span>
-            <span class="online-cta__arrow" aria-hidden="true">›</span>
-          </button>
           <button id="start-match" class="menu__start" type="button">Играть с компьютером</button>
           <button id="start-hotseat" class="menu__hotseat" type="button">
             <span aria-hidden="true">♔ ♚</span>
