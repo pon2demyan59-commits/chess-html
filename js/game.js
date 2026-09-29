@@ -3,7 +3,7 @@
 const boardElement=document.querySelector("#board");
 const statusElement=document.querySelector("#status");
 const resetButton=document.querySelector("#reset");
-const screens={welcome:document.querySelector("#welcome"),menu:document.querySelector("#menu"),game:document.querySelector("#game")};
+const screens={welcome:document.querySelector("#welcome"),menu:document.querySelector("#menu"),stats:document.querySelector("#stats"),game:document.querySelector("#game")};
 const levelsElement=document.querySelector("#levels");
 const spriteCache={};
 const customSprites={
@@ -134,6 +134,7 @@ function restoreSession(){
   }catch{}
  }
  if(savedScreen==="menu"){syncMenuSelections();showScreen("menu",false);restoreScroll();return}
+ if(savedScreen==="stats"){showScreen("stats",false);restoreScroll();return}
  showScreen("welcome",false);restoreScroll();
 }
 function restoreScroll(){
@@ -166,21 +167,40 @@ function showStats(){
  for(const side of ["white","black"]){
   const games=stats[side].wins+stats[side].losses+stats[side].draws;
   total+=games;
-  for(const outcome of ["wins","losses","draws"])
-   document.querySelector(`#${side}-${outcome}`).textContent=stats[side][outcome];
-  document.querySelector(`#${side}-games`).textContent=games;
-  document.querySelector(`#${side}-rate`).textContent=`${games?Math.round(stats[side].wins/games*100):0}%`;
+  const gamesEl=document.querySelector(`#${side}-games`);
+  const winsEl=document.querySelector(`#${side}-wins`);
+  const detailWins=document.querySelector(`#${side}-wins-detail`);
+  const lossesEl=document.querySelector(`#${side}-losses`);
+  const drawsEl=document.querySelector(`#${side}-draws`);
+  const rateEl=document.querySelector(`#${side}-rate`);
+  if(gamesEl)gamesEl.textContent=games;
+  if(winsEl)winsEl.textContent=stats[side].wins;
+  if(detailWins)detailWins.textContent=stats[side].wins;
+  if(lossesEl)lossesEl.textContent=stats[side].losses;
+  if(drawsEl)drawsEl.textContent=stats[side].draws;
+  if(rateEl)rateEl.textContent=`${games?Math.round(stats[side].wins/games*100):0}%`;
  }
- document.querySelector("#overall-stats").textContent=`Сыграно партий: ${total}`;
- const body=document.querySelector("#level-stats-body");body.replaceChildren();
+ const overall=document.querySelector("#overall-stats");
+ if(overall)overall.textContent=total;
+
+ const body=document.querySelector("#level-stats-body");
+ if(!body)return;
+ body.replaceChildren();
  for(let i=0;i<10;i++){
-  const row=document.createElement("tr"),data=levelStats[i];
-  const cells=[i+1,data.wins+data.losses+data.draws,data.wins,data.losses,data.draws];
-  cells.forEach((value,j)=>{
-   const cell=document.createElement(j===0?"th":"td");
-   if(j===0)cell.setAttribute("scope","row");
-   cell.textContent=value;row.append(cell);
-  });
+  const data=levelStats[i],games=data.wins+data.losses+data.draws;
+  const row=document.createElement("article");
+  row.className="stats-level-row";
+  row.innerHTML=`
+   <span class="stats-level-row__level">${i+1}</span>
+   <div class="stats-level-row__main">
+    <strong>Уровень ${i+1}</strong>
+    <small>${games} партий</small>
+   </div>
+   <div class="stats-level-row__numbers">
+    <span><b>${data.wins}</b><small>победы</small></span>
+    <span><b>${data.losses}</b><small>поражения</small></span>
+    <span><b>${data.draws}</b><small>ничьи</small></span>
+   </div>`;
   body.append(row);
  }
 }
@@ -198,6 +218,7 @@ function showScreen(name,resetScroll=true){
  for(const [key,element] of Object.entries(screens))element.hidden=key!==name;
  try{sessionStorage.setItem(screenKey,name)}catch{}
  if(name==="menu"){showStats();document.querySelector("#menu-title").focus()}
+ if(name==="stats"){showStats();document.querySelector("#stats-title").focus()}
  if(name==="game")document.querySelector("#game-title").focus();
  if(resetScroll)window.scrollTo(0,0);
 }
@@ -792,6 +813,8 @@ document.querySelector("#enter").addEventListener("click",()=>{
  try{const Ctx=window.AudioContext||window.webkitAudioContext;if(Ctx){audioContext ||= new Ctx();audioContext.resume()}}catch{}
  showScreen("menu");
 });
+document.querySelector("#open-stats").addEventListener("click",()=>showScreen("stats"));
+document.querySelector("#stats-back").addEventListener("click",()=>showScreen("menu"));
 document.querySelector("#start-match").addEventListener("click",()=>{
  showScreen("game");startGame();
 });
