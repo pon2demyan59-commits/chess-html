@@ -1,10 +1,23 @@
 :root { color-scheme: dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #101c27; color: #f6eddc; }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #29475a, #101c27 70%); }
+.welcome { position: relative; min-height: 100vh; min-height: 100svh; isolation: isolate; overflow: hidden; background: #101825; }
+.welcome__art { position: absolute; inset: 0; z-index: -2; }
+.welcome__art img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+.welcome::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(180deg, #050c1bc9 0%, #07132322 28%, #0b0b1500 54%, #070b15cc 100%); }
+.welcome__content { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: clamp(28px, 5vh, 58px) 18px clamp(36px, 7vh, 70px); text-align: center; }
+.welcome__heading { max-width: 900px; text-shadow: 0 3px 24px #000, 0 2px 6px #000; }
+.welcome h1 { margin: 12px 0 0; color: #fff0ce; font: 700 clamp(38px, 5.4vw, 76px)/1.05 Georgia, serif; letter-spacing: .015em; }
+.welcome__actions p { margin: 0 0 18px; color: #fff1d0; font-size: clamp(16px, 2vw, 21px); font-weight: 600; text-shadow: 0 2px 10px #000; }
+.welcome__button { min-width: min(84vw, 280px); padding: 16px 30px; border: 2px solid #ffe1a0; border-radius: 10px; background: linear-gradient(#e7b95f, #9d592b); color: #22160f; box-shadow: 0 5px 0 #5c321b, 0 12px 28px #000a, inset 0 2px 0 #fff8; font: 700 20px Georgia, serif; cursor: pointer; transition: transform .15s ease, filter .15s ease; }
+.welcome__button:hover { filter: brightness(1.12); transform: translateY(-2px); }
+.welcome__button:active { transform: translateY(3px); box-shadow: 0 2px 0 #5c321b, 0 6px 16px #000a; }
+.welcome__button:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
 .game { width: min(100% - 24px, 640px); margin: 0 auto; padding: 28px 0; }
 .game__header { text-align: center; margin-bottom: 20px; }
 .eyebrow { color: #e6c17f; font-size: 12px; font-weight: 700; letter-spacing: .2em; }
-h1 { margin: 5px 0; font-family: Georgia, serif; font-size: clamp(38px, 7vw, 56px); font-weight: 700; }
+.game h2 { margin: 5px 0; font-family: Georgia, serif; font-size: clamp(28px, 5.5vw, 45px); font-weight: 700; }
 .subtitle, footer { color: #b7c5cb; font-size: 14px; }
 .game__panel { padding: clamp(12px, 4vw, 28px); border: 1px solid #65727d; border-radius: 18px; background: #1b2b36; box-shadow: 0 18px 60px #0006; }
 .player { display: flex; align-items: center; gap: 12px; padding: 12px 2px; }
@@ -25,6 +38,7 @@ h1 { margin: 5px 0; font-family: Georgia, serif; font-size: clamp(38px, 7vw, 56p
 .reset:hover { background: #f9dba5; }
 footer { text-align: center; margin: 16px 10px; }
 @media (max-width: 390px) { .board { border-width: 4px; } .square { font-size: 9vw; } }
+@media (max-width: 700px) { .welcome h1 { font-size: clamp(32px, 8vw, 52px); } .welcome__content { padding-top: 30px; padding-bottom: 42px; } }
 
 /* Захват фигуры: вспышка и летящие искры */
 .square--move::after {content:"";position:absolute;width:24%;height:24%;border-radius:50%;background:#2b614899}

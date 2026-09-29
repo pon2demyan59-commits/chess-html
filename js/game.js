@@ -347,3 +347,9 @@ function getPieceSprite(type,color){
 
 resetButton.addEventListener("click",startGame);
 startGame();
+document.querySelector("#enter").addEventListener("click",()=>{
+ document.querySelector("#welcome").hidden=true;
+ document.querySelector("#game").hidden=false;
+ window.scrollTo(0,0);
+ document.querySelector("#game-title").focus();
+});

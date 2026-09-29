@@ -3,15 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Шахматы — против компьютера</title>
+  <title>Шахматы в свободное время</title>
   <link rel="stylesheet" href="css/style.css">
   <script src="js/game.js" defer></script>
 </head>
 <body>
-  <main class="game">
+  <main id="welcome" class="welcome">
+    <picture class="welcome__art">
+      <source media="(max-width: 700px)" srcset="assets/intro/poster-mobile.webp">
+      <img src="assets/intro/poster-wide.webp" alt="Белый и чёрный короли перед битвой шахматных фигур">
+    </picture>
+    <div class="welcome__content">
+      <div class="welcome__heading">
+        <p class="eyebrow">ШАХМАТНАЯ АРЕНА</p>
+        <h1>Шахматы<br>в свободное время</h1>
+      </div>
+      <div class="welcome__actions">
+        <p>Два королевства. Одна доска.</p>
+        <button id="enter" class="welcome__button" type="button">Войти в игру</button>
+      </div>
+    </div>
+  </main>
+  <main id="game" class="game" hidden>
     <header class="game__header">
       <p class="eyebrow">ШАХМАТНАЯ АРЕНА</p>
-      <h1>Шахматы</h1>
+      <h2 id="game-title" tabindex="-1">Шахматы в свободное время</h2>
       <p class="subtitle">Шахматы против компьютера • эффектные взятия</p>
     </header>
     <section class="game__panel" aria-label="Шахматная партия">
