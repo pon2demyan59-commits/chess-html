@@ -3364,5 +3364,5 @@ class Chess {
     }
 }
 
-export { BISHOP, BLACK, Chess, DEFAULT_POSITION, KING, KNIGHT, Move, PAWN, QUEEN, ROOK, SEVEN_TAG_ROSTER, SQUARES, WHITE, validateFen, xoroshiro128 };
-//# sourceMappingURL=chess.js.map
+// Browser global for local file:// launches. chess.js 1.4.0, MIT license.
+globalThis.Chess = Chess;

@@ -1,4 +1,3 @@
-import { Chess } from "../vendor/chess.js/chess.js";
 // Учебные шахматы: основные ходы, простой бот и эффект взятия.
 
 const boardElement=document.querySelector("#board");
@@ -160,9 +159,10 @@ function requestPromotion(fr,fc,r,c){
  document.querySelector("#promotion").hidden=false;choices.firstElementChild.focus();
 }
 function repetitionCount(){
- const replay=new Chess(),target=chess.fen().split(" ").slice(0,4).join(" ");let count=0;
+ const history=chess.history({verbose:true});
+ const replay=new Chess(history[0]?.before||chess.fen()),target=chess.fen().split(" ").slice(0,4).join(" ");let count=0;
  if(replay.fen().split(" ").slice(0,4).join(" ")===target)count++;
- for(const m of chess.history({verbose:true})){
+ for(const m of history){
   replay.move({from:m.from,to:m.to,promotion:m.promotion});
   if(replay.fen().split(" ").slice(0,4).join(" ")===target)count++;
  }
