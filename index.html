@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Шахматы — против компьютера</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/game.js" defer></script>
+</head>
+<body>
+  <main class="game">
+    <header class="game__header">
+      <p class="eyebrow">ШАХМАТНАЯ АРЕНА</p>
+      <h1>Шахматы</h1>
+      <p class="subtitle">Первые шаги: доска и расстановка фигур</p>
+    </header>
+    <section class="game__panel" aria-label="Шахматная партия">
+      <div class="player player--black"><span class="player__avatar">♚</span><div><strong>Компьютер</strong><small>Чёрные</small></div></div>
+      <div id="board" class="board" role="grid" aria-label="Шахматная доска"></div>
+      <div class="player player--white"><span class="player__avatar">♔</span><div><strong>Игрок</strong><small>Белые</small></div></div>
+      <p id="status" class="status" role="status" aria-live="polite">Выбери белую фигуру.</p>
+      <button id="reset" class="reset" type="button">Новая партия</button>
+    </section>
+    <footer>Учебная версия: перемещение фигур и бот появятся на следующих этапах.</footer>
+  </main>
+</body>
+</html>
