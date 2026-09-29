@@ -68,31 +68,72 @@
           <p class="menu__hint">1 — новичок, 10 — самый внимательный соперник</p>
           <button id="start-match" class="menu__start" type="button">Начать партию</button>
         </section>
-        <section class="menu__panel menu__panel--stats" aria-labelledby="stats-title">
-          <h3 id="stats-title">Твои результаты</h3>
-          <p id="overall-stats" class="menu__overall">Сыграно партий: 0</p>
-          <div class="stats-scroll">
-            <table class="stats-table">
-              <thead><tr><th scope="col">Сторона</th><th scope="col">Партий</th><th scope="col">Победы</th><th scope="col">Поражения</th><th scope="col">Ничьи</th><th scope="col">Побед %</th></tr></thead>
-              <tbody>
-                <tr><th scope="row">Белые</th><td id="white-games">0</td><td id="white-wins">0</td><td id="white-losses">0</td><td id="white-draws">0</td><td id="white-rate">0%</td></tr>
-                <tr><th scope="row">Чёрные</th><td id="black-games">0</td><td id="black-wins">0</td><td id="black-losses">0</td><td id="black-draws">0</td><td id="black-rate">0%</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="menu__hint">Результаты сохраняются на этом устройстве после завершения партии.</p>
-          <details class="level-stats" open>
-            <summary>Игры по уровням сложности</summary>
-            <p class="menu__hint">Учёт по уровням начался с этого обновления.</p>
-            <div class="stats-scroll">
-              <table class="stats-table">
-                <thead><tr><th scope="col">Уровень</th><th scope="col">Партий</th><th scope="col">Победы</th><th scope="col">Поражения</th><th scope="col">Ничьи</th></tr></thead>
-                <tbody id="level-stats-body"></tbody>
-              </table>
-            </div>
-          </details>
+        <section class="stats-launch" aria-label="Статистика игрока">
+          <button id="open-stats" class="stats-launch__button" type="button">
+            <span class="stats-launch__crest" aria-hidden="true">♜</span>
+            <span class="stats-launch__copy">
+              <small>ЛИЧНЫЙ ЗАЛ</small>
+              <strong>Моя статистика</strong>
+              <span>Победы, поражения, ничьи и результаты по уровням</span>
+            </span>
+            <span class="stats-launch__arrow" aria-hidden="true">›</span>
+          </button>
         </section>
       </div>
+    </div>
+  </main>
+  <main id="stats" class="stats-page" hidden>
+    <div class="stats-page__content">
+      <header class="stats-page__header">
+        <p class="eyebrow">ЛИЧНЫЙ ЗАЛ</p>
+        <h2 id="stats-title" tabindex="-1">Моя статистика</h2>
+        <p>История твоих партий и прогресс по уровням сложности</p>
+      </header>
+
+      <section class="stats-summary" aria-label="Общая статистика">
+        <div class="stats-summary__hero">
+          <span class="stats-summary__icon" aria-hidden="true">♔</span>
+          <div>
+            <small>Всего партий</small>
+            <strong id="overall-stats">0</strong>
+          </div>
+        </div>
+        <div class="stats-summary__cards">
+          <article><small>Белые</small><strong id="white-games">0</strong><span>партий</span></article>
+          <article><small>Чёрные</small><strong id="black-games">0</strong><span>партий</span></article>
+          <article><small>Победы белыми</small><strong id="white-wins">0</strong><span id="white-rate">0%</span></article>
+          <article><small>Победы чёрными</small><strong id="black-wins">0</strong><span id="black-rate">0%</span></article>
+        </div>
+      </section>
+
+      <section class="stats-results-grid" aria-label="Подробные результаты">
+        <article class="stats-result-card stats-result-card--light">
+          <h3>Белыми</h3>
+          <div><span>Победы</span><strong id="white-wins-detail">0</strong></div>
+          <div><span>Поражения</span><strong id="white-losses">0</strong></div>
+          <div><span>Ничьи</span><strong id="white-draws">0</strong></div>
+        </article>
+        <article class="stats-result-card stats-result-card--dark">
+          <h3>Чёрными</h3>
+          <div><span>Победы</span><strong id="black-wins-detail">0</strong></div>
+          <div><span>Поражения</span><strong id="black-losses">0</strong></div>
+          <div><span>Ничьи</span><strong id="black-draws">0</strong></div>
+        </article>
+      </section>
+
+      <section class="stats-levels-card">
+        <div class="stats-levels-card__header">
+          <div>
+            <p class="eyebrow">СЛОЖНОСТЬ</p>
+            <h3>Результаты по уровням</h3>
+          </div>
+          <span>1 — новичок · 10 — сильнейший бот</span>
+        </div>
+        <div class="stats-levels-list" id="level-stats-body"></div>
+      </section>
+
+      <p class="stats-page__note">Результаты сохраняются на этом устройстве.</p>
+      <button id="stats-back" class="stats-page__back" type="button">Вернуться в Зал поединков</button>
     </div>
   </main>
   <main id="game" class="game" hidden>
