@@ -10,8 +10,8 @@ h1 { margin: 5px 0; font-family: Georgia, serif; font-size: clamp(38px, 7vw, 56p
 .player { display: flex; align-items: center; gap: 12px; padding: 12px 2px; }
 .player__avatar { display: grid; place-items: center; background: #354b58; width: 42px; height: 42px; border-radius: 50%; font-size: 29px; }
 .player small { display: block; color: #b7c5cb; margin-top: 3px; }
-.board { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); aspect-ratio: 1; overflow: hidden; border: 6px solid #956a41; border-radius: 5px; box-shadow: 0 8px 22px #0005; }
-.square { display: grid; place-items: center; position: relative; border: none; padding: 0; cursor: pointer; font-size: clamp(28px, 8vw, 54px); line-height: 1; transition: filter .12s ease; }
+.board { display: grid; width: 100%; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); aspect-ratio: 1; overflow: hidden; border: 6px solid #956a41; border-radius: 5px; box-shadow: 0 8px 22px #0005; }
+.square { display: grid; place-items: center; width: 100%; height: 100%; min-width: 0; min-height: 0; position: relative; border: none; padding: 0; cursor: pointer; font-size: clamp(28px, 8vw, 54px); line-height: 1; transition: filter .12s ease; }
 .square--light { background: #ead6af; } .square--dark { background: #a87850; }
 .square:hover { filter: brightness(1.12); }
 .square--selected { outline: 4px solid #f8db6f; outline-offset: -4px; z-index: 1; background: #bdba65; }
