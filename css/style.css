@@ -1040,3 +1040,42 @@ footer { text-align: center; margin: 16px 10px; }
 .stats-big-card__rate{grid-column:1/-1;display:flex;align-items:end;justify-content:space-between}
 .stats-big-card__rate strong{font-size:30px}
 @media(max-width:850px){.stats-big-grid{grid-template-columns:1fr}.stats-big-card{min-height:auto}}
+
+
+/* Режим двух игроков на одном экране. */
+.menu__hotseat{
+ width:100%;
+ display:grid;
+ grid-template-columns:auto 1fr;
+ align-items:center;
+ gap:13px;
+ margin-top:12px;
+ padding:13px 15px;
+ border:1px solid #71889b;
+ border-radius:10px;
+ background:linear-gradient(135deg,#25394a,#342b3b);
+ color:#f4e6cb;
+ text-align:left;
+ cursor:pointer;
+ box-shadow:inset 0 1px #fff1,0 8px 18px #0004;
+}
+.menu__hotseat>span:first-child{
+ font-size:25px;
+ color:#e9c77d;
+ white-space:nowrap;
+}
+.menu__hotseat>span:last-child{display:grid;gap:2px}
+.menu__hotseat strong{font:800 17px Georgia,serif}
+.menu__hotseat small{color:#aeb9c1;font-size:12px}
+.menu__hotseat:hover{filter:brightness(1.12)}
+.board--turn-switch{
+ animation:board-turn-switch .34s ease;
+}
+@keyframes board-turn-switch{
+ 0%{opacity:1;transform:perspective(900px) rotateY(0deg)}
+ 48%{opacity:.35;transform:perspective(900px) rotateY(8deg) scale(.985)}
+ 100%{opacity:1;transform:perspective(900px) rotateY(0deg)}
+}
+@media(prefers-reduced-motion:reduce){
+ .board--turn-switch{animation:none}
+}
