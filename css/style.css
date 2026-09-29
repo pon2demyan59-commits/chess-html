@@ -527,3 +527,188 @@ footer { text-align: center; margin: 16px 10px; }
   inset:6px;
  }
 }
+
+
+/* Отдельный экран статистики: без тесных таблиц и внутренних прокруток. */
+.stats-launch{
+ min-height:100%;
+ display:flex;
+}
+.stats-launch__button{
+ width:100%;
+ min-height:100%;
+ display:grid;
+ grid-template-columns:auto 1fr auto;
+ align-items:center;
+ gap:18px;
+ padding:26px 22px;
+ border:1px solid #bd9154;
+ border-radius:16px;
+ background:
+  radial-gradient(circle at 20% 20%,#d7a64b24,transparent 38%),
+  linear-gradient(135deg,#18293a,#261d2d);
+ color:#f7e2b8;
+ text-align:left;
+ cursor:pointer;
+ box-shadow:0 18px 42px #0009,inset 0 1px #fff2;
+ transition:transform .16s ease,filter .16s ease,border-color .16s ease;
+}
+.stats-launch__button:hover{
+ transform:translateY(-2px);
+ filter:brightness(1.1);
+ border-color:#efc778;
+}
+.stats-launch__crest{
+ display:grid;
+ place-items:center;
+ width:74px;
+ height:74px;
+ border-radius:50%;
+ border:1px solid #e5ba6b;
+ background:linear-gradient(#4b3423,#211c2c);
+ color:#f0c66d;
+ font-size:42px;
+ box-shadow:0 0 0 6px #d5a85a10,0 8px 20px #0008;
+}
+.stats-launch__copy{display:grid;gap:5px}
+.stats-launch__copy small{color:#bb9f78;font-size:11px;font-weight:800;letter-spacing:.15em}
+.stats-launch__copy strong{font:800 28px Georgia,serif;color:#ffe4ad}
+.stats-launch__copy span{color:#c5c7ca;font-size:13px;line-height:1.4}
+.stats-launch__arrow{font-size:44px;color:#e7bf72}
+
+.stats-page{
+ min-height:100vh;
+ min-height:100svh;
+ padding:34px 16px 52px;
+ background:
+  linear-gradient(#071220e8,#0b1023e8),
+  url('../assets/menu/throne-hall.webp') center/cover fixed;
+}
+.stats-page__content{width:min(100%,980px);margin:auto}
+.stats-page__header{text-align:center;margin-bottom:24px;text-shadow:0 3px 14px #000}
+.stats-page__header h2{
+ margin:6px 0;
+ color:#f8dfab;
+ font:800 clamp(36px,6vw,60px)/1.05 Georgia,serif;
+}
+.stats-page__header p:last-child{color:#c9c8c5}
+
+.stats-summary{
+ display:grid;
+ grid-template-columns:270px 1fr;
+ gap:18px;
+ margin-bottom:18px;
+}
+.stats-summary__hero{
+ display:flex;
+ align-items:center;
+ gap:16px;
+ padding:22px;
+ border:1px solid #c29558;
+ border-radius:18px;
+ background:linear-gradient(145deg,#382817,#162334);
+ box-shadow:0 16px 36px #0008,inset 0 1px #fff2;
+}
+.stats-summary__icon{
+ display:grid;
+ place-items:center;
+ width:78px;height:78px;
+ border-radius:50%;
+ background:#e5bd69;
+ color:#25180c;
+ font-size:46px;
+ box-shadow:0 0 28px #e2b75e44;
+}
+.stats-summary__hero small{display:block;color:#b9ad99;text-transform:uppercase;letter-spacing:.1em;font-size:11px}
+.stats-summary__hero strong{display:block;margin-top:4px;color:#fff0c7;font:800 46px Georgia,serif}
+.stats-summary__cards{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:12px;
+}
+.stats-summary__cards article{
+ padding:16px;
+ border:1px solid #ffffff18;
+ border-radius:14px;
+ background:#101c2ddb;
+ box-shadow:inset 0 1px #fff1;
+}
+.stats-summary__cards small,.stats-summary__cards span{display:block;color:#9faab4;font-size:12px}
+.stats-summary__cards strong{display:block;margin:5px 0;color:#f6deb0;font:800 28px Georgia,serif}
+
+.stats-results-grid{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:18px;
+ margin-bottom:18px;
+}
+.stats-result-card{
+ padding:20px;
+ border-radius:17px;
+ box-shadow:0 16px 34px #0007,inset 0 1px #fff2;
+}
+.stats-result-card--light{border:1px solid #d7ba80;background:linear-gradient(145deg,#51402d,#253244)}
+.stats-result-card--dark{border:1px solid #8f6882;background:linear-gradient(145deg,#352330,#151c2b)}
+.stats-result-card h3{margin:0 0 14px;color:#ffe6b6;font:800 24px Georgia,serif}
+.stats-result-card div{
+ display:flex;justify-content:space-between;align-items:center;
+ padding:10px 0;border-top:1px solid #ffffff14;color:#c6cbd0
+}
+.stats-result-card strong{color:#fff0c9;font-size:22px}
+
+.stats-levels-card{
+ padding:22px;
+ border:1px solid #a98050;
+ border-radius:18px;
+ background:#0d1725e8;
+ box-shadow:0 18px 42px #0009,inset 0 1px #fff1;
+}
+.stats-levels-card__header{
+ display:flex;justify-content:space-between;align-items:end;gap:20px;
+ padding-bottom:15px;border-bottom:1px solid #ffffff18
+}
+.stats-levels-card__header h3{margin:3px 0 0;color:#f4d8a1;font:800 26px Georgia,serif}
+.stats-levels-card__header>span{color:#9eabb5;font-size:12px}
+.stats-levels-list{display:grid;gap:8px;margin-top:14px}
+.stats-level-row{
+ display:grid;
+ grid-template-columns:46px 1fr auto;
+ align-items:center;
+ gap:14px;
+ padding:11px 13px;
+ border:1px solid #ffffff10;
+ border-radius:11px;
+ background:#ffffff06;
+}
+.stats-level-row__level{
+ display:grid;place-items:center;
+ width:40px;height:40px;border-radius:50%;
+ background:#c59a57;color:#25180c;font-weight:900
+}
+.stats-level-row__main{display:grid;gap:2px}
+.stats-level-row__main strong{color:#f3ddb6}
+.stats-level-row__main small{color:#94a1aa}
+.stats-level-row__numbers{display:flex;gap:18px}
+.stats-level-row__numbers span{display:grid;text-align:center;min-width:54px}
+.stats-level-row__numbers b{color:#f7e1b9;font-size:18px}
+.stats-level-row__numbers small{color:#8e9ba5;font-size:10px}
+.stats-page__note{text-align:center;color:#8f9ca7;font-size:12px}
+.stats-page__back{
+ display:block;margin:18px auto 0;padding:12px 20px;
+ border:1px solid #deb96f;border-radius:9px;
+ background:#2c3e4c;color:#f9e8c5;font-weight:800;cursor:pointer
+}
+.stats-page__back:hover{filter:brightness(1.12)}
+
+@media(max-width:700px){
+ .stats-summary{grid-template-columns:1fr}
+ .stats-summary__cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .stats-results-grid{grid-template-columns:1fr}
+ .stats-levels-card__header{display:block}
+ .stats-levels-card__header>span{display:block;margin-top:5px}
+ .stats-level-row{grid-template-columns:42px 1fr}
+ .stats-level-row__numbers{grid-column:1/-1;justify-content:space-around;border-top:1px solid #ffffff10;padding-top:8px}
+ .stats-launch__button{padding:20px 16px}
+ .stats-launch__crest{width:62px;height:62px;font-size:35px}
+ .stats-launch__copy strong{font-size:23px}
+}
