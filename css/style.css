@@ -23,3 +23,14 @@ h1 { margin: 5px 0; font-family: Georgia, serif; font-size: clamp(38px, 7vw, 56p
 .reset:hover { background: #f9dba5; }
 footer { text-align: center; margin: 16px 10px; }
 @media (max-width: 390px) { .board { border-width: 4px; } .square { font-size: 9vw; } }
+
+/* Захват фигуры: вспышка и летящие искры */
+.square--move::after {content:"";position:absolute;width:24%;height:24%;border-radius:50%;background:#2b614899}
+.square--capture {box-shadow:inset 0 0 0 5px #d95230}
+.square--impact {animation:impact .4s ease-out;z-index:2}
+.square--impact::before {content:"";position:absolute;inset:-30%;pointer-events:none;border-radius:50%;background:radial-gradient(circle,#fff8bb,#ffad24 25%,#fa531b99 43%,transparent 70%);animation:blast .55s ease-out both}
+.spark {position:absolute;left:50%;top:50%;width:7%;height:20%;border-radius:50%;pointer-events:none;background:#ffda77;animation:spark .6s ease-out both}
+@keyframes impact {0%{filter:brightness(2);transform:scale(1.08)}50%{transform:scale(.94)}100%{transform:scale(1)}}
+@keyframes blast {from{opacity:1;transform:scale(.1)}to{opacity:0;transform:scale(1.15)}}
+@keyframes spark {from{opacity:1;transform:translate(-50%,-50%) rotate(var(--angle)) translateY(0)}to{opacity:0;transform:translate(-50%,-50%) rotate(var(--angle)) translateY(-48px)}}
+@media(prefers-reduced-motion:reduce){.square--impact,.square--impact::before,.spark{animation:none}}
