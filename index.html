@@ -64,9 +64,9 @@
             <button class="side-option is-selected" type="button" data-side="white" aria-pressed="true"><img src="assets/pieces/fantasy/white-king.png" alt=""><span>Белые</span><small>Первый ход твой</small></button>
             <button class="side-option" type="button" data-side="black" aria-pressed="false"><img src="assets/pieces/fantasy/black-king.png" alt=""><span>Чёрные</span><small>Первым ходит бот</small></button>
           </div>
-          <h3 id="level-title">Сложность бота <output id="level-value">5</output>/10</h3>
+          <h3 id="level-title">Сложность бота: <output id="level-value">Офицер</output></h3>
           <div id="levels" class="levels" role="group" aria-labelledby="level-title"></div>
-          <p class="menu__hint">1 — новичок, 10 — самый внимательный соперник</p>
+          <p class="menu__hint">Пешка — самый простой соперник, Король — самый сильный.</p>
           <button id="start-match" class="menu__start" type="button">Начать партию</button>
         </section>
         <section class="stats-launch" aria-label="Статистика игрока">
@@ -164,34 +164,42 @@
         <p>История твоих партий и прогресс по уровням сложности</p>
       </header>
 
-      <section class="stats-summary" aria-label="Общая статистика">
-        <div class="stats-summary__hero">
-          <span class="stats-summary__icon" aria-hidden="true">♔</span>
-          <div>
-            <small>Всего партий</small>
-            <strong id="overall-stats">0</strong>
+      <section class="stats-big-grid" aria-label="Основная статистика">
+        <article class="stats-big-card stats-big-card--overall">
+          <div class="stats-big-card__head">
+            <span class="stats-big-card__icon" aria-hidden="true">♔</span>
+            <div><small>ОБЩИЙ ПРОГРЕСС</small><h3>Твои результаты</h3></div>
           </div>
-        </div>
-        <div class="stats-summary__cards">
-          <article><small>Белые</small><strong id="white-games">0</strong><span>партий</span></article>
-          <article><small>Чёрные</small><strong id="black-games">0</strong><span>партий</span></article>
-          <article><small>Победы белыми</small><strong id="white-wins">0</strong><span id="white-rate">0%</span></article>
-          <article><small>Победы чёрными</small><strong id="black-wins">0</strong><span id="black-rate">0%</span></article>
-        </div>
-      </section>
-
-      <section class="stats-results-grid" aria-label="Подробные результаты">
-        <article class="stats-result-card stats-result-card--light">
-          <h3>Белыми</h3>
-          <div><span>Победы</span><strong id="white-wins-detail">0</strong></div>
-          <div><span>Поражения</span><strong id="white-losses">0</strong></div>
-          <div><span>Ничьи</span><strong id="white-draws">0</strong></div>
+          <div class="stats-big-card__metrics">
+            <div><span>Всего партий</span><strong id="overall-stats">0</strong></div>
+            <div><span>Решено задач</span><strong id="solved-puzzles-stat">0</strong></div>
+          </div>
         </article>
-        <article class="stats-result-card stats-result-card--dark">
-          <h3>Чёрными</h3>
-          <div><span>Победы</span><strong id="black-wins-detail">0</strong></div>
-          <div><span>Поражения</span><strong id="black-losses">0</strong></div>
-          <div><span>Ничьи</span><strong id="black-draws">0</strong></div>
+        <article class="stats-big-card stats-big-card--light">
+          <div class="stats-big-card__head">
+            <span class="stats-big-card__piece" aria-hidden="true">♔</span>
+            <div><small>ИГРА ЗА БЕЛЫХ</small><h3>Белыми</h3></div>
+          </div>
+          <div class="stats-big-card__metrics">
+            <div><span>Партий</span><strong id="white-games">0</strong></div>
+            <div><span>Победы</span><strong id="white-wins">0</strong></div>
+            <div><span>Поражения</span><strong id="white-losses">0</strong></div>
+            <div><span>Ничьи</span><strong id="white-draws">0</strong></div>
+            <div class="stats-big-card__rate"><span>Процент побед</span><strong id="white-rate">0%</strong></div>
+          </div>
+        </article>
+        <article class="stats-big-card stats-big-card--dark">
+          <div class="stats-big-card__head">
+            <span class="stats-big-card__piece" aria-hidden="true">♚</span>
+            <div><small>ИГРА ЗА ЧЁРНЫХ</small><h3>Чёрными</h3></div>
+          </div>
+          <div class="stats-big-card__metrics">
+            <div><span>Партий</span><strong id="black-games">0</strong></div>
+            <div><span>Победы</span><strong id="black-wins">0</strong></div>
+            <div><span>Поражения</span><strong id="black-losses">0</strong></div>
+            <div><span>Ничьи</span><strong id="black-draws">0</strong></div>
+            <div class="stats-big-card__rate"><span>Процент побед</span><strong id="black-rate">0%</strong></div>
+          </div>
         </article>
       </section>
 
@@ -201,7 +209,7 @@
             <p class="eyebrow">СЛОЖНОСТЬ</p>
             <h3>Результаты по уровням</h3>
           </div>
-          <span>1 — новичок · 10 — сильнейший бот</span>
+          <span>Пешка → Слон → Конь → Ладья → Офицер → Король</span>
         </div>
         <div class="stats-levels-list" id="level-stats-body"></div>
       </section>
