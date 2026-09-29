@@ -155,6 +155,14 @@ function render(){
    fig.draggable=false;
    cell.append(fig);
   }
+  if(c===0){
+   const rank=document.createElement("span");
+   rank.className="square__rank";rank.textContent=8-r;rank.setAttribute("aria-hidden","true");cell.append(rank);
+  }
+  if(r===7){
+   const file=document.createElement("span");
+   file.className="square__file";file.textContent=files[c];file.setAttribute("aria-hidden","true");cell.append(file);
+  }
   cell.dataset.row=r;cell.dataset.col=c;boardElement.append(cell);
  }
 }
