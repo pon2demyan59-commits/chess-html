@@ -10,6 +10,19 @@ const SUPABASE_KEY="sb_publishable_6wPIJdK8YSke4Gx3_s0E6A_0uLmi9tP";
 const supabaseClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let onlineMatchId=null,onlineColor=null,onlineOpponent="",onlineVersion=0,onlineChannel=null;
 let matchmakingTimer=null,matchmakingStartedAt=0,onlinePolling=false;
+const onlineTimeControls={
+ blitz3_2:{label:"Блиц 3+2",clock:"total",initial:180,increment:2},
+ blitz5_0:{label:"Блиц 5+0",clock:"total",initial:300,increment:0},
+ blitz5_3:{label:"Блиц 5+3",clock:"total",initial:300,increment:3},
+ rapid10_0:{label:"Рапид 10+0",clock:"total",initial:600,increment:0},
+ rapid10_5:{label:"Рапид 10+5",clock:"total",initial:600,increment:5},
+ rapid15_10:{label:"Рапид 15+10",clock:"total",initial:900,increment:10},
+ standard30:{label:"Стандарт · 30 сек/ход",clock:"per_move",initial:30,increment:0}
+};
+const onlineTimeControlKey="chess-online-time-control-v1";
+let selectedOnlineTimeControl=localStorage.getItem(onlineTimeControlKey)||"standard30";
+if(!onlineTimeControls[selectedOnlineTimeControl])selectedOnlineTimeControl="standard30";
+let onlineClockRow=null,onlineClockTimer=null,onlineTimeoutClaiming=false;
 let accountUser=null,cloudSyncTimer=null,cloudLoading=false;
 function isPermanentAccount(user){return !!(user?.email&&!user?.is_anonymous)}
 function setAccountMessage(text,error=false,target="#account-message"){
@@ -469,7 +482,7 @@ function saveGameState(){
  try{
   sessionStorage.setItem(gameStateKey,JSON.stringify({
    fen:chess.fen(),gameMode,playerColor,botColor,menuSide,difficultyLevel,puzzleIndex,puzzleCategory,puzzleStep,finished,
-   onlineMatchId,onlineColor,onlineOpponent,onlineVersion,
+   onlineMatchId,onlineColor,onlineOpponent,onlineVersion,selectedOnlineTimeControl,
    lastMove:lastMove?{from:lastMove.from,to:lastMove.to,san:lastMove.san,promotion:lastMove.promotion||null}:null
   }));
  }catch{}
@@ -502,7 +515,7 @@ function restoreSession(){
     puzzleIndex=Math.max(0,Math.min(restoredList.length-1,Number(saved.puzzleIndex)||0));
     puzzleStep=Math.max(0,Math.min(8,Number(saved.puzzleStep)||0));
     finished=!!saved.finished;gameStarted=true;
-    onlineMatchId=saved.onlineMatchId||null;onlineColor=saved.onlineColor||null;onlineOpponent=saved.onlineOpponent||"";onlineVersion=Number(saved.onlineVersion)||0;
+    onlineMatchId=saved.onlineMatchId||null;onlineColor=saved.onlineColor||null;onlineOpponent=saved.onlineOpponent||"";onlineVersion=Number(saved.onlineVersion)||0;if(onlineTimeControls[saved.selectedOnlineTimeControl])selectedOnlineTimeControl=saved.selectedOnlineTimeControl;
     chess.load(saved.fen);syncBoard();closePromotion();resetReview();
     lastMove=saved.lastMove||null;selected=null;moves=[];
     document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
@@ -527,7 +540,7 @@ function restoreSession(){
      document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
      document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
      document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
-     document.querySelector("#match-info").textContent="Онлайн-партия";
+     document.querySelector("#match-info").textContent=`Онлайн-партия · ${onlineTimeControls[selectedOnlineTimeControl]?.label||"контроль времени"}`;
      resetButton.hidden=true;
      document.querySelector("#resign").hidden=true;
     }else{
@@ -716,6 +729,60 @@ async function savePlayerNickname(){
  return true;
 }
 
+function formatChessClock(ms){
+ const safe=Math.max(0,Math.ceil(ms/1000)),minutes=Math.floor(safe/60),seconds=safe%60;
+ return `${String(minutes).padStart(2,"0")}:${String(seconds).padStart(2,"0")}`;
+}
+function setOnlineClocksVisible(visible){
+ for(const id of ["#player-clock","#opponent-clock"]){const el=document.querySelector(id);if(el)el.hidden=!visible}
+ if(!visible){clearInterval(onlineClockTimer);onlineClockTimer=null;onlineClockRow=null}
+}
+function getDisplayedClockTimes(){
+ const row=onlineClockRow;
+ if(!row)return {white:0,black:0};
+ const elapsed=row.status==="active"?Math.max(0,Date.now()-Date.parse(row.turn_started_at||new Date().toISOString())):0;
+ let white=Number(row.white_time_ms)||0,black=Number(row.black_time_ms)||0;
+ if(row.clock_type==="per_move"){
+  white=(Number(row.initial_seconds)||30)*1000;
+  black=(Number(row.initial_seconds)||30)*1000;
+ }
+ if(row.status==="active"){
+  if(row.turn==="white")white-=elapsed;
+  else black-=elapsed;
+ }
+ return {white:Math.max(0,white),black:Math.max(0,black)};
+}
+async function claimOnlineTimeout(){
+ if(onlineTimeoutClaiming||!onlineMatchId||!supabaseClient)return;
+ onlineTimeoutClaiming=true;
+ try{
+  const {data,error}=await supabaseClient.rpc("claim_timeout",{p_match_id:onlineMatchId});
+  if(!error&&data)applyOnlineMatch(data,false);
+ }finally{setTimeout(()=>{onlineTimeoutClaiming=false},900)}
+}
+function updateOnlineClocks(){
+ if(gameMode!=="online"||!onlineClockRow)return;
+ const times=getDisplayedClockTimes();
+ const own=onlineColor==="black"?times.black:times.white;
+ const opp=onlineColor==="black"?times.white:times.black;
+ const ownEl=document.querySelector("#player-clock"),oppEl=document.querySelector("#opponent-clock");
+ if(ownEl){ownEl.textContent=formatChessClock(own);ownEl.classList.toggle("is-active",onlineClockRow.status==="active"&&onlineClockRow.turn===onlineColor);ownEl.classList.toggle("is-low",own<=10000)}
+ if(oppEl){oppEl.textContent=formatChessClock(opp);oppEl.classList.toggle("is-active",onlineClockRow.status==="active"&&onlineClockRow.turn!==onlineColor);oppEl.classList.toggle("is-low",opp<=10000)}
+ const activeRemaining=onlineClockRow.turn==="white"?times.white:times.black;
+ if(onlineClockRow.status==="active"&&activeRemaining<=0)claimOnlineTimeout();
+}
+function syncOnlineClock(row){
+ onlineClockRow=row;
+ setOnlineClocksVisible(true);
+ updateOnlineClocks();
+ if(!onlineClockTimer)onlineClockTimer=setInterval(updateOnlineClocks,250);
+}
+function selectOnlineTimeControl(control){
+ if(!onlineTimeControls[control])return;
+ selectedOnlineTimeControl=control;
+ try{localStorage.setItem(onlineTimeControlKey,control)}catch{}
+ document.querySelectorAll("[data-time-control]").forEach(button=>button.classList.toggle("is-selected",button.dataset.timeControl===control));
+}
 async function ensureOnlineAuth(){
  if(!supabaseClient)throw new Error("Supabase не загрузился");
  const {data:{session}}=await supabaseClient.auth.getSession();
@@ -729,6 +796,7 @@ function openOnlineModal(){
  if(!nickname){openProfileModal();return}
  const modal=document.querySelector("#online-modal");
  refreshProfileUI();
+ selectOnlineTimeControl(selectedOnlineTimeControl);
  modal.hidden=false;
  document.querySelector("#online-waiting").hidden=true;
  document.querySelector("#online-search").hidden=false;
@@ -749,7 +817,7 @@ async function pollMatchmaking(nickname){
  if(onlinePolling)return;
  onlinePolling=true;
  try{
-  const {data,error}=await supabaseClient.rpc("find_match",{p_nickname:nickname});
+  const {data,error}=await supabaseClient.rpc("find_match",{p_nickname:nickname,p_time_control:selectedOnlineTimeControl});
   if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;
   if(row?.state==="matched"&&row.match_id){
@@ -757,7 +825,7 @@ async function pollMatchmaking(nickname){
    document.querySelector("#online-status").textContent="Соперник найден!";
    setTimeout(()=>startOnlineMatch(row.match_id,row.color,row.opponent_nickname),450);
   }else{
-   document.querySelector("#online-status").textContent="Ожидаем свободного игрока";
+   document.querySelector("#online-status").textContent=`Ищем соперника · ${onlineTimeControls[selectedOnlineTimeControl].label}`;
   }
  }catch(error){
   document.querySelector("#online-status").textContent=error.message?.includes("Anonymous")||error.message?.includes("anonymous")
@@ -797,8 +865,7 @@ async function startOnlineMatch(matchId,color,opponent){
  resetButton.hidden=true;document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#resign").hidden=true;document.querySelector("#next-puzzle").hidden=true;
  showScreen("game");
- const {data}=await supabaseClient.from("matches").select("*").eq("id",matchId).single();
- if(data)applyOnlineMatch(data,false);
+ setOnlineClocksVisible(true);
  await subscribeOnlineMatch(matchId);
  statusElement.textContent=turn===playerColor?"Твой ход.":"Ход соперника…";
  saveGameState();
@@ -810,12 +877,16 @@ async function subscribeOnlineMatch(matchId){
  onlineChannel
   .on("postgres_changes",{event:"UPDATE",schema:"public",table:"matches",filter:`id=eq.${matchId}`},payload=>applyOnlineMatch(payload.new,true))
   .subscribe();
+ const {data}=await supabaseClient.from("matches").select("*").eq("id",matchId).single();
+ if(data)applyOnlineMatch(data,false);
 }
 function applyOnlineMatch(row,animateRemote=true){
  if(!row||row.id!==onlineMatchId)return;
  const version=Number(row.version)||0;
  if(version<=onlineVersion&&animateRemote)return;
  onlineVersion=version;
+ if(row.time_control&&onlineTimeControls[row.time_control])selectedOnlineTimeControl=row.time_control;
+ syncOnlineClock(row);
  const apply=()=>{
   if(row.fen&&row.fen!=="start")chess.load(row.fen);else chess.reset();
   syncBoard();lastMove=row.last_move||null;selected=null;moves=[];
@@ -824,10 +895,13 @@ function applyOnlineMatch(row,animateRemote=true){
   if(finished){
    loadPvpStats();
    const won=(row.status==="white_won"&&playerColor==="white")||(row.status==="black_won"&&playerColor==="black");
-   const message=row.status==="draw"?"Ничья.":row.status==="abandoned"?"Соперник покинул партию.":won?"Шах и мат! Ты победил!":"Шах и мат! Соперник победил.";
+   const message=row.status==="draw"?"Ничья.":row.status==="abandoned"?"Соперник покинул партию.":row.finish_reason==="timeout"?(won?"Время соперника вышло. Ты победил!":"Твоё время вышло. Победа соперника."):won?"Шах и мат! Ты победил!":"Шах и мат! Соперник победил.";
    statusElement.textContent=message;
    showResult(row.status==="draw"?"draw":"mate",message);
-  }else statusElement.textContent=turn===playerColor?"Твой ход.":"Ход соперника…";
+  }else{
+   document.querySelector("#match-info").textContent=`Онлайн-партия · ${onlineTimeControls[row.time_control]?.label||"контроль времени"}`;
+   statusElement.textContent=turn===playerColor?"Твой ход.":"Ход соперника…";
+  }
  };
  if(!animateRemote||!row.last_move||row.fen===chess.fen()){apply();return}
  const m=row.last_move;
@@ -851,6 +925,8 @@ async function submitOnlineMove(played,status="active"){
   return false;
  }
  onlineVersion=Number(data?.version)||onlineVersion;
+ if(data?.status&&data.status!=="active"){applyOnlineMatch(data,false);return false}
+ if(data)syncOnlineClock(data);
  saveGameState();return true;
 }
 
@@ -864,6 +940,7 @@ function setHotseatPlayers(){
  document.querySelector(".player--human strong").textContent=whiteTurn?"Игрок 1":"Игрок 2";
 }
 function startHotseat(){
+ setOnlineClocksVisible(false);
  clearTimeout(botTimer);
  cancelDrag();cancelMotion();clearScene();
  gameMode="hotseat";
@@ -886,6 +963,7 @@ function restartCurrentGame(){
 }
 
 function startGame(){
+ setOnlineClocksVisible(false);
  clearTimeout(botTimer);
  cancelDrag();cancelMotion();clearScene();
  gameMode="match";
@@ -924,6 +1002,7 @@ function buildPuzzleLine(puzzle){
  return [];
 }
 function startPuzzle(index){
+ setOnlineClocksVisible(false);
  clearTimeout(botTimer);cancelDrag();cancelMotion();clearScene();
  puzzleIndex=index;gameMode="puzzle";gameStarted=true;finished=false;puzzleStep=0;
  const list=activePuzzles(),puzzle=list[index],longPuzzle=puzzleCategory!=="mate1";
@@ -1708,7 +1787,7 @@ document.querySelector("#back-menu").addEventListener("click",async()=>{
  if(gameMode==="online"&&onlineMatchId&&supabaseClient){
   try{await supabaseClient.rpc("leave_match",{p_match_id:onlineMatchId})}catch{}
   if(onlineChannel){await supabaseClient.removeChannel(onlineChannel);onlineChannel=null}
-  onlineMatchId=null;onlineColor=null;onlineOpponent="";onlineVersion=0;
+  onlineMatchId=null;onlineColor=null;onlineOpponent="";onlineVersion=0;setOnlineClocksVisible(false);
  }
  gameStarted=false;resetButton.hidden=false;showScreen("menu");
 });
