@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Шахматы в свободное время</title>
   <script src="/sdk.js"></script>
   <link rel="stylesheet" href="css/style.css">
@@ -96,7 +96,7 @@
           <small id="energy-timer" class="energy-timer">Запас энергии полный</small>
           <button id="puzzle-entry" class="puzzle-hero__play" type="button">Открыть задачи</button>
           <button id="energy-ad" class="puzzle-hero__ad" type="button">Получить +3 ⚡ за рекламу</button>
-          <small class="puzzle-hero__adnote">Рекламная энергия подключится через SDK Яндекс Игр.</small>
+          <small class="puzzle-hero__adnote">Смотри рекламу по желанию и получай +3 ⚡ энергии.</small>
         </div>
       </section>
 
@@ -585,14 +585,17 @@
         <h3>Превратить пешку в</h3><div id="promotion-choices" class="promotion__choices"></div>
         <button id="promotion-cancel" class="promotion__cancel" type="button">Отмена</button>
       </div>
+      <div class="game__actions">
       <button id="analysis-entry" class="reset" type="button" hidden aria-hidden="true">Разбор партии</button>
       <button id="resign" class="back-menu" type="button">Сдаться</button>
       <button id="claim-draw" class="reset" type="button" hidden>Заявить ничью</button>
       <button id="reset" class="reset" type="button">Новая партия</button>
       <button id="next-puzzle" class="reset" type="button" hidden>Следующая задача</button>
       <button id="back-menu" class="back-menu" type="button">В основное меню</button>
+      </div>
     </section>
     <footer>Перетаскивай фигуры мышью или пальцем. Для рокировки перенеси короля на две клетки к ладье. Взятие на проходе доступно сразу после двойного хода пешки.</footer>
   </main>
 </body>
 </html>
+

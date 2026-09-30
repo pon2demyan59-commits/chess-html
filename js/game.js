@@ -1487,7 +1487,7 @@ function renderMoveList(){
   }
   list.append(row);
  }
- if(!reviewMode)list.scrollTop=list.scrollHeight;
+ if(!reviewMode){list.scrollTop=list.scrollHeight;list.scrollLeft=list.scrollWidth;}
 }
 function setReviewPly(ply){
  if(!reviewMode)return;
@@ -1915,3 +1915,17 @@ window.addEventListener("pagehide",()=>{
 restoreSession();
 accountReady.then(()=>window.YandexPlatform?.gameReady?.()).catch(error=>console.warn("Game Ready failed:",error));
 
+
+function fitGameBoard(){
+ if(screens.game.hidden)return;
+ const arena=document.querySelector(".game__arena");
+ const compact=innerWidth<=800||(innerHeight<=540&&innerWidth>innerHeight);
+ const gap=compact?6:12;
+ const width=arena.clientWidth-(compact?0:Math.min(220,arena.clientWidth*.3)+gap);
+ const height=arena.clientHeight-(compact?64+gap:0);
+ const size=Math.max(0,Math.floor(Math.min(width,height)));
+ arena.style.setProperty("--board-size",size+"px");
+}
+new ResizeObserver(fitGameBoard).observe(document.querySelector(".game__arena"));
+window.addEventListener("resize",fitGameBoard);
+fitGameBoard();
