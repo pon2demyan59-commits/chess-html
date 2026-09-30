@@ -7,9 +7,179 @@ const screens={welcome:document.querySelector("#welcome"),menu:document.querySel
 const levelsElement=document.querySelector("#levels");
 const SUPABASE_URL="https://rcttgctmieaaegdywbnz.supabase.co";
 const SUPABASE_KEY="sb_publishable_6wPIJdK8YSke4Gx3_s0E6A_0uLmi9tP";
-const supabaseClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY);
+const supabaseClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let onlineMatchId=null,onlineColor=null,onlineOpponent="",onlineVersion=0,onlineChannel=null;
 let matchmakingTimer=null,matchmakingStartedAt=0,onlinePolling=false;
+let accountUser=null,cloudSyncTimer=null,cloudLoading=false;
+function isPermanentAccount(user){return !!(user?.email&&!user?.is_anonymous)}
+function setAccountMessage(text,error=false,target="#account-message"){
+ const el=document.querySelector(target);if(!el)return;
+ el.textContent=text||"";el.hidden=!text;el.classList.toggle("is-error",!!error);
+}
+function refreshAccountUI(user=accountUser){
+ accountUser=user||null;
+ const connected=isPermanentAccount(accountUser);
+ const chip=document.querySelector("#open-account");
+ const title=document.querySelector("#account-chip-title");
+ const note=document.querySelector("#account-chip-note");
+ if(chip)chip.classList.toggle("is-connected",connected);
+ if(title)title.textContent=connected?(accountUser.email||"Аккаунт подключён"):"Играть без регистрации";
+ if(note)note.textContent=connected?"Прогресс сохраняется в облаке":"Регистрация необязательна";
+ const authForm=document.querySelector("#account-auth-form");
+ const signed=document.querySelector("#account-signed-in");
+ const recovery=document.querySelector("#account-recovery");
+ if(authForm)authForm.hidden=connected;
+ if(signed)signed.hidden=!connected;
+ if(recovery&&recovery.dataset.active!=="true")recovery.hidden=true;
+ const current=document.querySelector("#account-email-current");
+ if(current)current.textContent=connected?(accountUser.email||""):"";
+}
+function openAccountModal(){
+ const modal=document.querySelector("#account-modal");if(!modal)return;
+ document.querySelector("#account-recovery").dataset.active="false";
+ document.querySelector("#account-recovery").hidden=true;
+ setAccountMessage("");
+ refreshAccountUI(accountUser);
+ modal.hidden=false;
+ const email=document.querySelector("#account-email");
+ if(!isPermanentAccount(accountUser)&&email)setTimeout(()=>email.focus(),0);
+}
+function closeAccountModal(){const modal=document.querySelector("#account-modal");if(modal)modal.hidden=true}
+function validateAccountFields(){
+ const email=(document.querySelector("#account-email")?.value||"").trim();
+ const password=document.querySelector("#account-password")?.value||"";
+ if(!/^\S+@\S+\.\S+$/.test(email)){setAccountMessage("Укажи корректный email.",true);return null}
+ if(password.length<6){setAccountMessage("Пароль должен содержать минимум 6 символов.",true);return null}
+ return {email,password};
+}
+function cloudSnapshot(){
+ return {
+  user_id:accountUser.id,
+  nickname:getPlayerNickname()||null,
+  energy,
+  energy_last_at:energyLastAt,
+  completed_puzzles:[...completedPuzzles],
+  stats,
+  level_stats:levelStats,
+  piece_theme:pieceTheme,
+  updated_at:new Date().toISOString()
+ };
+}
+async function saveCloudProgressNow(){
+ if(!supabaseClient||!isPermanentAccount(accountUser)||cloudLoading)return;
+ const {error}=await supabaseClient.from("player_progress").upsert(cloudSnapshot(),{onConflict:"user_id"});
+ if(error)console.warn("Cloud progress save failed:",error.message);
+}
+function scheduleCloudSync(){
+ if(!isPermanentAccount(accountUser)||cloudLoading)return;
+ clearTimeout(cloudSyncTimer);
+ cloudSyncTimer=setTimeout(()=>saveCloudProgressNow(),500);
+}
+function applyCloudProgress(row){
+ if(!row)return;
+ cloudLoading=true;
+ try{
+  if(row.nickname){localStorage.setItem(nicknameKey,row.nickname)}
+  if(Number.isInteger(row.energy)){energy=Math.max(0,Math.min(MAX_ENERGY,row.energy));localStorage.setItem(energyKey,String(energy))}
+  if(Number.isFinite(Number(row.energy_last_at))&&Number(row.energy_last_at)>0){energyLastAt=Number(row.energy_last_at);localStorage.setItem(energyTimeKey,String(energyLastAt))}
+  if(Array.isArray(row.completed_puzzles)){
+   completedPuzzles=new Set(row.completed_puzzles);
+   saveCompletedPuzzles();
+  }
+  if(row.stats&&typeof row.stats==="object"){
+   for(const side of ["white","black"])if(row.stats[side])Object.assign(stats[side],row.stats[side]);
+   localStorage.setItem(statsKey,JSON.stringify(stats));
+  }
+  if(Array.isArray(row.level_stats)){
+   for(let i=0;i<Math.min(levelStats.length,row.level_stats.length);i++)if(row.level_stats[i])Object.assign(levelStats[i],row.level_stats[i]);
+   localStorage.setItem(levelStatsKey,JSON.stringify(levelStats));
+  }
+  if(["fantasy","classic","wood","neon"].includes(row.piece_theme))setPieceTheme(row.piece_theme);
+  refreshProfileUI();renderEnergy();renderPuzzleHub();showStats();
+ }finally{cloudLoading=false}
+}
+async function loadCloudProgress(){
+ if(!supabaseClient||!isPermanentAccount(accountUser))return;
+ cloudLoading=true;
+ try{
+  const {data,error}=await supabaseClient.from("player_progress").select("*").eq("user_id",accountUser.id).maybeSingle();
+  if(error)throw error;
+  if(data)applyCloudProgress(data);
+  else{
+   cloudLoading=false;
+   await saveCloudProgressNow();
+   return;
+  }
+ }catch(error){console.warn("Cloud progress load failed:",error.message)}
+ finally{cloudLoading=false}
+}
+async function accountLogin(){
+ const fields=validateAccountFields();if(!fields)return;
+ setAccountMessage("Входим…");
+ const {data,error}=await supabaseClient.auth.signInWithPassword(fields);
+ if(error){setAccountMessage("Не удалось войти. Проверь email и пароль.",true);return}
+ accountUser=data.user;refreshAccountUI(accountUser);
+ await loadCloudProgress();
+ setAccountMessage("");
+}
+async function accountRegister(){
+ const fields=validateAccountFields();if(!fields)return;
+ setAccountMessage("Создаём аккаунт…");
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ if(session?.user?.is_anonymous)await supabaseClient.auth.signOut();
+ const {data,error}=await supabaseClient.auth.signUp({email:fields.email,password:fields.password,options:{data:{nickname:getPlayerNickname()||""}}});
+ if(error){setAccountMessage(error.message||"Не удалось создать аккаунт.",true);return}
+ if(data.session){
+  accountUser=data.user;refreshAccountUI(accountUser);await loadCloudProgress();
+  setAccountMessage("Аккаунт создан. Прогресс теперь сохраняется в облаке.");
+ }else{
+  setAccountMessage("Аккаунт создан. Проверь почту и подтверди email, затем войди.");
+ }
+}
+async function accountForgotPassword(){
+ const email=(document.querySelector("#account-email")?.value||"").trim();
+ if(!/^\S+@\S+\.\S+$/.test(email)){setAccountMessage("Сначала укажи email аккаунта.",true);return}
+ const redirectTo=location.origin+location.pathname;
+ const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo});
+ setAccountMessage(error?"Не удалось отправить письмо. Проверь email.":"Письмо для восстановления пароля отправлено.",!!error);
+}
+function openPasswordRecovery(){
+ const modal=document.querySelector("#account-modal"),authForm=document.querySelector("#account-auth-form"),signed=document.querySelector("#account-signed-in"),recovery=document.querySelector("#account-recovery");
+ if(!modal||!recovery)return;
+ modal.hidden=false;if(authForm)authForm.hidden=true;if(signed)signed.hidden=true;
+ recovery.hidden=false;recovery.dataset.active="true";
+ setAccountMessage("","", "#account-recovery-message");
+ setTimeout(()=>document.querySelector("#account-new-password")?.focus(),0);
+}
+async function accountSaveNewPassword(){
+ const password=document.querySelector("#account-new-password")?.value||"";
+ if(password.length<6){setAccountMessage("Новый пароль должен содержать минимум 6 символов.",true,"#account-recovery-message");return}
+ const {data,error}=await supabaseClient.auth.updateUser({password});
+ if(error){setAccountMessage("Не удалось изменить пароль.",true,"#account-recovery-message");return}
+ accountUser=data.user;document.querySelector("#account-recovery").dataset.active="false";
+ setAccountMessage("Пароль изменён.","", "#account-recovery-message");
+ setTimeout(()=>{refreshAccountUI(accountUser);closeAccountModal()},700);
+}
+async function accountSignOut(){
+ await saveCloudProgressNow();
+ await supabaseClient.auth.signOut();
+ accountUser=null;refreshAccountUI(null);closeAccountModal();
+}
+async function initializeAccount(){
+ if(!supabaseClient)return;
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ accountUser=session?.user||null;refreshAccountUI(accountUser);
+ if(isPermanentAccount(accountUser))await loadCloudProgress();
+ supabaseClient.auth.onAuthStateChange((event,sessionNow)=>{
+  setTimeout(async()=>{
+   accountUser=sessionNow?.user||null;
+   if(event==="PASSWORD_RECOVERY"){openPasswordRecovery();return}
+   refreshAccountUI(accountUser);
+   if(isPermanentAccount(accountUser)&&["SIGNED_IN","USER_UPDATED"].includes(event))await loadCloudProgress();
+  },0);
+ });
+}
+
 const spriteCache={};
 const customSprites={
  "white-pawn":"assets/pieces/fantasy/white-pawn.png",
@@ -62,6 +232,7 @@ function setPieceTheme(theme){
   button.setAttribute("aria-pressed",String(selected));
  });
  if(boardElement&&typeof board!=="undefined")render();
+ scheduleCloudSync();
 }
 const names={p:"pawn",n:"knight",b:"bishop",r:"rook",q:"queen",k:"king"};
 const colorName=x=>x==="w"?"white":"black";
@@ -115,7 +286,7 @@ function saveCompletedPuzzles(){
 }
 function markPuzzleComplete(id){
  if(!id||completedPuzzles.has(id))return false;
- completedPuzzles.add(id);saveCompletedPuzzles();renderPuzzleHub();return true;
+ completedPuzzles.add(id);saveCompletedPuzzles();renderPuzzleHub();scheduleCloudSync();return true;
 }
 function applyTimedEnergy(){
  if(energy>=MAX_ENERGY)return;
@@ -157,6 +328,7 @@ function saveEnergy(){
   localStorage.setItem(energyKey,String(energy));
   localStorage.setItem(energyTimeKey,String(energyLastAt));
  }catch{}
+ scheduleCloudSync();
 }
 function addEnergy(amount,message){
  applyTimedEnergy();
@@ -396,7 +568,7 @@ function recordResult(outcome){
   localStorage.setItem(statsKey,JSON.stringify(stats));
   localStorage.setItem(levelStatsKey,JSON.stringify(levelStats));
  }catch{/* Партия продолжается без сохранения. */}
- showStats();
+ showStats();scheduleCloudSync();
 }
 function showScreen(name,resetScroll=true){
  for(const [key,element] of Object.entries(screens))element.hidden=key!==name;
@@ -440,6 +612,7 @@ async function savePlayerNickname(){
   error.hidden=false;input.focus();return false;
  }
  localStorage.setItem(nicknameKey,nickname);
+ scheduleCloudSync();
  try{
   const user=await ensureOnlineAuth();
   if(user&&supabaseClient){
@@ -1357,6 +1530,14 @@ for(const button of document.querySelectorAll(".side-option"))button.addEventLis
   item.setAttribute("aria-pressed",String(selected));
  }
 });
+document.querySelector("#open-account").addEventListener("click",openAccountModal);
+document.querySelector("#account-close").addEventListener("click",closeAccountModal);
+document.querySelector("#account-login").addEventListener("click",accountLogin);
+document.querySelector("#account-register").addEventListener("click",accountRegister);
+document.querySelector("#account-forgot").addEventListener("click",accountForgotPassword);
+document.querySelector("#account-save-password").addEventListener("click",accountSaveNewPassword);
+document.querySelector("#account-signout").addEventListener("click",accountSignOut);
+document.querySelector("#account-password").addEventListener("keydown",e=>{if(e.key==="Enter")accountLogin()});
 document.querySelector("#enter").addEventListener("click",()=>{
  try{const Ctx=window.AudioContext||window.webkitAudioContext;if(Ctx){audioContext ||= new Ctx();audioContext.resume()}}catch{}
  showScreen("menu");
@@ -1407,7 +1588,7 @@ function requestRewardedEnergy(){
 }
 document.querySelector("#energy-ad").addEventListener("click",requestRewardedEnergy);
 document.querySelector("#puzzles-energy-ad").addEventListener("click",requestRewardedEnergy);
-showStats();renderEnergy();renderPuzzleHub();refreshProfileUI();
+showStats();renderEnergy();renderPuzzleHub();refreshProfileUI();initializeAccount();
 setInterval(()=>renderEnergy(),1000);
 
 document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!=="match"||finished||moving||turn!==playerColor)return;const draw=drawState();if(draw.claim){const message=`Ничья по заявлению: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message)}});
