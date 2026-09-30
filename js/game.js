@@ -23,51 +23,42 @@ const onlineTimeControlKey="chess-online-time-control-v1";
 let selectedOnlineTimeControl=localStorage.getItem(onlineTimeControlKey)||"standard30";
 if(!onlineTimeControls[selectedOnlineTimeControl])selectedOnlineTimeControl="standard30";
 let onlineClockRow=null,onlineClockTimer=null,onlineTimeoutClaiming=false;
-let accountUser=null,cloudSyncTimer=null,cloudLoading=false;
-function isPermanentAccount(user){return !!(user?.email&&!user?.is_anonymous)}
-function setAccountMessage(text,error=false,target="#account-message"){
- const el=document.querySelector(target);if(!el)return;
+let cloudSyncTimer=null,cloudLoading=false;
+function yandexPlatform(){return window.YandexPlatform||null}
+function yandexAuthorized(){return !!yandexPlatform()?.isAuthorized?.()}
+function setAccountMessage(text,error=false){
+ const el=document.querySelector("#account-message");if(!el)return;
  el.textContent=text||"";el.hidden=!text;el.classList.toggle("is-error",!!error);
 }
-function refreshAccountUI(user=accountUser){
- accountUser=user||null;
- const connected=isPermanentAccount(accountUser);
+function refreshAccountUI(){
+ const platform=yandexPlatform(),connected=!!platform?.isAuthorized?.();
  const chip=document.querySelector("#open-account");
  const title=document.querySelector("#account-chip-title");
  const note=document.querySelector("#account-chip-note");
  if(chip)chip.classList.toggle("is-connected",connected);
- if(title)title.textContent=connected?(accountUser.email||"Аккаунт подключён"):"Играть без регистрации";
- if(note)note.textContent=connected?"Прогресс сохраняется в облаке":"Регистрация необязательна";
- const authForm=document.querySelector("#account-auth-form");
- const signed=document.querySelector("#account-signed-in");
- const recovery=document.querySelector("#account-recovery");
- if(authForm)authForm.hidden=connected;
+ if(title)title.textContent=connected?"Прогресс в облаке":"Играть без авторизации";
+ if(note)note.textContent=connected?"Яндекс ID подключён":"Авторизация необязательна";
+ const guest=document.querySelector("#account-yandex-guest");
+ const signed=document.querySelector("#account-yandex-signed");
+ if(guest)guest.hidden=connected;
  if(signed)signed.hidden=!connected;
- if(recovery&&recovery.dataset.active!=="true")recovery.hidden=true;
- const current=document.querySelector("#account-email-current");
- if(current)current.textContent=connected?(accountUser.email||""):"";
+ const name=document.querySelector("#account-yandex-name");
+ if(name&&connected){
+  let playerName="Игрок";
+  try{playerName=platform.player?.getName?.()||"Игрок"}catch{}
+  name.textContent=playerName;
+ }
 }
 function openAccountModal(){
  const modal=document.querySelector("#account-modal");if(!modal)return;
- document.querySelector("#account-recovery").dataset.active="false";
- document.querySelector("#account-recovery").hidden=true;
  setAccountMessage("");
- refreshAccountUI(accountUser);
+ refreshAccountUI();
  modal.hidden=false;
- const email=document.querySelector("#account-email");
- if(!isPermanentAccount(accountUser)&&email)setTimeout(()=>email.focus(),0);
 }
 function closeAccountModal(){const modal=document.querySelector("#account-modal");if(modal)modal.hidden=true}
-function validateAccountFields(){
- const email=(document.querySelector("#account-email")?.value||"").trim();
- const password=document.querySelector("#account-password")?.value||"";
- if(!/^\S+@\S+\.\S+$/.test(email)){setAccountMessage("Укажи корректный email.",true);return null}
- if(password.length<6){setAccountMessage("Пароль должен содержать минимум 6 символов.",true);return null}
- return {email,password};
-}
 function cloudSnapshot(){
  return {
-  user_id:accountUser.id,
+  version:2,
   nickname:getPlayerNickname()||null,
   energy,
   energy_last_at:energyLastAt,
@@ -79,26 +70,28 @@ function cloudSnapshot(){
  };
 }
 async function saveCloudProgressNow(){
- if(!supabaseClient||!isPermanentAccount(accountUser)||cloudLoading)return;
- const {error}=await supabaseClient.from("player_progress").upsert(cloudSnapshot(),{onConflict:"user_id"});
- if(error)console.warn("Cloud progress save failed:",error.message);
+ const platform=yandexPlatform();
+ if(!platform?.isAuthorized?.()||cloudLoading)return false;
+ try{
+  return await platform.setCloudProgress(cloudSnapshot(),true);
+ }catch(error){
+  console.warn("Yandex cloud save failed:",error);
+  return false;
+ }
 }
 function scheduleCloudSync(){
- if(!isPermanentAccount(accountUser)||cloudLoading)return;
+ if(!yandexAuthorized()||cloudLoading)return;
  clearTimeout(cloudSyncTimer);
- cloudSyncTimer=setTimeout(()=>saveCloudProgressNow(),500);
+ cloudSyncTimer=setTimeout(()=>saveCloudProgressNow(),700);
 }
 function applyCloudProgress(row){
- if(!row)return;
+ if(!row||typeof row!=="object")return;
  cloudLoading=true;
  try{
-  if(row.nickname){localStorage.setItem(nicknameKey,row.nickname)}
+  if(row.nickname){localStorage.setItem(nicknameKey,String(row.nickname).slice(0,24))}
   if(Number.isInteger(row.energy)){energy=Math.max(0,Math.min(MAX_ENERGY,row.energy));localStorage.setItem(energyKey,String(energy))}
   if(Number.isFinite(Number(row.energy_last_at))&&Number(row.energy_last_at)>0){energyLastAt=Number(row.energy_last_at);localStorage.setItem(energyTimeKey,String(energyLastAt))}
-  if(Array.isArray(row.completed_puzzles)){
-   completedPuzzles=new Set(row.completed_puzzles);
-   saveCompletedPuzzles();
-  }
+  if(Array.isArray(row.completed_puzzles)){completedPuzzles=new Set(row.completed_puzzles);saveCompletedPuzzles()}
   if(row.stats&&typeof row.stats==="object"){
    for(const side of ["white","black"])if(row.stats[side])Object.assign(stats[side],row.stats[side]);
    localStorage.setItem(statsKey,JSON.stringify(stats));
@@ -112,85 +105,52 @@ function applyCloudProgress(row){
  }finally{cloudLoading=false}
 }
 async function loadCloudProgress(){
- if(!supabaseClient||!isPermanentAccount(accountUser))return;
+ const platform=yandexPlatform();
+ if(!platform?.isAuthorized?.())return false;
  cloudLoading=true;
  try{
-  const {data,error}=await supabaseClient.from("player_progress").select("*").eq("user_id",accountUser.id).maybeSingle();
-  if(error)throw error;
+  const data=await platform.getCloudProgress();
   if(data)applyCloudProgress(data);
   else{
    cloudLoading=false;
    await saveCloudProgressNow();
-   return;
   }
- }catch(error){console.warn("Cloud progress load failed:",error.message)}
- finally{cloudLoading=false}
+  return true;
+ }catch(error){
+  console.warn("Yandex cloud load failed:",error);
+  return false;
+ }finally{cloudLoading=false}
 }
-async function accountLogin(){
- const fields=validateAccountFields();if(!fields)return;
- setAccountMessage("Входим…");
- const {data,error}=await supabaseClient.auth.signInWithPassword(fields);
- if(error){setAccountMessage("Не удалось войти. Проверь email и пароль.",true);return}
- accountUser=data.user;refreshAccountUI(accountUser);
- await loadCloudProgress();
- setAccountMessage("");
-}
-async function accountRegister(){
- const fields=validateAccountFields();if(!fields)return;
- setAccountMessage("Создаём аккаунт…");
- const {data:{session}}=await supabaseClient.auth.getSession();
- if(session?.user?.is_anonymous)await supabaseClient.auth.signOut();
- const {data,error}=await supabaseClient.auth.signUp({email:fields.email,password:fields.password,options:{data:{nickname:getPlayerNickname()||""}}});
- if(error){setAccountMessage(error.message||"Не удалось создать аккаунт.",true);return}
- if(data.session){
-  accountUser=data.user;refreshAccountUI(accountUser);await loadCloudProgress();
-  setAccountMessage("Аккаунт создан. Прогресс теперь сохраняется в облаке.");
- }else{
-  setAccountMessage("Аккаунт создан. Проверь почту и подтверди email, затем войди.");
+async function accountYandexLogin(){
+ const platform=yandexPlatform();
+ if(!platform){setAccountMessage("SDK Яндекс Игр пока недоступен.",true);return}
+ setAccountMessage("Открываем вход через Яндекс…");
+ try{
+  const player=await platform.authorize();
+  if(!player?.isAuthorized?.()){setAccountMessage("Вход не выполнен. Можно продолжить играть без авторизации.");refreshAccountUI();return}
+  refreshAccountUI();
+  await loadCloudProgress();
+  await saveCloudProgressNow();
+  setAccountMessage("Яндекс ID подключён. Прогресс синхронизирован.");
+ }catch(error){
+  console.warn("Yandex authorization failed:",error);
+  setAccountMessage("Не удалось выполнить вход через Яндекс. Попробуй позже.",true);
  }
 }
-async function accountForgotPassword(){
- const email=(document.querySelector("#account-email")?.value||"").trim();
- if(!/^\S+@\S+\.\S+$/.test(email)){setAccountMessage("Сначала укажи email аккаунта.",true);return}
- const redirectTo=location.origin+location.pathname;
- const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo});
- setAccountMessage(error?"Не удалось отправить письмо. Проверь email.":"Письмо для восстановления пароля отправлено.",!!error);
-}
-function openPasswordRecovery(){
- const modal=document.querySelector("#account-modal"),authForm=document.querySelector("#account-auth-form"),signed=document.querySelector("#account-signed-in"),recovery=document.querySelector("#account-recovery");
- if(!modal||!recovery)return;
- modal.hidden=false;if(authForm)authForm.hidden=true;if(signed)signed.hidden=true;
- recovery.hidden=false;recovery.dataset.active="true";
- setAccountMessage("","", "#account-recovery-message");
- setTimeout(()=>document.querySelector("#account-new-password")?.focus(),0);
-}
-async function accountSaveNewPassword(){
- const password=document.querySelector("#account-new-password")?.value||"";
- if(password.length<6){setAccountMessage("Новый пароль должен содержать минимум 6 символов.",true,"#account-recovery-message");return}
- const {data,error}=await supabaseClient.auth.updateUser({password});
- if(error){setAccountMessage("Не удалось изменить пароль.",true,"#account-recovery-message");return}
- accountUser=data.user;document.querySelector("#account-recovery").dataset.active="false";
- setAccountMessage("Пароль изменён.","", "#account-recovery-message");
- setTimeout(()=>{refreshAccountUI(accountUser);closeAccountModal()},700);
-}
-async function accountSignOut(){
- await saveCloudProgressNow();
- await supabaseClient.auth.signOut();
- accountUser=null;refreshAccountUI(null);closeAccountModal();
+async function accountYandexSync(){
+ setAccountMessage("Синхронизируем прогресс…");
+ const ok=await saveCloudProgressNow();
+ setAccountMessage(ok?"Прогресс сохранён в облаке.":"Не удалось сохранить прогресс.",!ok);
 }
 async function initializeAccount(){
- if(!supabaseClient)return;
- const {data:{session}}=await supabaseClient.auth.getSession();
- accountUser=session?.user||null;refreshAccountUI(accountUser);
- if(isPermanentAccount(accountUser))await loadCloudProgress();
- supabaseClient.auth.onAuthStateChange((event,sessionNow)=>{
-  setTimeout(async()=>{
-   accountUser=sessionNow?.user||null;
-   if(event==="PASSWORD_RECOVERY"){openPasswordRecovery();return}
-   refreshAccountUI(accountUser);
-   if(isPermanentAccount(accountUser)&&["SIGNED_IN","USER_UPDATED"].includes(event))await loadCloudProgress();
-  },0);
- });
+ const platform=yandexPlatform();if(!platform)return;
+ try{
+  await platform.init();
+  await platform.refreshPlayer();
+  refreshAccountUI();
+  if(platform.isAuthorized())await loadCloudProgress();
+ }catch(error){console.warn("Yandex Player init failed:",error)}
+ window.addEventListener("yandex-player-changed",async()=>{refreshAccountUI();if(yandexAuthorized())await loadCloudProgress()});
 }
 
 const spriteCache={};
@@ -1733,12 +1693,8 @@ for(const button of document.querySelectorAll(".side-option"))button.addEventLis
 });
 document.querySelector("#open-account").addEventListener("click",openAccountModal);
 document.querySelector("#account-close").addEventListener("click",closeAccountModal);
-document.querySelector("#account-login").addEventListener("click",accountLogin);
-document.querySelector("#account-register").addEventListener("click",accountRegister);
-document.querySelector("#account-forgot").addEventListener("click",accountForgotPassword);
-document.querySelector("#account-save-password").addEventListener("click",accountSaveNewPassword);
-document.querySelector("#account-signout").addEventListener("click",accountSignOut);
-document.querySelector("#account-password").addEventListener("keydown",e=>{if(e.key==="Enter")accountLogin()});
+document.querySelector("#account-yandex-login").addEventListener("click",accountYandexLogin);
+document.querySelector("#account-yandex-sync").addEventListener("click",accountYandexSync);
 document.querySelector("#enter").addEventListener("click",()=>{
  try{const Ctx=window.AudioContext||window.webkitAudioContext;if(Ctx){audioContext ||= new Ctx();audioContext.resume()}}catch{}
  showScreen("menu");
