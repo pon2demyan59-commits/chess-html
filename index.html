@@ -11,6 +11,7 @@
   <script src="js/mate3-puzzles.js" defer></script>
   <script src="js/mate4-puzzles.js" defer></script>
   <script src="js/mate5-puzzles.js" defer></script>
+  <script src="js/tactics-puzzles.js" defer></script>
   <script src="js/game.js" defer></script>
 </head>
 <body>
@@ -297,16 +298,37 @@
           <p>Следующий этап после матовых задач — научиться узнавать повторяющиеся тактические идеи.</p>
         </div>
         <div class="tactic-category-grid">
-          <button disabled><strong>Вилка</strong><small>Скоро</small></button>
-          <button disabled><strong>Связка</strong><small>Скоро</small></button>
-          <button disabled><strong>Сквозной удар</strong><small>Скоро</small></button>
-          <button disabled><strong>Вскрытое нападение</strong><small>Скоро</small></button>
-          <button disabled><strong>Двойной шах</strong><small>Скоро</small></button>
-          <button disabled><strong>Отвлечение</strong><small>Скоро</small></button>
-          <button disabled><strong>Уничтожение защитника</strong><small>Скоро</small></button>
-          <button disabled><strong>Перекрытие</strong><small>Скоро</small></button>
-          <button disabled><strong>Жертва</strong><small>Скоро</small></button>
+          <button class="tactic-category tactic-category--active" type="button" data-tactic-category="tactic-fork"><strong>Вилка</strong><small>50 задач</small><span id="tactic-fork-progress" class="tactic-category__progress">0/50</span></button>
+          <button class="tactic-category tactic-category--active" type="button" data-tactic-category="tactic-pin"><strong>Связка</strong><small>50 задач</small><span id="tactic-pin-progress" class="tactic-category__progress">0/50</span></button>
+          <button class="tactic-category tactic-category--active" type="button" data-tactic-category="tactic-skewer"><strong>Сквозной удар</strong><small>50 задач</small><span id="tactic-skewer-progress" class="tactic-category__progress">0/50</span></button>
+          <button class="tactic-category tactic-category--active" type="button" data-tactic-category="tactic-discovered"><strong>Вскрытое нападение</strong><small>50 задач</small><span id="tactic-discovered-progress" class="tactic-category__progress">0/50</span></button>
+          <button class="tactic-category tactic-category--active" type="button" data-tactic-category="tactic-doublecheck"><strong>Двойной шах</strong><small>50 задач</small><span id="tactic-doublecheck-progress" class="tactic-category__progress">0/50</span></button>
+          <button class="tactic-category tactic-category--active" type="button" data-tactic-category="tactic-deflection"><strong>Отвлечение</strong><small>50 задач</small><span id="tactic-deflection-progress" class="tactic-category__progress">0/50</span></button>
+          <button class="tactic-category tactic-category--active" type="button" data-tactic-category="tactic-defender"><strong>Уничтожение защитника</strong><small>50 задач</small><span id="tactic-defender-progress" class="tactic-category__progress">0/50</span></button>
+          <button class="tactic-category tactic-category--active" type="button" data-tactic-category="tactic-interference"><strong>Перекрытие</strong><small>50 задач</small><span id="tactic-interference-progress" class="tactic-category__progress">0/50</span></button>
+          <button class="tactic-category tactic-category--active" type="button" data-tactic-category="tactic-sacrifice"><strong>Жертва</strong><small>50 задач</small><span id="tactic-sacrifice-progress" class="tactic-category__progress">0/50</span></button>
         </div>
+      </section>
+
+      <section id="tactic-bank" class="puzzle-bank tactic-bank" aria-labelledby="tactic-bank-title" hidden>
+        <div class="puzzle-bank__header">
+          <div>
+            <p class="eyebrow">50 ТАКТИЧЕСКИХ ЗАДАЧ</p>
+            <h3 id="tactic-bank-title">Вилка</h3>
+            <p id="tactic-bank-description">Найди лучший тактический ход и проведи комбинацию до конца.</p>
+          </div>
+          <button id="continue-tactic" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
+        </div>
+        <div class="puzzle-chapters">
+          <div class="puzzle-chapters__top">
+            <div>
+              <small>2 ГЛАВЫ ПО 25 ЗАДАЧ</small>
+              <strong id="tactic-chapter-title">Глава 1</strong>
+            </div>
+          </div>
+          <div id="tactic-chapters" class="puzzle-chapter-grid" aria-label="Главы тактических задач"></div>
+        </div>
+        <div id="tactic-grid" class="puzzle-grid" aria-label="Задачи выбранной тактической темы"></div>
       </section>
 
       <section id="mate1-bank" class="puzzle-bank" aria-labelledby="mate1-title">
