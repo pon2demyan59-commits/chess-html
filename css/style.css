@@ -1530,3 +1530,25 @@ html[data-piece-theme="neon"] .piece-image{filter:drop-shadow(0 0 5px #45dfff88)
  font-weight:900;
 }
 .tactic-bank[hidden]{display:none!important}
+
+.time-control-picker{display:grid;gap:13px;margin:17px 0;text-align:left}
+.time-control-group{display:grid;gap:7px}
+.time-control-group>span{color:#9aa8b2;font-size:10px;font-weight:900;letter-spacing:.15em}
+.time-control-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.time-control-grid--single{grid-template-columns:1fr}
+.time-control-grid button{
+ display:grid;gap:3px;min-height:70px;padding:10px 8px;border:1px solid #566f82;border-radius:10px;
+ background:linear-gradient(#223545,#182735);color:#eee2c9;cursor:pointer;text-align:center
+}
+.time-control-grid button:hover{filter:brightness(1.12)}
+.time-control-grid button.is-selected{border-color:#e0b45e;box-shadow:0 0 0 2px #e0b45e33;background:linear-gradient(#4a3823,#253744)}
+.time-control-grid strong{font:800 21px Georgia,serif}
+.time-control-grid small{color:#9ba8b1;font-size:10px}
+.player{position:relative}
+.player__clock{
+ margin-left:auto;min-width:82px;padding:7px 10px;border:1px solid #71879a;border-radius:9px;
+ background:#0d1824;color:#f2e5c7;font:800 19px/1.1 ui-monospace,SFMono-Regular,Consolas,monospace;text-align:center
+}
+.player__clock.is-active{border-color:#ddb15d;box-shadow:0 0 0 2px #ddb15d22}
+.player__clock.is-low{color:#ffb4a8;border-color:#b96c62}
+@media(max-width:560px){.time-control-grid{grid-template-columns:1fr 1fr}.time-control-grid--single{grid-template-columns:1fr}.player__clock{min-width:70px;font-size:16px}}
