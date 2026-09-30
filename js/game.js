@@ -252,31 +252,51 @@ let lastMove=null,reviewMode=false,reviewPly=0,reviewMoves=[],reviewStartFen="",
 const difficultyNames=["Пешка","Слон","Конь","Ладья","Офицер","Король"];
 let playerColor="white",botColor="black",menuSide="white",difficultyLevel=5,gameStarted=false,gameMode="match",puzzleIndex=0;
 let platformPaused=false;
-function platformGameplayStart(){window.YandexPlatform?.gameplayStart?.()}
+const pauseReasons=new Set(document.hidden?["hidden"]:[]);
+platformPaused=pauseReasons.size>0;
+const gameplayTimers=new Set();
+let pausedAnimations=[];
+function gameplayAfter(delay,fn){
+ const timer={remaining:delay,started:0,id:null,fn};
+ gameplayTimers.add(timer);armGameplayTimer(timer);return timer;
+}
+function armGameplayTimer(timer){
+ if(platformPaused)return;
+ timer.started=performance.now();
+ timer.id=setTimeout(()=>{timer.id=null;gameplayTimers.delete(timer);timer.fn()},timer.remaining);
+}
+function cancelGameplayTimer(timer){
+ if(!timer)return;clearTimeout(timer.id);gameplayTimers.delete(timer);
+}
+function platformGameplayStart(){if(!platformPaused)window.YandexPlatform?.gameplayStart?.()}
 function platformGameplayStop(){window.YandexPlatform?.gameplayStop?.()}
 function gameplayIsActive(){return gameStarted&&!finished&&!screens.game.hidden&&!platformPaused}
+function audioIsAllowed(){return !platformPaused&&!document.hidden&&!screens.game.hidden}
 function suspendGameAudio(){
  try{if(audioContext&&audioContext.state==="running")audioContext.suspend()}catch{}
 }
 function resumeGameAudio(){
- try{if(audioContext&&audioContext.state==="suspended"&&!platformPaused)audioContext.resume()}catch{}
+ try{if(audioContext&&audioContext.state==="suspended"&&audioIsAllowed())audioContext.resume()}catch{}
 }
-function handlePlatformPause(){
- platformPaused=true;
- platformGameplayStop();
- suspendGameAudio();
- clearTimeout(botTimer);
- cancelDrag();selected=null;moves=[];
- if(board&&!moving)render();
-}
-function handlePlatformResume(){
- platformPaused=false;
- if(gameplayIsActive())platformGameplayStart();
- resumeGameAudio();
- if(gameStarted&&!finished&&gameMode==="match"&&turn===botColor&&!moving){
-  clearTimeout(botTimer);botTimer=setTimeout(botMove,500);
+function setPauseReason(reason,paused){
+ if(paused)pauseReasons.add(reason);else pauseReasons.delete(reason);
+ const next=pauseReasons.size>0;if(next===platformPaused)return;
+ platformPaused=next;
+ if(next){
+  platformGameplayStop();suspendGameAudio();clearTimeout(botTimer);
+  for(const timer of gameplayTimers){if(timer.id!==null){clearTimeout(timer.id);timer.id=null;timer.remaining=Math.max(0,timer.remaining-(performance.now()-timer.started))}}
+  pausedAnimations=(document.getAnimations?.()||[]).filter(animation=>animation.playState==="running");
+  for(const animation of pausedAnimations)animation.pause();
+  cancelDrag();selected=null;moves=[];if(board&&!moving)render();
+ }else{
+  for(const animation of pausedAnimations){try{animation.play()}catch{}}pausedAnimations=[];
+  for(const timer of gameplayTimers)armGameplayTimer(timer);
+  if(gameplayIsActive())platformGameplayStart();resumeGameAudio();
+  if(gameplayIsActive()&&gameMode==="match"&&turn===botColor&&!moving){clearTimeout(botTimer);botTimer=setTimeout(botMove,500)}
  }
 }
+function handlePlatformPause(){setPauseReason("sdk",true)}
+function handlePlatformResume(){setPauseReason("sdk",false)}
 function isMobileViewport(){
  return matchMedia("(pointer:coarse)").matches||Math.min(innerWidth,innerHeight)<700;
 }
@@ -1083,7 +1103,7 @@ function playPuzzleMove(fr,fc,r,c,dragState=null,promotion=null){
   puzzleStep++;saveGameState();
   statusElement.textContent="Верно. Соперник отвечает…";
   const replyUci=puzzleLine[puzzleStep*2];
-  setTimeout(()=>{
+  sceneAfter(450,()=>{
    const reply={from:replyUci.slice(0,2),to:replyUci.slice(2,4)};
    if(replyUci.length>4)reply.promotion=replyUci[4];
    const replyLegal=chess.moves({square:reply.from,verbose:true}).find(m=>m.to===reply.to&&(!reply.promotion||m.promotion===reply.promotion));
@@ -1095,7 +1115,7 @@ function playPuzzleMove(fr,fc,r,c,dragState=null,promotion=null){
     statusElement.textContent=isTacticCategory(puzzleCategory)?"Ответ сделан. Продолжи комбинацию.":puzzleStep<total-1?`Ответ сделан. Найди ${puzzleStep===1?"второй":puzzleStep===2?"третий":puzzleStep===3?"четвёртый":"следующий"} форсирующий ход.`:"Ход соперника сделан. Теперь поставь мат.";
     saveGameState();
    });
-  },450);
+  });
  },dragState);
 }
 function getMoves(r,c){return chess.moves({square:square(r,c),verbose:true}).map(m=>({r:8-Number(m.to[1]),c:files.indexOf(m.to[0]),promotion:m.promotion}))}
@@ -1249,23 +1269,12 @@ boardElement.addEventListener("pointerdown",onPointerDown);
 boardElement.addEventListener("pointermove",onPointerMove);
 boardElement.addEventListener("pointerup",onPointerUp);
 boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];if(board&&!moving)render()});
-window.addEventListener("blur",()=>{
- cancelDrag();selected=null;moves=[];
- platformGameplayStop();suspendGameAudio();
- if(board&&!moving)render();
-});
-window.addEventListener("focus",()=>{
- if(!platformPaused){
-  resumeGameAudio();
-  if(gameplayIsActive())platformGameplayStart();
- }
-});
-document.addEventListener("visibilitychange",()=>{
- if(document.hidden){platformGameplayStop();suspendGameAudio()}
- else if(gameplayIsActive()){platformGameplayStart();resumeGameAudio()}
-});
+window.addEventListener("blur",()=>setPauseReason("blur",true));
+window.addEventListener("focus",()=>setPauseReason("blur",false));
+document.addEventListener("visibilitychange",()=>setPauseReason("hidden",document.hidden));
 window.addEventListener("yandex-game-pause",handlePlatformPause);
 window.addEventListener("yandex-game-resume",handlePlatformResume);
+window.addEventListener("yandex-sdk-ready",()=>setPauseReason("sdk",!!yandexPlatform()?.state.platformPaused));
 boardElement.addEventListener("contextmenu",event=>event.preventDefault());
 boardElement.addEventListener("selectstart",event=>event.preventDefault());
 function move(fr,fc,r,c,promotion,dragState=null){
@@ -1345,7 +1354,7 @@ function move(fr,fc,r,c,promotion,dragState=null){
  },dragState);
 }
 function botMove(){
- if(!gameStarted||finished||moving||turn!==botColor)return;
+ if(!gameStarted||finished||platformPaused||moving||turn!==botColor)return;
  const options=chess.moves({verbose:true}).filter(m=>!m.promotion||m.promotion==="q");
  const choice=chooseBotMove(options,difficultyLevel);
  move(8-Number(choice.from[1]),files.indexOf(choice.from[0]),8-Number(choice.to[1]),files.indexOf(choice.to[0]),choice.promotion);
@@ -1484,7 +1493,7 @@ function closeReview(){
  document.querySelector("#analysis-entry").hidden=false;statusElement.textContent=finalMessage;
 }
 function cancelMotion(){
- motionToken++;clearTimeout(motionTimer);motionTimer=null;moving=false;
+ motionToken++;cancelGameplayTimer(motionTimer);motionTimer=null;moving=false;
  for(const {ghost,source} of motionGhosts){ghost.remove();if(source)source.style.visibility=""}
  motionGhosts=[];
 }
@@ -1525,7 +1534,8 @@ function animateMoveBeforeCommit(m,commit,dragState=null){
   motionGhosts.push({ghost,source});
 
   ghost.getBoundingClientRect();
-  requestAnimationFrame(()=>{
+  gameplayAfter(0,()=>{
+   if(token!==motionToken)return;
    ghost.style.transition="left .22s linear, top .22s linear";
    ghost.style.left=(b.left+b.width/2)+"px";
    ghost.style.top=(b.top+b.height/2)+"px";
@@ -1544,8 +1554,8 @@ function animateMoveBeforeCommit(m,commit,dragState=null){
 
  let done=false;
  function finish(){
-  if(done||token!==motionToken)return;done=true;
-  clearTimeout(motionTimer);motionTimer=null;
+  if(done||token!==motionToken||platformPaused)return;done=true;
+  cancelGameplayTimer(motionTimer);motionTimer=null;
   for(const {ghost,source} of motionGhosts){
    ghost.remove();
    if(source)source.style.visibility="";
@@ -1554,7 +1564,7 @@ function animateMoveBeforeCommit(m,commit,dragState=null){
  }
 
  main.addEventListener("transitionend",finish,{once:true});
- motionTimer=setTimeout(finish,320);
+ motionTimer=gameplayAfter(320,finish);
 }
 function playCaptureEffect(squareName,type,color){
  const victim=sceneAnchor(squareName,"scene-defeat scene-defeat--capture");
@@ -1568,12 +1578,12 @@ function playCaptureEffect(squareName,type,color){
 }
 // Сцены поверх поля не участвуют в выборе клетки и не меняют шахматную позицию.
 function clearScene(){
- for(const timer of sceneTimers)clearTimeout(timer);sceneTimers=[];
+ for(const timer of sceneTimers)cancelGameplayTimer(timer);sceneTimers=[];
  document.querySelector("#board-effects").replaceChildren();
  document.querySelector("#result-panel").hidden=true;
  boardElement.querySelectorAll(".square--fear,.square--king-hidden").forEach(el=>el.classList.remove("square--fear","square--king-hidden"));
 }
-function sceneAfter(delay,fn){sceneTimers.push(setTimeout(fn,delay))}
+function sceneAfter(delay,fn){sceneTimers.push(gameplayAfter(delay,fn))}
 function kingSquare(){
  for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.type==="king"&&board[r][c].color===turn)return square(r,c);
  return null;
@@ -1634,6 +1644,7 @@ function playScene(kind,played,message){
  sceneAfter(1750,()=>{document.querySelector("#board-effects").replaceChildren();showResult(kind,message);playDramaSound("fanfare")});
 }
 function playDramaSound(kind){
+ if(!audioIsAllowed())return;
  try{
   const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)return;
   audioContext ||= new Ctx();if(audioContext.state==="suspended")audioContext.resume();
@@ -1652,6 +1663,7 @@ function playDramaSound(kind){
  }catch{/* Без звука анимация продолжится. */}
 }
 function playMetalClash(){
+ if(!audioIsAllowed())return;
  try{
   const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)return;
   audioContext ||= new Ctx();if(audioContext.state==="suspended")audioContext.resume();
@@ -1762,7 +1774,7 @@ document.querySelector("#account-yandex-login").addEventListener("click",account
 document.querySelector("#account-yandex-sync").addEventListener("click",accountYandexSync);
 document.querySelector("#enter").addEventListener("click",()=>{
  requestMobileFullscreen();
- try{const Ctx=window.AudioContext||window.webkitAudioContext;if(Ctx){audioContext ||= new Ctx();audioContext.resume()}}catch{}
+ try{const Ctx=window.AudioContext||window.webkitAudioContext;if(Ctx){audioContext ||= new Ctx();if(audioIsAllowed())audioContext.resume()}}catch{}
  showScreen("menu");
 });
 document.querySelector("#open-stats").addEventListener("click",()=>showScreen("stats"));
@@ -1820,20 +1832,29 @@ function requestRewardedEnergy(){
   return;
  }
  if(sdk?.adv?.showRewardedVideo){
-  platformGameplayStop();suspendGameAudio();
-  sdk.adv.showRewardedVideo({callbacks:{
-   onOpen:()=>{platformGameplayStop();suspendGameAudio()},
-   onRewarded:()=>addEnergy(3,"Реклама просмотрена: +3 ⚡ энергии."),
-   onClose:()=>{if(gameplayIsActive())platformGameplayStart();resumeGameAudio()},
-   onError:()=>{renderEnergy("Реклама сейчас недоступна. Попробуй позже.");if(gameplayIsActive())platformGameplayStart();resumeGameAudio()}
-  }});
+  if(pauseReasons.has("ad"))return;
+  setPauseReason("ad",true);
+  let rewarded=false;
+  const closeAd=()=>setPauseReason("ad",false);
+  const adError=()=>{renderEnergy("Реклама сейчас недоступна. Попробуй позже.");closeAd()};
+  try{
+   sdk.adv.showRewardedVideo({callbacks:{
+    onOpen:()=>setPauseReason("ad",true),
+    onRewarded:()=>{if(!rewarded){rewarded=true;addEnergy(3,"Реклама просмотрена: +3 ⚡ энергии.");saveCloudProgressNow()}},
+    onClose:closeAd,
+    onError:adError
+   }});
+  }catch(error){adError()}
+
  }else{
   renderEnergy("Реклама доступна в версии игры на Яндекс Играх.");
  }
 }
 document.querySelector("#energy-ad").addEventListener("click",requestRewardedEnergy);
 document.querySelector("#puzzles-energy-ad").addEventListener("click",requestRewardedEnergy);
-showStats();renderEnergy();renderPuzzleHub();refreshProfileUI();initializeAccount();
+showStats();renderEnergy();renderPuzzleHub();refreshProfileUI();const accountReady=initializeAccount();
+for(const screen of Object.values(screens))screen.inert=true;
+accountReady.finally(()=>{for(const screen of Object.values(screens))screen.inert=false});
 setInterval(()=>renderEnergy(),1000);
 
 document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!=="match"||finished||moving||turn!==playerColor)return;const draw=drawState();if(draw.claim){const message=`Ничья по заявлению: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message)}});
@@ -1871,4 +1892,5 @@ window.addEventListener("pagehide",()=>{
  }catch{}
 });
 restoreSession();
-window.YandexPlatform?.gameReady?.().catch?.(error=>console.warn("Game Ready failed:",error));
+accountReady.then(()=>window.YandexPlatform?.gameReady?.()).catch(error=>console.warn("Game Ready failed:",error));
+
