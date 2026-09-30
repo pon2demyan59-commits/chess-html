@@ -245,12 +245,28 @@ const mate2Puzzles=window.MATE2_PUZZLES||[];
 const mate3Puzzles=window.MATE3_PUZZLES||[];
 const mate4Puzzles=window.MATE4_PUZZLES||[];
 const mate5Puzzles=window.MATE5_PUZZLES||[];
+const tacticPuzzles=window.TACTIC_PUZZLES||{};
+const tacticCategories=Object.keys(tacticPuzzles);
+const tacticLabels={
+ "tactic-fork":"Вилка","tactic-pin":"Связка","tactic-skewer":"Сквозной удар",
+ "tactic-discovered":"Вскрытое нападение","tactic-doublecheck":"Двойной шах",
+ "tactic-deflection":"Отвлечение","tactic-defender":"Уничтожение защитника",
+ "tactic-interference":"Перекрытие","tactic-sacrifice":"Жертва"
+};
+let selectedTacticCategory="tactic-fork";
 let puzzleCategory="mate1",puzzleStep=0,puzzleLine=[];
 const PUZZLES_PER_CHAPTER=25,CHAPTERS_PER_PAGE=10;
 const puzzleChapterState={
- mate1:{selected:0,page:0},mate2:{selected:0,page:0},mate3:{selected:0,page:0},mate4:{selected:0,page:0},mate5:{selected:0,page:0}
+ mate1:{selected:0,page:0},mate2:{selected:0,page:0},mate3:{selected:0,page:0},mate4:{selected:0,page:0},mate5:{selected:0,page:0},
+ ...Object.fromEntries(tacticCategories.map(category=>[category,{selected:0,page:0}]))
 };
+const isTacticCategory=category=>category.startsWith("tactic-")&&Array.isArray(tacticPuzzles[category]);
+function normalizePuzzleCategory(category){
+ if(["mate1","mate2","mate3","mate4","mate5"].includes(category)||isTacticCategory(category))return category;
+ return "mate1";
+}
 function listForCategory(category){
+ if(isTacticCategory(category))return tacticPuzzles[category]||[];
  return category==="mate5"?mate5Puzzles:category==="mate4"?mate4Puzzles:category==="mate3"?mate3Puzzles:category==="mate2"?mate2Puzzles:puzzles;
 }
 const activePuzzles=()=>listForCategory(puzzleCategory);
@@ -356,7 +372,7 @@ function spendEnergy(amount=1){
  if(energy===MAX_ENERGY)energyLastAt=Date.now();
  energy-=amount;saveEnergy();renderEnergy();return true;
 }
-function categoryGridId(category){return category==="mate1"?"#puzzle-grid":`#${category}-grid`}
+function categoryGridId(category){return isTacticCategory(category)?"#tactic-grid":category==="mate1"?"#puzzle-grid":`#${category}-grid`}
 function renderPuzzleCategory(category){
  const list=listForCategory(category),state=puzzleChapterState[category];
  const chapterCount=Math.max(1,Math.ceil(list.length/PUZZLES_PER_CHAPTER));
@@ -365,10 +381,17 @@ function renderPuzzleCategory(category){
  state.page=Math.max(0,Math.min(pageCount-1,state.page));
  const chapterStart=state.selected*PUZZLES_PER_CHAPTER;
  const chapterEnd=Math.min(list.length,chapterStart+PUZZLES_PER_CHAPTER);
- const title=document.querySelector(`#${category}-chapter-title`);
+ const tactic=isTacticCategory(category);
+ if(tactic){
+  const bankTitle=document.querySelector("#tactic-bank-title");
+  const desc=document.querySelector("#tactic-bank-description");
+  if(bankTitle)bankTitle.textContent=tacticLabels[category]||"Тактика";
+  if(desc)desc.textContent="Найди лучший ход и проведи тактическую комбинацию до конца.";
+ }
+ const title=document.querySelector(tactic?"#tactic-chapter-title":`#${category}-chapter-title`);
  if(title)title.textContent=`Глава ${state.selected+1} · задачи ${chapterStart+1}–${chapterEnd}`;
 
- const chapters=document.querySelector(`#${category}-chapters`);
+ const chapters=document.querySelector(tactic?"#tactic-chapters":`#${category}-chapters`);
  if(chapters){
   chapters.replaceChildren();
   const first=state.page*CHAPTERS_PER_PAGE,last=Math.min(chapterCount,first+CHAPTERS_PER_PAGE);
@@ -388,7 +411,7 @@ function renderPuzzleCategory(category){
    chapters.append(button);
   }
  }
- const pager=document.querySelector(`#${category}-chapter-pager`);
+ const pager=tactic?null:document.querySelector(`#${category}-chapter-pager`);
  if(pager){
   pager.replaceChildren();
   const prev=document.createElement("button");prev.type="button";prev.textContent="←";prev.disabled=state.page===0;
@@ -422,6 +445,14 @@ function renderPuzzleHub(){
   if(progress)progress.textContent=`${solved}/${list.length} решено`;
   renderPuzzleCategory(category);
  }
+ for(const category of tacticCategories){
+  const list=listForCategory(category);
+  const solved=list.filter(p=>completedPuzzles.has(p.id)).length;
+  const progress=document.querySelector(`#${category}-progress`);
+  if(progress)progress.textContent=`${solved}/${list.length}`;
+ }
+ const bank=document.querySelector("#tactic-bank");
+ if(bank&&!bank.hidden&&isTacticCategory(selectedTacticCategory))renderPuzzleCategory(selectedTacticCategory);
 }
 function nextUnsolvedPuzzleIndex(category=puzzleCategory){
  const list=listForCategory(category);
@@ -466,7 +497,7 @@ function restoreSession(){
     botColor=playerColor==="white"?"black":"white";
     menuSide=saved.menuSide==="black"?"black":"white";
     difficultyLevel=Math.max(1,Math.min(6,Number(saved.difficultyLevel)||5));
-    puzzleCategory=saved.puzzleCategory==="mate5"?"mate5":saved.puzzleCategory==="mate4"?"mate4":saved.puzzleCategory==="mate3"?"mate3":saved.puzzleCategory==="mate2"?"mate2":"mate1";
+    puzzleCategory=normalizePuzzleCategory(saved.puzzleCategory);if(isTacticCategory(puzzleCategory))selectedTacticCategory=puzzleCategory;
     const restoredList=activePuzzles();
     puzzleIndex=Math.max(0,Math.min(restoredList.length-1,Number(saved.puzzleIndex)||0));
     puzzleStep=Math.max(0,Math.min(8,Number(saved.puzzleStep)||0));
@@ -480,7 +511,7 @@ function restoreSession(){
     document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
     if(gameMode==="puzzle"){
      document.querySelector("#opponent-name").textContent="Задача";
-     document.querySelector("#match-info").textContent=`Задача ${puzzleIndex+1}/${activePuzzles().length} • ${puzzleCategory==="mate5"?"мат в пять ходов":puzzleCategory==="mate4"?"мат в четыре хода":puzzleCategory==="mate3"?"мат в три хода":puzzleCategory==="mate2"?"мат в два хода":"мат в один ход"}`;
+     document.querySelector("#match-info").textContent=`Задача ${puzzleIndex+1}/${activePuzzles().length} • ${isTacticCategory(puzzleCategory)?(tacticLabels[puzzleCategory]||"тактика").toLowerCase():puzzleCategory==="mate5"?"мат в пять ходов":puzzleCategory==="mate4"?"мат в четыре хода":puzzleCategory==="mate3"?"мат в три хода":puzzleCategory==="mate2"?"мат в два хода":"мат в один ход"}`;
      resetButton.textContent="Повторить задачу";
      document.querySelector("#resign").hidden=true;
     }else if(gameMode==="hotseat"){
@@ -914,9 +945,9 @@ function startPuzzle(index){
  document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
  document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
  document.querySelector("#opponent-name").textContent="Задача";
- const modeText=puzzleCategory==="mate5"?"мат в пять ходов":puzzleCategory==="mate4"?"мат в четыре хода":puzzleCategory==="mate3"?"мат в три хода":puzzleCategory==="mate2"?"мат в два хода":"мат в один ход";
+ const modeText=isTacticCategory(puzzleCategory)?`тактика: ${(tacticLabels[puzzleCategory]||"комбинация").toLowerCase()}`:puzzleCategory==="mate5"?"мат в пять ходов":puzzleCategory==="mate4"?"мат в четыре хода":puzzleCategory==="mate3"?"мат в три хода":puzzleCategory==="mate2"?"мат в два хода":"мат в один ход";
  document.querySelector("#match-info").textContent=`Задача ${index+1}/${list.length} • ${modeText}`;
- statusElement.textContent=longPuzzle?`${playerColor==="white"?"Белые":"Чёрные"} начинают. Найди форсирующий первый ход.`:"Найди ход, после которого королю не спастись.";
+ statusElement.textContent=isTacticCategory(puzzleCategory)?`${playerColor==="white"?"Белые":"Чёрные"} начинают. Найди лучший тактический ход.`:longPuzzle?`${playerColor==="white"?"Белые":"Чёрные"} начинают. Найди форсирующий первый ход.`:"Найди ход, после которого королю не спастись.";
  resetButton.textContent="Повторить задачу";document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#resign").hidden=true;document.querySelector("#next-puzzle").hidden=true;
  render();saveGameState();
@@ -949,7 +980,7 @@ function playPuzzleMove(fr,fc,r,c,dragState=null,promotion=null){
  const expected=puzzleLine[expectedIndex];
  if(uci!==expected){
   dragState?.ghost?.remove();render();
-  statusElement.textContent=puzzleStep===0?"Неверный первый ход. Попробуй ещё раз.":"Этот ход не продолжает форсированный мат. Попробуй другой.";
+  statusElement.textContent=puzzleStep===0?"Неверный первый ход. Попробуй ещё раз.":isTacticCategory(puzzleCategory)?"Этот ход не продолжает комбинацию. Попробуй другой.":"Этот ход не продолжает форсированный мат. Попробуй другой.";
   return;
  }
  const legal=chess.moves({square:from,verbose:true}).find(m=>m.to===to&&(!promotion||m.promotion===promotion));
@@ -958,6 +989,9 @@ function playPuzzleMove(fr,fc,r,c,dragState=null,promotion=null){
   const played=chess.move({from,to,promotion:promotion||undefined});syncBoard();lastMove=played;render();renderMoveList();
   const finalUserMove=expectedIndex===puzzleLine.length-1;
   if(finalUserMove){
+   if(isTacticCategory(puzzleCategory)){
+    finishPuzzle(puzzle,to,`Верно! Тактика «${tacticLabels[puzzleCategory]||puzzle.label}» решена.`);return;
+   }
    if(!chess.isCheckmate()){moving=false;statusElement.textContent="Линия завершилась, но мат не подтверждён.";return}
    finishPuzzle(puzzle,to,`Верно! Мат в ${puzzleMoveCount()} хода.`);return;
   }
@@ -972,8 +1006,8 @@ function playPuzzleMove(fr,fc,r,c,dragState=null,promotion=null){
    moving=true;animateMoveBeforeCommit(replyLegal,()=>{
     const answered=chess.move(reply);syncBoard();lastMove=answered;render();renderMoveList();
     moving=false;
-    const total=puzzleMoveCount();
-    statusElement.textContent=puzzleStep<total-1?`Ответ сделан. Найди ${puzzleStep===1?"второй":puzzleStep===2?"третий":puzzleStep===3?"четвёртый":"следующий"} форсирующий ход.`:"Ход соперника сделан. Теперь поставь мат.";
+    const total=isTacticCategory(puzzleCategory)?Math.ceil((puzzleLine.length-1)/2):puzzleMoveCount();
+    statusElement.textContent=isTacticCategory(puzzleCategory)?"Ответ сделан. Продолжи комбинацию.":puzzleStep<total-1?`Ответ сделан. Найди ${puzzleStep===1?"второй":puzzleStep===2?"третий":puzzleStep===3?"четвёртый":"следующий"} форсирующий ход.`:"Ход соперника сделан. Теперь поставь мат.";
     saveGameState();
    });
   },450);
@@ -1577,8 +1611,10 @@ function getPieceSprite(type,color){
 }
 
 function startPuzzleWithEnergy(index,category=puzzleCategory){
+ category=normalizePuzzleCategory(category);
+ if(isTacticCategory(category)){selectedTacticCategory=category;const bank=document.querySelector("#tactic-bank");if(bank)bank.hidden=false}
  focusPuzzleChapter(category,index);
- puzzleCategory=category==="mate5"?"mate5":category==="mate4"?"mate4":category==="mate3"?"mate3":category==="mate2"?"mate2":"mate1";
+ puzzleCategory=category;
  const list=activePuzzles(),puzzle=list[index];
  if(!puzzle)return false;
  const freeReplay=completedPuzzles.has(puzzle.id);
@@ -1658,6 +1694,15 @@ document.querySelector("#continue-mate2").addEventListener("click",()=>startPuzz
 document.querySelector("#continue-mate3").addEventListener("click",()=>startPuzzleWithEnergy(nextUnsolvedPuzzleIndex("mate3"),"mate3"));
 document.querySelector("#continue-mate4").addEventListener("click",()=>startPuzzleWithEnergy(nextUnsolvedPuzzleIndex("mate4"),"mate4"));
 document.querySelector("#continue-mate5").addEventListener("click",()=>startPuzzleWithEnergy(nextUnsolvedPuzzleIndex("mate5"),"mate5"));
+document.querySelectorAll("[data-tactic-category]").forEach(button=>button.addEventListener("click",()=>{
+ const category=button.dataset.tacticCategory;
+ if(!isTacticCategory(category))return;
+ selectedTacticCategory=category;
+ const bank=document.querySelector("#tactic-bank");if(bank)bank.hidden=false;
+ focusPuzzleChapter(category,nextUnsolvedPuzzleIndex(category));
+ bank?.scrollIntoView({behavior:"smooth",block:"start"});
+}));
+document.querySelector("#continue-tactic").addEventListener("click",()=>startPuzzleWithEnergy(nextUnsolvedPuzzleIndex(selectedTacticCategory),selectedTacticCategory));
 document.querySelector("#back-menu").addEventListener("click",async()=>{
  clearTimeout(botTimer);cancelDrag();cancelMotion();clearScene();closePromotion();resetReview();
  if(gameMode==="online"&&onlineMatchId&&supabaseClient){
