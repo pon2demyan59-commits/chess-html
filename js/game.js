@@ -246,7 +246,14 @@ const mate3Puzzles=window.MATE3_PUZZLES||[];
 const mate4Puzzles=window.MATE4_PUZZLES||[];
 const mate5Puzzles=window.MATE5_PUZZLES||[];
 let puzzleCategory="mate1",puzzleStep=0,puzzleLine=[];
-const activePuzzles=()=>puzzleCategory==="mate5"?mate5Puzzles:puzzleCategory==="mate4"?mate4Puzzles:puzzleCategory==="mate3"?mate3Puzzles:puzzleCategory==="mate2"?mate2Puzzles:puzzles;
+const PUZZLES_PER_CHAPTER=25,CHAPTERS_PER_PAGE=10;
+const puzzleChapterState={
+ mate1:{selected:0,page:0},mate2:{selected:0,page:0},mate3:{selected:0,page:0},mate4:{selected:0,page:0},mate5:{selected:0,page:0}
+};
+function listForCategory(category){
+ return category==="mate5"?mate5Puzzles:category==="mate4"?mate4Puzzles:category==="mate3"?mate3Puzzles:category==="mate2"?mate2Puzzles:puzzles;
+}
+const activePuzzles=()=>listForCategory(puzzleCategory);
 const puzzleMoveCount=()=>puzzleCategory==="mate5"?5:puzzleCategory==="mate4"?4:puzzleCategory==="mate3"?3:puzzleCategory==="mate2"?2:1;
 let board,selected,moves,turn,finished,botTimer,audioContext;
 let drag=null,pendingPromotion=null;
@@ -349,42 +356,82 @@ function spendEnergy(amount=1){
  if(energy===MAX_ENERGY)energyLastAt=Date.now();
  energy-=amount;saveEnergy();renderEnergy();return true;
 }
-function renderPuzzleHub(){
- const renderGrid=(selector,list)=>{
-  const grid=document.querySelector(selector);if(!grid)return;
+function categoryGridId(category){return category==="mate1"?"#puzzle-grid":`#${category}-grid`}
+function renderPuzzleCategory(category){
+ const list=listForCategory(category),state=puzzleChapterState[category];
+ const chapterCount=Math.max(1,Math.ceil(list.length/PUZZLES_PER_CHAPTER));
+ state.selected=Math.max(0,Math.min(chapterCount-1,state.selected));
+ const pageCount=Math.max(1,Math.ceil(chapterCount/CHAPTERS_PER_PAGE));
+ state.page=Math.max(0,Math.min(pageCount-1,state.page));
+ const chapterStart=state.selected*PUZZLES_PER_CHAPTER;
+ const chapterEnd=Math.min(list.length,chapterStart+PUZZLES_PER_CHAPTER);
+ const title=document.querySelector(`#${category}-chapter-title`);
+ if(title)title.textContent=`Глава ${state.selected+1} · задачи ${chapterStart+1}–${chapterEnd}`;
+
+ const chapters=document.querySelector(`#${category}-chapters`);
+ if(chapters){
+  chapters.replaceChildren();
+  const first=state.page*CHAPTERS_PER_PAGE,last=Math.min(chapterCount,first+CHAPTERS_PER_PAGE);
+  for(let chapter=first;chapter<last;chapter++){
+   const start=chapter*PUZZLES_PER_CHAPTER,end=Math.min(list.length,start+PUZZLES_PER_CHAPTER);
+   const solved=list.slice(start,end).filter(p=>completedPuzzles.has(p.id)).length;
+   const total=end-start;
+   const button=document.createElement("button");
+   button.type="button";
+   button.className="puzzle-chapter"+(solved===total?" is-complete":"")+(chapter===state.selected?" is-selected":"");
+   button.innerHTML=`<strong>Глава ${chapter+1}</strong><span>Задачи ${start+1}–${end}</span><b>${solved}/${total} решено</b>`;
+   button.addEventListener("click",()=>{
+    state.selected=chapter;
+    renderPuzzleCategory(category);
+    document.querySelector(categoryGridId(category))?.scrollIntoView({behavior:"smooth",block:"center"});
+   });
+   chapters.append(button);
+  }
+ }
+ const pager=document.querySelector(`#${category}-chapter-pager`);
+ if(pager){
+  pager.replaceChildren();
+  const prev=document.createElement("button");prev.type="button";prev.textContent="←";prev.disabled=state.page===0;
+  const info=document.createElement("span");info.textContent=`${state.page+1}/${pageCount}`;
+  const next=document.createElement("button");next.type="button";next.textContent="→";next.disabled=state.page===pageCount-1;
+  prev.addEventListener("click",()=>{state.page--;renderPuzzleCategory(category)});
+  next.addEventListener("click",()=>{state.page++;renderPuzzleCategory(category)});
+  pager.append(prev,info,next);
+ }
+ const grid=document.querySelector(categoryGridId(category));
+ if(grid){
   grid.replaceChildren();
-  list.forEach((p,index)=>{
-   const done=completedPuzzles.has(p.id);
+  for(let index=chapterStart;index<chapterEnd;index++){
+   const p=list[index],done=completedPuzzles.has(p.id);
    const button=document.createElement("button");
    button.type="button";button.className="puzzle-tile"+(done?" is-complete":"");
    button.setAttribute("aria-label",`Задача ${index+1}${done?", решена":""}`);
    const number=document.createElement("strong");number.textContent=index+1;
-   const state=document.createElement("span");state.textContent=done?"✓ Решена":"1 ⚡";
-   button.append(number,state);
-   button.addEventListener("click",()=>startPuzzleWithEnergy(index,p.category||"mate1"));
+   const status=document.createElement("span");status.textContent=done?"✓ Решена":"1 ⚡";
+   button.append(number,status);
+   button.addEventListener("click",()=>startPuzzleWithEnergy(index,category));
    grid.append(button);
-  });
- };
- const solved1=puzzles.filter(p=>completedPuzzles.has(p.id)).length;
- const solved2=mate2Puzzles.filter(p=>completedPuzzles.has(p.id)).length;
- const solved3=mate3Puzzles.filter(p=>completedPuzzles.has(p.id)).length;
- const solved4=mate4Puzzles.filter(p=>completedPuzzles.has(p.id)).length;
- const solved5=mate5Puzzles.filter(p=>completedPuzzles.has(p.id)).length;
- const progress1=document.querySelector("#mate1-progress");if(progress1)progress1.textContent=`${solved1}/${puzzles.length} решено`;
- const progress2=document.querySelector("#mate2-progress");if(progress2)progress2.textContent=`${solved2}/${mate2Puzzles.length} решено`;
- const progress3=document.querySelector("#mate3-progress");if(progress3)progress3.textContent=`${solved3}/${mate3Puzzles.length} решено`;
- const progress4=document.querySelector("#mate4-progress");if(progress4)progress4.textContent=`${solved4}/${mate4Puzzles.length} решено`;
- const progress5=document.querySelector("#mate5-progress");if(progress5)progress5.textContent=`${solved5}/${mate5Puzzles.length} решено`;
- renderGrid("#puzzle-grid",puzzles);
- renderGrid("#mate2-grid",mate2Puzzles);
- renderGrid("#mate3-grid",mate3Puzzles);
- renderGrid("#mate4-grid",mate4Puzzles);
- renderGrid("#mate5-grid",mate5Puzzles);
+  }
+ }
+}
+function renderPuzzleHub(){
+ for(const category of ["mate1","mate2","mate3","mate4","mate5"]){
+  const list=listForCategory(category);
+  const solved=list.filter(p=>completedPuzzles.has(p.id)).length;
+  const progress=document.querySelector(`#${category}-progress`);
+  if(progress)progress.textContent=`${solved}/${list.length} решено`;
+  renderPuzzleCategory(category);
+ }
 }
 function nextUnsolvedPuzzleIndex(category=puzzleCategory){
- const list=category==="mate5"?mate5Puzzles:category==="mate4"?mate4Puzzles:category==="mate3"?mate3Puzzles:category==="mate2"?mate2Puzzles:puzzles;
+ const list=listForCategory(category);
  const index=list.findIndex(p=>!completedPuzzles.has(p.id));
  return index>=0?index:0;
+}
+function focusPuzzleChapter(category,index){
+ const state=puzzleChapterState[category],chapter=Math.floor(index/PUZZLES_PER_CHAPTER);
+ state.selected=chapter;state.page=Math.floor(chapter/CHAPTERS_PER_PAGE);
+ renderPuzzleCategory(category);
 }
 function saveGameState(){
  if(!gameStarted||!chess)return;
@@ -1530,6 +1577,7 @@ function getPieceSprite(type,color){
 }
 
 function startPuzzleWithEnergy(index,category=puzzleCategory){
+ focusPuzzleChapter(category,index);
  puzzleCategory=category==="mate5"?"mate5":category==="mate4"?"mate4":category==="mate3"?"mate3":category==="mate2"?"mate2":"mate1";
  const list=activePuzzles(),puzzle=list[index];
  if(!puzzle)return false;
@@ -1600,11 +1648,11 @@ document.querySelector("#start-hotseat").addEventListener("click",()=>{
 });
 document.querySelector("#puzzle-entry").addEventListener("click",()=>showScreen("puzzles"));
 document.querySelector("#puzzles-back").addEventListener("click",()=>showScreen("menu"));
-document.querySelector("[data-puzzle-category='mate1']").addEventListener("click",()=>document.querySelector("#mate1-bank")?.scrollIntoView({behavior:"smooth",block:"start"}));
-document.querySelector("[data-puzzle-category='mate2']").addEventListener("click",()=>document.querySelector("#mate2-bank")?.scrollIntoView({behavior:"smooth",block:"start"}));
-document.querySelector("[data-puzzle-category='mate3']").addEventListener("click",()=>document.querySelector("#mate3-bank")?.scrollIntoView({behavior:"smooth",block:"start"}));
-document.querySelector("[data-puzzle-category='mate4']").addEventListener("click",()=>document.querySelector("#mate4-bank")?.scrollIntoView({behavior:"smooth",block:"start"}));
-document.querySelector("[data-puzzle-category='mate5']").addEventListener("click",()=>document.querySelector("#mate5-bank")?.scrollIntoView({behavior:"smooth",block:"start"}));
+document.querySelector("[data-puzzle-category='mate1']").addEventListener("click",()=>{focusPuzzleChapter("mate1",nextUnsolvedPuzzleIndex("mate1"));document.querySelector("#mate1-bank")?.scrollIntoView({behavior:"smooth",block:"start"})});
+document.querySelector("[data-puzzle-category='mate2']").addEventListener("click",()=>{focusPuzzleChapter("mate2",nextUnsolvedPuzzleIndex("mate2"));document.querySelector("#mate2-bank")?.scrollIntoView({behavior:"smooth",block:"start"})});
+document.querySelector("[data-puzzle-category='mate3']").addEventListener("click",()=>{focusPuzzleChapter("mate3",nextUnsolvedPuzzleIndex("mate3"));document.querySelector("#mate3-bank")?.scrollIntoView({behavior:"smooth",block:"start"})});
+document.querySelector("[data-puzzle-category='mate4']").addEventListener("click",()=>{focusPuzzleChapter("mate4",nextUnsolvedPuzzleIndex("mate4"));document.querySelector("#mate4-bank")?.scrollIntoView({behavior:"smooth",block:"start"})});
+document.querySelector("[data-puzzle-category='mate5']").addEventListener("click",()=>{focusPuzzleChapter("mate5",nextUnsolvedPuzzleIndex("mate5"));document.querySelector("#mate5-bank")?.scrollIntoView({behavior:"smooth",block:"start"})});
 document.querySelector("#continue-puzzle").addEventListener("click",()=>startPuzzleWithEnergy(nextUnsolvedPuzzleIndex("mate1"),"mate1"));
 document.querySelector("#continue-mate2").addEventListener("click",()=>startPuzzleWithEnergy(nextUnsolvedPuzzleIndex("mate2"),"mate2"));
 document.querySelector("#continue-mate3").addEventListener("click",()=>startPuzzleWithEnergy(nextUnsolvedPuzzleIndex("mate3"),"mate3"));
