@@ -251,6 +251,45 @@ let moving=false,motionToken=0,motionTimer=null,motionGhosts=[];
 let lastMove=null,reviewMode=false,reviewPly=0,reviewMoves=[],reviewStartFen="",finalMessage="";
 const difficultyNames=["Пешка","Слон","Конь","Ладья","Офицер","Король"];
 let playerColor="white",botColor="black",menuSide="white",difficultyLevel=5,gameStarted=false,gameMode="match",puzzleIndex=0;
+let platformPaused=false;
+function platformGameplayStart(){window.YandexPlatform?.gameplayStart?.()}
+function platformGameplayStop(){window.YandexPlatform?.gameplayStop?.()}
+function gameplayIsActive(){return gameStarted&&!finished&&!screens.game.hidden&&!platformPaused}
+function suspendGameAudio(){
+ try{if(audioContext&&audioContext.state==="running")audioContext.suspend()}catch{}
+}
+function resumeGameAudio(){
+ try{if(audioContext&&audioContext.state==="suspended"&&!platformPaused)audioContext.resume()}catch{}
+}
+function handlePlatformPause(){
+ platformPaused=true;
+ platformGameplayStop();
+ suspendGameAudio();
+ clearTimeout(botTimer);
+ cancelDrag();selected=null;moves=[];
+ if(board&&!moving)render();
+}
+function handlePlatformResume(){
+ platformPaused=false;
+ if(gameplayIsActive())platformGameplayStart();
+ resumeGameAudio();
+ if(gameStarted&&!finished&&gameMode==="match"&&turn===botColor&&!moving){
+  clearTimeout(botTimer);botTimer=setTimeout(botMove,500);
+ }
+}
+function isMobileViewport(){
+ return matchMedia("(pointer:coarse)").matches||Math.min(innerWidth,innerHeight)<700;
+}
+async function requestMobileFullscreen(){
+ if(!isMobileViewport()||document.fullscreenElement)return;
+ const target=document.documentElement;
+ try{
+  if(target.requestFullscreen)await target.requestFullscreen({navigationUI:"hide"});
+  else if(target.webkitRequestFullscreen)target.webkitRequestFullscreen();
+ }catch{/* Полноэкранный режим может быть недоступен в конкретном браузере/iframe. */}
+}
+function currentScreenElement(){return Object.values(screens).find(el=>!el.hidden)||screens.welcome}
+
 const statsKey="free-time-chess-stats-v1";
 const levelStatsKey="free-time-chess-level-stats-v1";
 const energyKey="free-time-chess-energy-v1";
@@ -526,7 +565,7 @@ function restoreSession(){
 }
 function restoreScroll(){
  let y=0;try{y=Number(sessionStorage.getItem(scrollKey))||0}catch{}
- requestAnimationFrame(()=>window.scrollTo(0,y));
+ requestAnimationFrame(()=>{const active=currentScreenElement();if(active)active.scrollTop=y});
 }
 function emptyStats(){return {white:{wins:0,losses:0,draws:0},black:{wins:0,losses:0,draws:0}}}
 function loadStats(){
@@ -641,7 +680,8 @@ function showScreen(name,resetScroll=true){
  if(name==="puzzles"){renderPuzzleHub();renderEnergy();document.querySelector("#puzzles-title").focus()}
  if(name==="stats"){showStats();loadPvpStats();document.querySelector("#stats-title").focus()}
  if(name==="game")document.querySelector("#game-title").focus();
- if(resetScroll)window.scrollTo(0,0);
+ if(resetScroll){const active=screens[name];if(active)active.scrollTop=0}
+ if(name==="game"&&gameStarted&&!finished&&!platformPaused)platformGameplayStart();else platformGameplayStop();
 }
 const displayIndex=(r,c)=>playerColor==="white"?r*8+c:(7-r)*8+(7-c);
 const nicknameKey="chess-online-nickname";
@@ -794,6 +834,7 @@ async function pollMatchmaking(nickname){
  }finally{onlinePolling=false}
 }
 async function beginOnlineSearch(){
+ requestMobileFullscreen();
  const nickname=getPlayerNickname();
  if(!nickname){document.querySelector("#online-modal").hidden=true;openProfileModal();return}
  document.querySelector("#online-search").hidden=true;
@@ -828,7 +869,7 @@ async function startOnlineMatch(matchId,color,opponent){
  setOnlineClocksVisible(true);
  await subscribeOnlineMatch(matchId);
  statusElement.textContent=turn===playerColor?"Твой ход.":"Ход соперника…";
- saveGameState();
+ saveGameState();platformGameplayStart();
 }
 async function subscribeOnlineMatch(matchId){
  if(!supabaseClient||!matchId)return;
@@ -851,6 +892,7 @@ function applyOnlineMatch(row,animateRemote=true){
   if(row.fen&&row.fen!=="start")chess.load(row.fen);else chess.reset();
   syncBoard();lastMove=row.last_move||null;selected=null;moves=[];
   finished=row.status!=="active";
+  if(finished)platformGameplayStop();
   render();renderMoveList();saveGameState();
   if(finished){
    loadPvpStats();
@@ -914,7 +956,7 @@ function startHotseat(){
  document.querySelector("#resign").hidden=true;
  document.querySelector("#next-puzzle").hidden=true;
  statusElement.textContent="Ход белых — Игрок 1.";
- render();saveGameState();
+ render();saveGameState();platformGameplayStart();
 }
 function restartCurrentGame(){
  if(gameMode==="puzzle")startPuzzle(puzzleIndex);
@@ -940,7 +982,7 @@ function startGame(){
  document.querySelector("#resign").hidden=false;
  document.querySelector("#next-puzzle").hidden=true;
  statusElement.textContent=playerColor==="white"?"Твой ход: возьми белую фигуру.":"Компьютер ходит первым…";
- render();saveGameState();
+ render();saveGameState();platformGameplayStart();
  if(playerColor==="black")botTimer=setTimeout(botMove,850);
 }
 function playUciOn(gameObj,uci){
@@ -989,10 +1031,10 @@ function startPuzzle(index){
  statusElement.textContent=isTacticCategory(puzzleCategory)?`${playerColor==="white"?"Белые":"Чёрные"} начинают. Найди лучший тактический ход.`:longPuzzle?`${playerColor==="white"?"Белые":"Чёрные"} начинают. Найди форсирующий первый ход.`:"Найди ход, после которого королю не спастись.";
  resetButton.textContent="Повторить задачу";document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#resign").hidden=true;document.querySelector("#next-puzzle").hidden=true;
- render();saveGameState();
+ render();saveGameState();platformGameplayStart();
 }
 function finishPuzzle(puzzle,to,message){
- finished=true;render();renderMoveList();
+ finished=true;platformGameplayStop();render();renderMoveList();
  const firstSolve=markPuzzleComplete(puzzle.id);
  playScene("mate",{to,color:playerColor==="white"?"w":"b"},message);
  statusElement.textContent=firstSolve?"Верно! Задача решена и сохранена.":"Верно! Повтор пройден — энергия не тратилась.";
@@ -1078,7 +1120,7 @@ function drawState(){const n=Number(chess.fen().split(" ")[4]),reps=repetitionCo
  automatic:n>=150?"75 ходов без взятия и хода пешкой":reps>=5?"пятикратное повторение позиции":null,
  claim:n>=100?"50 ходов без взятия и хода пешкой":reps>=3?"троекратное повторение позиции":null};}
 function endMatch(result,message,awardEnergy=true){
- finished=true;finalMessage=message;statusElement.textContent=message;
+ finished=true;platformGameplayStop();finalMessage=message;statusElement.textContent=message;
  document.querySelector("#claim-draw").hidden=true;document.querySelector("#resign").hidden=true;
  document.querySelector("#analysis-entry").hidden=false;recordResult(result);
  if(awardEnergy)addEnergy(1,"Партия завершена: +1 ⚡ энергии для задач.");
@@ -1125,7 +1167,7 @@ function cancelDrag(){
  drag=null;
 }
 function onPointerDown(event){
- if(!gameStarted||finished||reviewMode||moving||pendingPromotion||turn!==playerColor||event.button!==0||drag)return;
+ if(!gameStarted||finished||platformPaused||reviewMode||moving||pendingPromotion||turn!==playerColor||event.button!==0||drag)return;
  const cell=event.target.closest(".square");
  if(!cell||!boardElement.contains(cell))return;
  const r=Number(cell.dataset.row),c=Number(cell.dataset.col);
@@ -1203,9 +1245,18 @@ boardElement.addEventListener("pointerdown",onPointerDown);
 boardElement.addEventListener("pointermove",onPointerMove);
 boardElement.addEventListener("pointerup",onPointerUp);
 boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];if(board&&!moving)render()});
-window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];if(board&&!moving)render()});
+window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];suspendGameAudio();if(board&&!moving)render()});
+window.addEventListener("focus",()=>{if(!platformPaused)resumeGameAudio()});
+document.addEventListener("visibilitychange",()=>{
+ if(document.hidden){platformGameplayStop();suspendGameAudio()}
+ else if(gameplayIsActive()){platformGameplayStart();resumeGameAudio()}
+});
+window.addEventListener("yandex-game-pause",handlePlatformPause);
+window.addEventListener("yandex-game-resume",handlePlatformResume);
+boardElement.addEventListener("contextmenu",event=>event.preventDefault());
+boardElement.addEventListener("selectstart",event=>event.preventDefault());
 function move(fr,fc,r,c,promotion,dragState=null){
- if(moving)return;
+ if(moving||platformPaused)return;
  clearScene();
  const from=square(fr,fc),to=square(r,c);
  const legal=chess.moves({square:from,verbose:true}).find(m=>m.to===to&&m.promotion===promotion);
@@ -1650,6 +1701,7 @@ function getPieceSprite(type,color){
 }
 
 function startPuzzleWithEnergy(index,category=puzzleCategory){
+ requestMobileFullscreen();
  category=normalizePuzzleCategory(category);
  if(isTacticCategory(category)){selectedTacticCategory=category;const bank=document.querySelector("#tactic-bank");if(bank)bank.hidden=false}
  focusPuzzleChapter(category,index);
@@ -1712,10 +1764,10 @@ document.querySelector("#profile-close").addEventListener("click",closeProfileMo
 document.querySelector("#profile-save").addEventListener("click",savePlayerNickname);
 document.querySelector("#profile-nickname").addEventListener("keydown",e=>{if(e.key==="Enter")savePlayerNickname()});
 document.querySelector("#start-match").addEventListener("click",()=>{
- showScreen("game");startGame();
+ requestMobileFullscreen();showScreen("game");startGame();
 });
 document.querySelector("#start-hotseat").addEventListener("click",()=>{
- showScreen("game");startHotseat();
+ requestMobileFullscreen();showScreen("game");startHotseat();
 });
 document.querySelector("#puzzle-entry").addEventListener("click",()=>showScreen("puzzles"));
 document.querySelector("#puzzles-back").addEventListener("click",()=>showScreen("menu"));
@@ -1745,17 +1797,24 @@ document.querySelector("#back-menu").addEventListener("click",async()=>{
   if(onlineChannel){await supabaseClient.removeChannel(onlineChannel);onlineChannel=null}
   onlineMatchId=null;onlineColor=null;onlineOpponent="";onlineVersion=0;setOnlineClocksVisible(false);
  }
- gameStarted=false;resetButton.hidden=false;showScreen("menu");
+ gameStarted=false;platformGameplayStop();resetButton.hidden=false;showScreen("menu");
 });
 function requestRewardedEnergy(){
- const sdk=window.ysdk;
+ const sdk=window.YandexPlatform?.ysdk||window.ysdk;
+ if(gameMode==="online"&&gameStarted&&!finished){
+  renderEnergy("Во время онлайн-партии реклама недоступна.");
+  return;
+ }
  if(sdk?.adv?.showRewardedVideo){
+  platformGameplayStop();suspendGameAudio();
   sdk.adv.showRewardedVideo({callbacks:{
+   onOpen:()=>{platformGameplayStop();suspendGameAudio()},
    onRewarded:()=>addEnergy(3,"Реклама просмотрена: +3 ⚡ энергии."),
-   onError:()=>renderEnergy("Реклама сейчас недоступна. Попробуй позже.")
+   onClose:()=>{if(gameplayIsActive())platformGameplayStart();resumeGameAudio()},
+   onError:()=>{renderEnergy("Реклама сейчас недоступна. Попробуй позже.");if(gameplayIsActive())platformGameplayStart();resumeGameAudio()}
   }});
  }else{
-  renderEnergy("Наградная реклама заработает после подключения SDK Яндекс Игр.");
+  renderEnergy("Реклама доступна в версии игры на Яндекс Играх.");
  }
 }
 document.querySelector("#energy-ad").addEventListener("click",requestRewardedEnergy);
@@ -1793,7 +1852,7 @@ document.querySelector("#copy-pgn").addEventListener("click",async()=>{
 
 window.addEventListener("pagehide",()=>{
  try{
-  sessionStorage.setItem(scrollKey,String(window.scrollY||0));
+  sessionStorage.setItem(scrollKey,String(currentScreenElement()?.scrollTop||0));
   saveGameState();
  }catch{}
 });
