@@ -38,6 +38,10 @@
           <span class="profile-chip__text"><small>ИГРОВОЙ ПРОФИЛЬ</small><strong id="profile-chip-name">Создать ник</strong></span>
           <span class="profile-chip__edit">Изменить</span>
         </button>
+        <button id="open-account" class="account-chip" type="button">
+          <span class="account-chip__icon" aria-hidden="true">☁</span>
+          <span class="account-chip__text"><small>СОХРАНЕНИЕ ПРОГРЕССА</small><strong id="account-chip-title">Играть без регистрации</strong><span id="account-chip-note">Регистрация необязательна</span></span>
+        </button>
       </header>
 
       <section class="online-hero" aria-labelledby="online-hero-title">
@@ -148,6 +152,47 @@
       </div>
     </div>
   </main>
+  <div id="account-modal" class="account-modal" hidden>
+    <div class="account-modal__card" role="dialog" aria-modal="true" aria-labelledby="account-title">
+      <button id="account-close" class="account-modal__close" type="button" aria-label="Закрыть">×</button>
+      <span class="account-modal__crest" aria-hidden="true">☁</span>
+      <p class="eyebrow">ОБЛАЧНОЕ СОХРАНЕНИЕ</p>
+      <h2 id="account-title">Сохранить прогресс</h2>
+      <p id="account-lead" class="account-modal__lead">Регистрация необязательна. Создай аккаунт только если хочешь сохранять прогресс и продолжать игру на других устройствах.</p>
+
+      <div id="account-auth-form">
+        <label class="account-modal__label">Email
+          <input id="account-email" type="email" autocomplete="email" placeholder="name@example.com">
+        </label>
+        <label class="account-modal__label">Пароль
+          <input id="account-password" type="password" minlength="6" autocomplete="current-password" placeholder="Минимум 6 символов">
+        </label>
+        <p id="account-message" class="account-modal__message" hidden></p>
+        <div class="account-modal__actions">
+          <button id="account-login" class="account-modal__primary" type="button">Войти</button>
+          <button id="account-register" class="account-modal__secondary" type="button">Создать аккаунт</button>
+        </div>
+        <button id="account-forgot" class="account-modal__link" type="button">Забыли пароль?</button>
+        <p class="account-modal__optional">Можно закрыть это окно и продолжить играть без регистрации — прогресс останется на этом устройстве.</p>
+      </div>
+
+      <div id="account-signed-in" class="account-signed-in" hidden>
+        <small>АККАУНТ ПОДКЛЮЧЁН</small>
+        <strong id="account-email-current"></strong>
+        <p>Прогресс сохраняется в облаке автоматически.</p>
+        <button id="account-signout" class="account-modal__secondary" type="button">Выйти из аккаунта</button>
+      </div>
+
+      <div id="account-recovery" hidden>
+        <p class="account-modal__lead">Придумай новый пароль для аккаунта.</p>
+        <label class="account-modal__label">Новый пароль
+          <input id="account-new-password" type="password" minlength="6" autocomplete="new-password" placeholder="Минимум 6 символов">
+        </label>
+        <p id="account-recovery-message" class="account-modal__message" hidden></p>
+        <button id="account-save-password" class="account-modal__primary" type="button">Сохранить новый пароль</button>
+      </div>
+    </div>
+  </div>
   <div id="profile-modal" class="profile-modal" hidden>
     <div class="profile-modal__card" role="dialog" aria-modal="true" aria-labelledby="profile-title">
       <button id="profile-close" class="profile-modal__close" type="button" aria-label="Закрыть">×</button>
