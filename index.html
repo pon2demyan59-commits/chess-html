@@ -8,6 +8,7 @@
   <script src="vendor/chess.js/chess.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="js/mate2-puzzles.js" defer></script>
+  <script src="js/mate3-puzzles.js" defer></script>
   <script src="js/game.js" defer></script>
 </head>
 <body>
@@ -264,7 +265,12 @@
             <small>50 задач · доступно сейчас</small>
             <span id="mate2-progress" class="puzzle-category__progress">0/50 решено</span>
           </button>
-          <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">3</span><strong>Мат в 3 хода</strong><small>Скоро</small></button>
+          <button class="puzzle-category puzzle-category--active" type="button" data-puzzle-category="mate3">
+            <span class="puzzle-category__number">3</span>
+            <strong>Мат в 3 хода</strong>
+            <small>50 задач · доступно сейчас</small>
+            <span id="mate3-progress" class="puzzle-category__progress">0/50 решено</span>
+          </button>
           <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">4</span><strong>Мат в 4 хода</strong><small>Скоро</small></button>
           <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">5</span><strong>Мат в 5 ходов</strong><small>Скоро</small></button>
         </div>
@@ -313,6 +319,18 @@
           <button id="continue-mate2" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
         </div>
         <div id="mate2-grid" class="puzzle-grid" aria-label="Список задач мат в два хода"></div>
+      </section>
+
+      <section id="mate3-bank" class="puzzle-bank" aria-labelledby="mate3-title">
+        <div class="puzzle-bank__header">
+          <div>
+            <p class="eyebrow">50 ЗАДАЧ</p>
+            <h3 id="mate3-title">Мат в три хода</h3>
+            <p>Найди форсирующую комбинацию: твой ход, ответ соперника, второй ход, ещё один ответ и мат третьим ходом.</p>
+          </div>
+          <button id="continue-mate3" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
+        </div>
+        <div id="mate3-grid" class="puzzle-grid" aria-label="Список задач мат в три хода"></div>
       </section>
 
       <button id="puzzles-back" class="puzzles-page__back" type="button">Вернуться в Зал поединков</button>
