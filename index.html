@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Шахматы в свободное время</title>
+  <script src="/sdk.js"></script>
   <link rel="stylesheet" href="css/style.css">
+  <script src="js/yandex-platform.js" defer></script>
   <script src="vendor/chess.js/chess.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="js/mate2-puzzles.js" defer></script>
@@ -162,38 +164,19 @@
       <span class="account-modal__crest" aria-hidden="true">☁</span>
       <p class="eyebrow">ОБЛАЧНОЕ СОХРАНЕНИЕ</p>
       <h2 id="account-title">Сохранить прогресс</h2>
-      <p id="account-lead" class="account-modal__lead">Регистрация необязательна. Создай аккаунт только если хочешь сохранять прогресс и продолжать игру на других устройствах.</p>
+      <p id="account-lead" class="account-modal__lead">Авторизация необязательна. Войди через Яндекс ID, если хочешь сохранять прогресс в облаке и продолжать игру на других устройствах.</p>
+      <p id="account-message" class="account-modal__message" hidden></p>
 
-      <div id="account-auth-form">
-        <label class="account-modal__label">Email
-          <input id="account-email" type="email" autocomplete="email" placeholder="name@example.com">
-        </label>
-        <label class="account-modal__label">Пароль
-          <input id="account-password" type="password" minlength="6" autocomplete="current-password" placeholder="Минимум 6 символов">
-        </label>
-        <p id="account-message" class="account-modal__message" hidden></p>
-        <div class="account-modal__actions">
-          <button id="account-login" class="account-modal__primary" type="button">Войти</button>
-          <button id="account-register" class="account-modal__secondary" type="button">Создать аккаунт</button>
-        </div>
-        <button id="account-forgot" class="account-modal__link" type="button">Забыли пароль?</button>
-        <p class="account-modal__optional">Можно закрыть это окно и продолжить играть без регистрации — прогресс останется на этом устройстве.</p>
+      <div id="account-yandex-guest" class="account-yandex">
+        <button id="account-yandex-login" class="account-modal__primary account-yandex__login" type="button">Войти через Яндекс ID</button>
+        <p class="account-modal__optional">Без входа можно играть как обычно — прогресс сохраняется на этом устройстве.</p>
       </div>
 
-      <div id="account-signed-in" class="account-signed-in" hidden>
-        <small>АККАУНТ ПОДКЛЮЧЁН</small>
-        <strong id="account-email-current"></strong>
-        <p>Прогресс сохраняется в облаке автоматически.</p>
-        <button id="account-signout" class="account-modal__secondary" type="button">Выйти из аккаунта</button>
-      </div>
-
-      <div id="account-recovery" hidden>
-        <p class="account-modal__lead">Придумай новый пароль для аккаунта.</p>
-        <label class="account-modal__label">Новый пароль
-          <input id="account-new-password" type="password" minlength="6" autocomplete="new-password" placeholder="Минимум 6 символов">
-        </label>
-        <p id="account-recovery-message" class="account-modal__message" hidden></p>
-        <button id="account-save-password" class="account-modal__primary" type="button">Сохранить новый пароль</button>
+      <div id="account-yandex-signed" class="account-signed-in" hidden>
+        <small>ЯНДЕКС ID ПОДКЛЮЧЁН</small>
+        <strong id="account-yandex-name">Игрок</strong>
+        <p>Прогресс автоматически сохраняется в облаке Яндекс Игр.</p>
+        <button id="account-yandex-sync" class="account-modal__secondary" type="button">Синхронизировать сейчас</button>
       </div>
     </div>
   </div>
