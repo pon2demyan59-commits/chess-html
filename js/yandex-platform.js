@@ -9,7 +9,13 @@
     platformPaused: false
   };
 
-  async function initSdk() {
+  let initPromise = null, readyPromise = null;
+  function initSdk() {
+    if (!initPromise) initPromise = initializeSdk().catch(error => { initPromise = null; throw error; });
+    return initPromise;
+  }
+
+  async function initializeSdk() {
     if (state.initialized) return state;
     if (!window.YaGames?.init) {
       console.info("Yandex Games SDK is unavailable outside the platform; local mode is active.");
@@ -28,12 +34,6 @@
     document.documentElement.dataset.yandexLang = state.lang;
     document.documentElement.dataset.yandexPlatformLang = platformLang;
 
-    try {
-      state.player = await ysdk.getPlayer();
-    } catch (error) {
-      console.warn("Yandex Player initialization failed:", error);
-    }
-
     const pause = () => {
       state.platformPaused = true;
       window.dispatchEvent(new CustomEvent("yandex-game-pause"));
@@ -45,12 +45,23 @@
     ysdk.on?.("game_api_pause", pause);
     ysdk.on?.("game_api_resume", resume);
 
+    try {
+      state.player = await ysdk.getPlayer();
+    } catch (error) {
+      console.warn("Yandex Player initialization failed:", error);
+    }
+
     state.initialized = true;
     window.dispatchEvent(new CustomEvent("yandex-sdk-ready", { detail: state }));
     return state;
   }
 
-  async function gameReady() {
+  function gameReady() {
+    if (!readyPromise) readyPromise = sendGameReady().catch(error => { readyPromise = null; throw error; });
+    return readyPromise;
+  }
+
+  async function sendGameReady() {
     if (state.gameReadySent) return;
     await initSdk();
     if (state.ysdk?.features?.LoadingAPI?.ready) {
