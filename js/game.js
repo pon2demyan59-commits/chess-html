@@ -242,8 +242,10 @@ function syncBoard(){board=chess.board().map(row=>row.map(p=>p&&{type:names[p.ty
 const files="abcdefgh";
 const puzzles=[ {id:"m1-12",category:"mate1",side:"black",piece:"R",label:"Мат ладьёй",fen:"8/8/8/7K/3k4/8/6r1/1r6 b - - 0 1",from:[7,1],to:[7,7]}, {id:"m1-43",category:"mate1",side:"white",piece:"P",label:"Мат пешкой",fen:"7k/5K2/6P1/8/4B3/8/8/8 w - - 0 1",from:[2,6],to:[1,6]}, {id:"m1-16",category:"mate1",side:"black",piece:"R",label:"Мат ладьёй",fen:"5k2/2q5/8/1p6/r7/1K6/8/1N4r1 b - - 0 1",from:[7,6],to:[7,1]}, {id:"m1-31",category:"mate1",side:"white",piece:"N",label:"Мат конём",fen:"8/8/8/K4QNN/7k/8/4N3/8 w - - 0 1",from:[3,6],to:[5,5]}, {id:"m1-38",category:"mate1",side:"black",piece:"N",label:"Мат конём",fen:"8/8/8/2n1R3/8/8/4n1r1/k4b1K b - - 0 1",from:[6,4],to:[5,6]}, {id:"m1-20",category:"mate1",side:"black",piece:"R",label:"Мат ладьёй",fen:"7K/2r5/8/8/3r4/8/5k2/7b b - - 0 1",from:[4,3],to:[0,3]}, {id:"m1-45",category:"mate1",side:"white",piece:"P",label:"Мат пешкой",fen:"k7/2K5/1P6/8/8/8/5B2/8 w - - 0 1",from:[2,1],to:[1,1]}, {id:"m1-02",category:"mate1",side:"black",piece:"Q",label:"Мат ферзём",fen:"6K1/3q4/8/8/1q6/8/2n5/k7 b - - 0 1",from:[4,1],to:[0,1]}, {id:"m1-33",category:"mate1",side:"white",piece:"N",label:"Мат конём",fen:"4kN2/1K2P3/8/1N6/8/8/8/4R3 w - - 0 1",from:[3,1],to:[2,3]}, {id:"m1-42",category:"mate1",side:"black",piece:"P",label:"Мат пешкой",fen:"8/8/4b3/8/8/1p6/2k5/K7 b - - 0 1",from:[5,1],to:[6,1]}, {id:"m1-50",category:"mate1",side:"black",piece:"P",label:"Мат пешкой",fen:"8/8/7b/8/3r4/K4p1q/8/1k6 b - - 0 1",from:[5,5],to:[6,5]}, {id:"m1-06",category:"mate1",side:"black",piece:"Q",label:"Мат ферзём",fen:"8/8/3q2r1/8/4k3/8/2q3n1/5K2 b - - 0 1",from:[2,3],to:[7,3]}, {id:"m1-41",category:"mate1",side:"white",piece:"P",label:"Мат пешкой",fen:"7k/5K2/6P1/8/8/8/2B5/8 w - - 0 1",from:[2,6],to:[1,6]}, {id:"m1-13",category:"mate1",side:"white",piece:"R",label:"Мат ладьёй",fen:"3k4/8/3K4/1R5B/1Q4N1/8/8/8 w - - 0 1",from:[3,1],to:[0,1]}, {id:"m1-23",category:"mate1",side:"white",piece:"B",label:"Мат слоном",fen:"7k/7N/4B2K/8/7B/8/2n5/8 w - - 0 1",from:[4,7],to:[2,5]}, {id:"m1-14",category:"mate1",side:"black",piece:"R",label:"Мат ладьёй",fen:"8/8/4k3/8/3r4/8/5r2/1K6 b - - 0 1",from:[4,3],to:[7,3]}, {id:"m1-34",category:"mate1",side:"black",piece:"N",label:"Мат конём",fen:"2K1n1q1/8/1k6/8/8/7p/6n1/8 b - - 0 1",from:[0,4],to:[2,5]}, {id:"m1-17",category:"mate1",side:"white",piece:"R",label:"Мат ладьёй",fen:"1k6/8/K1R5/8/8/8/8/2R5 w - - 0 1",from:[2,2],to:[0,2]}, {id:"m1-30",category:"mate1",side:"black",piece:"B",label:"Мат слоном",fen:"8/6k1/8/8/7p/2p5/8/2K2br1 b - - 0 1",from:[7,5],to:[5,3]}, {id:"m1-32",category:"mate1",side:"black",piece:"N",label:"Мат конём",fen:"8/3n4/8/8/4n3/8/r3n2k/1K6 b - - 0 1",from:[4,4],to:[5,2]}, {id:"m1-04",category:"mate1",side:"black",piece:"Q",label:"Мат ферзём",fen:"6K1/2q5/8/5n2/8/2k4b/8/8 b - - 0 1",from:[1,2],to:[1,6]}, {id:"m1-09",category:"mate1",side:"white",piece:"Q",label:"Мат ферзём",fen:"1K6/8/8/8/Q2Q4/8/8/1k6 w - - 0 1",from:[4,3],to:[7,0]}, {id:"m1-26",category:"mate1",side:"black",piece:"B",label:"Мат слоном",fen:"8/8/5b2/8/4k3/7q/8/6K1 b - - 0 1",from:[2,5],to:[4,3]}, {id:"m1-10",category:"mate1",side:"black",piece:"Q",label:"Мат ферзём",fen:"8/8/6q1/1p6/7K/k4bp1/8/8 b - - 0 1",from:[2,6],to:[4,6]}, {id:"m1-11",category:"mate1",side:"white",piece:"R",label:"Мат ладьёй",fen:"k7/B6R/8/8/4R3/3K4/8/8 w - - 0 1",from:[4,4],to:[0,4]}, {id:"m1-46",category:"mate1",side:"black",piece:"P",label:"Мат пешкой",fen:"8/8/3b4/8/8/6p1/5k2/7K b - - 0 1",from:[5,6],to:[6,6]}, {id:"m1-21",category:"mate1",side:"white",piece:"B",label:"Мат слоном",fen:"8/1P6/8/8/5K2/6Bk/4B3/8 w - - 0 1",from:[6,4],to:[7,5]}, {id:"m1-27",category:"mate1",side:"white",piece:"B",label:"Мат слоном",fen:"1K4B1/7p/8/8/8/8/5Q2/7k w - - 0 1",from:[0,6],to:[3,3]}, {id:"m1-01",category:"mate1",side:"white",piece:"Q",label:"Мат ферзём",fen:"1k6/8/7K/4N3/4Q3/3P1Q2/8/8 w - - 0 1",from:[4,4],to:[1,1]}, {id:"m1-47",category:"mate1",side:"white",piece:"P",label:"Мат пешкой",fen:"k7/2K5/1P6/8/3B4/8/8/8 w - - 0 1",from:[2,1],to:[1,1]}, {id:"m1-28",category:"mate1",side:"black",piece:"B",label:"Мат слоном",fen:"3K1b2/1r6/k2n4/8/8/8/8/8 b - - 0 1",from:[0,5],to:[1,4]}, {id:"m1-07",category:"mate1",side:"white",piece:"Q",label:"Мат ферзём",fen:"7B/7k/5Q2/8/1B6/8/8/5K2 w - - 0 1",from:[2,5],to:[1,6]}, {id:"m1-44",category:"mate1",side:"black",piece:"P",label:"Мат пешкой",fen:"8/8/8/8/2b5/1p6/2k5/K7 b - - 0 1",from:[5,1],to:[6,1]}, {id:"m1-05",category:"mate1",side:"white",piece:"Q",label:"Мат ферзём",fen:"2B1Q3/6P1/6B1/8/8/7K/8/7k w - - 0 1",from:[0,4],to:[7,4]}, {id:"m1-39",category:"mate1",side:"white",piece:"N",label:"Мат конём",fen:"2k5/2PN4/8/8/K5B1/6Q1/8/8 w - - 0 1",from:[1,3],to:[3,2]}, {id:"m1-08",category:"mate1",side:"black",piece:"Q",label:"Мат ферзём",fen:"K7/3n1k2/8/8/8/8/8/1q6 b - - 0 1",from:[7,1],to:[0,1]}, {id:"m1-19",category:"mate1",side:"white",piece:"R",label:"Мат ладьёй",fen:"8/7K/8/8/R7/8/2R5/7k w - - 0 1",from:[4,0],to:[7,0]}, {id:"m1-25",category:"mate1",side:"white",piece:"B",label:"Мат слоном",fen:"1B3K2/8/8/8/8/k4B2/2Q3Q1/8 w - - 0 1",from:[0,1],to:[2,3]}, {id:"m1-36",category:"mate1",side:"black",piece:"N",label:"Мат конём",fen:"kN5K/4r3/8/7n/6b1/8/8/7r b - - 0 1",from:[3,7],to:[2,5]}, {id:"m1-40",category:"mate1",side:"black",piece:"N",label:"Мат конём",fen:"6k1/8/7b/8/8/8/8/1n1Kn1r1 b - - 0 1",from:[7,1],to:[5,2]}, {id:"m1-48",category:"mate1",side:"black",piece:"P",label:"Мат пешкой",fen:"8/8/8/8/5b2/6p1/5k2/7K b - - 0 1",from:[5,6],to:[6,6]}, {id:"m1-03",category:"mate1",side:"white",piece:"Q",label:"Мат ферзём",fen:"8/2Pb4/8/8/1K6/Q7/Q7/4k3 w - - 0 1",from:[5,0],to:[7,2]}, {id:"m1-35",category:"mate1",side:"white",piece:"N",label:"Мат конём",fen:"8/1P1R4/8/8/8/3K4/3B4/3k3N w - - 0 1",from:[7,7],to:[6,5]}, {id:"m1-22",category:"mate1",side:"black",piece:"B",label:"Мат слоном",fen:"4b3/8/3b4/8/8/1q6/3K4/5k2 b - - 0 1",from:[2,3],to:[4,5]}, {id:"m1-18",category:"mate1",side:"black",piece:"R",label:"Мат ладьёй",fen:"8/K3p3/8/1q6/8/6k1/8/2r5 b - - 0 1",from:[7,2],to:[7,0]}, {id:"m1-37",category:"mate1",side:"white",piece:"N",label:"Мат конём",fen:"4R3/5k2/8/6K1/P3N3/8/1B6/8 w - - 0 1",from:[4,4],to:[2,3]}, {id:"m1-24",category:"mate1",side:"black",piece:"B",label:"Мат слоном",fen:"k2q4/8/K3p3/4b3/8/8/2b5/8 b - - 0 1",from:[6,2],to:[5,3]}, {id:"m1-49",category:"mate1",side:"white",piece:"P",label:"Мат пешкой",fen:"2k3r1/3R4/1P6/8/8/2K4B/7B/8 w - - 0 1",from:[2,1],to:[1,1]}, {id:"m1-29",category:"mate1",side:"white",piece:"B",label:"Мат слоном",fen:"5k2/5P2/5K2/8/8/8/7B/8 w - - 0 1",from:[6,7],to:[2,3]}, {id:"m1-15",category:"mate1",side:"white",piece:"R",label:"Мат ладьёй",fen:"8/5R2/8/1Q6/8/2P5/3P4/k4K2 w - - 0 1",from:[1,5],to:[1,0]}];
 const mate2Puzzles=window.MATE2_PUZZLES||[];
-let puzzleCategory="mate1",puzzleStep=0;
-const activePuzzles=()=>puzzleCategory==="mate2"?mate2Puzzles:puzzles;
+const mate3Puzzles=window.MATE3_PUZZLES||[];
+let puzzleCategory="mate1",puzzleStep=0,puzzleLine=[];
+const activePuzzles=()=>puzzleCategory==="mate2"?mate2Puzzles:puzzleCategory==="mate3"?mate3Puzzles:puzzles;
+const puzzleMoveCount=()=>puzzleCategory==="mate3"?3:puzzleCategory==="mate2"?2:1;
 let board,selected,moves,turn,finished,botTimer,audioContext;
 let drag=null,pendingPromotion=null;
 let sceneTimers=[];
@@ -363,13 +365,16 @@ function renderPuzzleHub(){
  };
  const solved1=puzzles.filter(p=>completedPuzzles.has(p.id)).length;
  const solved2=mate2Puzzles.filter(p=>completedPuzzles.has(p.id)).length;
+ const solved3=mate3Puzzles.filter(p=>completedPuzzles.has(p.id)).length;
  const progress1=document.querySelector("#mate1-progress");if(progress1)progress1.textContent=`${solved1}/${puzzles.length} решено`;
  const progress2=document.querySelector("#mate2-progress");if(progress2)progress2.textContent=`${solved2}/${mate2Puzzles.length} решено`;
+ const progress3=document.querySelector("#mate3-progress");if(progress3)progress3.textContent=`${solved3}/${mate3Puzzles.length} решено`;
  renderGrid("#puzzle-grid",puzzles);
  renderGrid("#mate2-grid",mate2Puzzles);
+ renderGrid("#mate3-grid",mate3Puzzles);
 }
 function nextUnsolvedPuzzleIndex(category=puzzleCategory){
- const list=category==="mate2"?mate2Puzzles:puzzles;
+ const list=category==="mate3"?mate3Puzzles:category==="mate2"?mate2Puzzles:puzzles;
  const index=list.findIndex(p=>!completedPuzzles.has(p.id));
  return index>=0?index:0;
 }
@@ -406,10 +411,10 @@ function restoreSession(){
     botColor=playerColor==="white"?"black":"white";
     menuSide=saved.menuSide==="black"?"black":"white";
     difficultyLevel=Math.max(1,Math.min(6,Number(saved.difficultyLevel)||5));
-    puzzleCategory=saved.puzzleCategory==="mate2"?"mate2":"mate1";
+    puzzleCategory=saved.puzzleCategory==="mate3"?"mate3":saved.puzzleCategory==="mate2"?"mate2":"mate1";
     const restoredList=activePuzzles();
     puzzleIndex=Math.max(0,Math.min(restoredList.length-1,Number(saved.puzzleIndex)||0));
-    puzzleStep=Math.max(0,Math.min(1,Number(saved.puzzleStep)||0));
+    puzzleStep=Math.max(0,Math.min(4,Number(saved.puzzleStep)||0));
     finished=!!saved.finished;gameStarted=true;
     onlineMatchId=saved.onlineMatchId||null;onlineColor=saved.onlineColor||null;onlineOpponent=saved.onlineOpponent||"";onlineVersion=Number(saved.onlineVersion)||0;
     chess.load(saved.fen);syncBoard();closePromotion();resetReview();
@@ -420,7 +425,7 @@ function restoreSession(){
     document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
     if(gameMode==="puzzle"){
      document.querySelector("#opponent-name").textContent="Задача";
-     document.querySelector("#match-info").textContent=`Задача ${puzzleIndex+1}/${activePuzzles().length} • ${puzzleCategory==="mate2"?"мат в два хода":"мат в один ход"}`;
+     document.querySelector("#match-info").textContent=`Задача ${puzzleIndex+1}/${activePuzzles().length} • ${puzzleCategory==="mate3"?"мат в три хода":puzzleCategory==="mate2"?"мат в два хода":"мат в один ход"}`;
      resetButton.textContent="Повторить задачу";
      document.querySelector("#resign").hidden=true;
     }else if(gameMode==="hotseat"){
@@ -814,21 +819,39 @@ function startGame(){
  render();saveGameState();
  if(playerColor==="black")botTimer=setTimeout(botMove,850);
 }
-function playUci(uci){
+function playUciOn(gameObj,uci){
  const move={from:uci.slice(0,2),to:uci.slice(2,4)};
  if(uci.length>4)move.promotion=uci[4];
- return chess.move(move);
+ return gameObj.move(move);
+}
+function buildPuzzleLine(puzzle){
+ if(Array.isArray(puzzle.line))return puzzle.line.slice();
+ if(Array.isArray(puzzle.sanLine)){
+  const temp=new Chess(puzzle.sourceFen),line=[];
+  for(const san of puzzle.sanLine){
+   const played=temp.move(san);
+   if(!played)throw new Error(`Неверная SAN-линия задачи ${puzzle.id}: ${san}`);
+   line.push(played.from+played.to+(played.promotion||""));
+  }
+  return line;
+ }
+ return [];
 }
 function startPuzzle(index){
  clearTimeout(botTimer);cancelDrag();cancelMotion();clearScene();
  puzzleIndex=index;gameMode="puzzle";gameStarted=true;finished=false;puzzleStep=0;
- const list=activePuzzles(),puzzle=list[index];
- playerColor=puzzleCategory==="mate2"?"white":puzzle.side;
- botColor=playerColor==="white"?"black":"white";
- if(puzzleCategory==="mate2"){
+ const list=activePuzzles(),puzzle=list[index],longPuzzle=puzzleCategory!=="mate1";
+ if(longPuzzle){
+  puzzleLine=buildPuzzleLine(puzzle);
   chess.load(puzzle.sourceFen);
-  playUci(puzzle.line[0]);
- }else chess.load(puzzle.fen);
+  playUciOn(chess,puzzleLine[0]);
+  playerColor=colorName(chess.turn());
+ }else{
+  puzzleLine=[];
+  playerColor=puzzle.side;
+  chess.load(puzzle.fen);
+ }
+ botColor=playerColor==="white"?"black":"white";
  syncBoard();closePromotion();resetReview();
  selected=null;moves=[];
  document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
@@ -836,8 +859,9 @@ function startPuzzle(index){
  document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
  document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
  document.querySelector("#opponent-name").textContent="Задача";
- document.querySelector("#match-info").textContent=`Задача ${index+1}/${list.length} • ${puzzleCategory==="mate2"?"мат в два хода":"мат в один ход"}`;
- statusElement.textContent=puzzleCategory==="mate2"?"Белые начинают. Найди форсирующий первый ход.":"Найди ход, после которого королю не спастись.";
+ const modeText=puzzleCategory==="mate3"?"мат в три хода":puzzleCategory==="mate2"?"мат в два хода":"мат в один ход";
+ document.querySelector("#match-info").textContent=`Задача ${index+1}/${list.length} • ${modeText}`;
+ statusElement.textContent=longPuzzle?`${playerColor==="white"?"Белые":"Чёрные"} начинают. Найди форсирующий первый ход.`:"Найди ход, после которого королю не спастись.";
  resetButton.textContent="Повторить задачу";document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#resign").hidden=true;document.querySelector("#next-puzzle").hidden=true;
  render();saveGameState();
@@ -860,28 +884,31 @@ function playPuzzleMove(fr,fc,r,c,dragState=null,promotion=null){
    dragState?.ghost?.remove();render();statusElement.textContent="Это не мат. Попробуй другой ход.";return;
   }
   const legal=chess.moves({square:from,verbose:true}).find(m=>m.to===to&&(!promotion||m.promotion===promotion));
-  moving=true;animateMoveBeforeCommit(legal,async()=>{
+  moving=true;animateMoveBeforeCommit(legal,()=>{
    chess.move({from,to,promotion:promotion||undefined});syncBoard();lastMove=chess.history({verbose:true}).at(-1);
    finishPuzzle(puzzle,to,"Верно! Мат в один ход.");
   },dragState);return;
  }
- const expected=puzzleStep===0?puzzle.line[1]:puzzle.line[3];
+ if(!puzzleLine.length)puzzleLine=buildPuzzleLine(puzzle);
+ const expectedIndex=1+puzzleStep*2;
+ const expected=puzzleLine[expectedIndex];
  if(uci!==expected){
   dragState?.ghost?.remove();render();
-  statusElement.textContent=puzzleStep===0?"Неверный первый ход. Попробуй ещё раз.":"Это не мат. Найди матующий второй ход.";
+  statusElement.textContent=puzzleStep===0?"Неверный первый ход. Попробуй ещё раз.":"Этот ход не продолжает форсированный мат. Попробуй другой.";
   return;
  }
  const legal=chess.moves({square:from,verbose:true}).find(m=>m.to===to&&(!promotion||m.promotion===promotion));
  if(!legal){dragState?.ghost?.remove();render();statusElement.textContent="Этот ход сейчас невозможен.";return}
  moving=true;animateMoveBeforeCommit(legal,()=>{
   const played=chess.move({from,to,promotion:promotion||undefined});syncBoard();lastMove=played;render();renderMoveList();
-  if(puzzleStep===1){
-   if(!chess.isCheckmate()){moving=false;statusElement.textContent="Ход верный по линии, но мат не подтверждён.";return}
-   finishPuzzle(puzzle,to,"Верно! Мат в два хода.");return;
+  const finalUserMove=expectedIndex===puzzleLine.length-1;
+  if(finalUserMove){
+   if(!chess.isCheckmate()){moving=false;statusElement.textContent="Линия завершилась, но мат не подтверждён.";return}
+   finishPuzzle(puzzle,to,`Верно! Мат в ${puzzleMoveCount()} хода.`);return;
   }
-  puzzleStep=1;saveGameState();
+  puzzleStep++;saveGameState();
   statusElement.textContent="Верно. Соперник отвечает…";
-  const replyUci=puzzle.line[2];
+  const replyUci=puzzleLine[puzzleStep*2];
   setTimeout(()=>{
    const reply={from:replyUci.slice(0,2),to:replyUci.slice(2,4)};
    if(replyUci.length>4)reply.promotion=replyUci[4];
@@ -889,7 +916,9 @@ function playPuzzleMove(fr,fc,r,c,dragState=null,promotion=null){
    if(!replyLegal){moving=false;statusElement.textContent="Ошибка линии задачи: ответ соперника нелегален.";return}
    moving=true;animateMoveBeforeCommit(replyLegal,()=>{
     const answered=chess.move(reply);syncBoard();lastMove=answered;render();renderMoveList();
-    moving=false;statusElement.textContent="Ход соперника сделан. Теперь поставь мат.";saveGameState();
+    moving=false;
+    statusElement.textContent=puzzleCategory==="mate3"&&puzzleStep===1?"Ответ сделан. Найди второй форсирующий ход.":"Ход соперника сделан. Теперь поставь мат.";
+    saveGameState();
    });
   },450);
  },dragState);
@@ -1492,7 +1521,7 @@ function getPieceSprite(type,color){
 }
 
 function startPuzzleWithEnergy(index,category=puzzleCategory){
- puzzleCategory=category==="mate2"?"mate2":"mate1";
+ puzzleCategory=category==="mate3"?"mate3":category==="mate2"?"mate2":"mate1";
  const list=activePuzzles(),puzzle=list[index];
  if(!puzzle)return false;
  const freeReplay=completedPuzzles.has(puzzle.id);
@@ -1564,8 +1593,10 @@ document.querySelector("#puzzle-entry").addEventListener("click",()=>showScreen(
 document.querySelector("#puzzles-back").addEventListener("click",()=>showScreen("menu"));
 document.querySelector("[data-puzzle-category='mate1']").addEventListener("click",()=>document.querySelector("#mate1-bank")?.scrollIntoView({behavior:"smooth",block:"start"}));
 document.querySelector("[data-puzzle-category='mate2']").addEventListener("click",()=>document.querySelector("#mate2-bank")?.scrollIntoView({behavior:"smooth",block:"start"}));
+document.querySelector("[data-puzzle-category='mate3']").addEventListener("click",()=>document.querySelector("#mate3-bank")?.scrollIntoView({behavior:"smooth",block:"start"}));
 document.querySelector("#continue-puzzle").addEventListener("click",()=>startPuzzleWithEnergy(nextUnsolvedPuzzleIndex("mate1"),"mate1"));
 document.querySelector("#continue-mate2").addEventListener("click",()=>startPuzzleWithEnergy(nextUnsolvedPuzzleIndex("mate2"),"mate2"));
+document.querySelector("#continue-mate3").addEventListener("click",()=>startPuzzleWithEnergy(nextUnsolvedPuzzleIndex("mate3"),"mate3"));
 document.querySelector("#back-menu").addEventListener("click",async()=>{
  clearTimeout(botTimer);cancelDrag();cancelMotion();clearScene();closePromotion();resetReview();
  if(gameMode==="online"&&onlineMatchId&&supabaseClient){
