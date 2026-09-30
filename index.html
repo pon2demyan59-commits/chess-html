@@ -264,13 +264,13 @@
           <button class="puzzle-category puzzle-category--active" type="button" data-puzzle-category="mate2">
             <span class="puzzle-category__number">2</span>
             <strong>Мат в 2 хода</strong>
-            <small>50 задач · доступно сейчас</small>
+            <small>1000 задач · 40 глав</small>
             <span id="mate2-progress" class="puzzle-category__progress">0/50 решено</span>
           </button>
           <button class="puzzle-category puzzle-category--active" type="button" data-puzzle-category="mate3">
             <span class="puzzle-category__number">3</span>
             <strong>Мат в 3 хода</strong>
-            <small>50 задач · доступно сейчас</small>
+            <small>1000 задач · 40 глав</small>
             <span id="mate3-progress" class="puzzle-category__progress">0/50 решено</span>
           </button>
           <button class="puzzle-category puzzle-category--active" type="button" data-puzzle-category="mate4">
@@ -318,31 +318,61 @@
           </div>
           <button id="continue-puzzle" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
         </div>
-        <div id="puzzle-grid" class="puzzle-grid" aria-label="Список задач мат в один ход"></div>
+        <div class="puzzle-chapters">
+          <div class="puzzle-chapters__top">
+            <div>
+              <small>ГЛАВЫ ПО 25 ЗАДАЧ</small>
+              <strong id="mate1-chapter-title">Глава 1</strong>
+            </div>
+            <div id="mate1-chapter-pager" class="puzzle-chapter-pager"></div>
+          </div>
+          <div id="mate1-chapters" class="puzzle-chapter-grid" aria-label="Главы задач мат в один ход"></div>
+        </div>
+        <div id="puzzle-grid" class="puzzle-grid" aria-label="Задачи выбранной главы: мат в один ход"></div>
       </section>
 
       <section id="mate2-bank" class="puzzle-bank" aria-labelledby="mate2-title">
         <div class="puzzle-bank__header">
           <div>
-            <p class="eyebrow">50 ЗАДАЧ</p>
+            <p class="eyebrow">1000 ЗАДАЧ · 40 ГЛАВ</p>
             <h3 id="mate2-title">Мат в два хода</h3>
             <p>Найди форсирующий первый ход, дождись ответа соперника и поставь мат вторым ходом.</p>
           </div>
           <button id="continue-mate2" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
         </div>
-        <div id="mate2-grid" class="puzzle-grid" aria-label="Список задач мат в два хода"></div>
+        <div class="puzzle-chapters">
+          <div class="puzzle-chapters__top">
+            <div>
+              <small>ГЛАВЫ ПО 25 ЗАДАЧ</small>
+              <strong id="mate2-chapter-title">Глава 1</strong>
+            </div>
+            <div id="mate2-chapter-pager" class="puzzle-chapter-pager"></div>
+          </div>
+          <div id="mate2-chapters" class="puzzle-chapter-grid" aria-label="Главы задач мат в два хода"></div>
+        </div>
+        <div id="mate2-grid" class="puzzle-grid" aria-label="Задачи выбранной главы: мат в два хода"></div>
       </section>
 
       <section id="mate3-bank" class="puzzle-bank" aria-labelledby="mate3-title">
         <div class="puzzle-bank__header">
           <div>
-            <p class="eyebrow">50 ЗАДАЧ</p>
+            <p class="eyebrow">1000 ЗАДАЧ · 40 ГЛАВ</p>
             <h3 id="mate3-title">Мат в три хода</h3>
             <p>Найди форсирующую комбинацию: твой ход, ответ соперника, второй ход, ещё один ответ и мат третьим ходом.</p>
           </div>
           <button id="continue-mate3" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
         </div>
-        <div id="mate3-grid" class="puzzle-grid" aria-label="Список задач мат в три хода"></div>
+        <div class="puzzle-chapters">
+          <div class="puzzle-chapters__top">
+            <div>
+              <small>ГЛАВЫ ПО 25 ЗАДАЧ</small>
+              <strong id="mate3-chapter-title">Глава 1</strong>
+            </div>
+            <div id="mate3-chapter-pager" class="puzzle-chapter-pager"></div>
+          </div>
+          <div id="mate3-chapters" class="puzzle-chapter-grid" aria-label="Главы задач мат в три хода"></div>
+        </div>
+        <div id="mate3-grid" class="puzzle-grid" aria-label="Задачи выбранной главы: мат в три хода"></div>
       </section>
 
       <section id="mate4-bank" class="puzzle-bank" aria-labelledby="mate4-title">
@@ -354,7 +384,17 @@
           </div>
           <button id="continue-mate4" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
         </div>
-        <div id="mate4-grid" class="puzzle-grid" aria-label="Список задач мат в четыре хода"></div>
+        <div class="puzzle-chapters">
+          <div class="puzzle-chapters__top">
+            <div>
+              <small>ГЛАВЫ ПО 25 ЗАДАЧ</small>
+              <strong id="mate4-chapter-title">Глава 1</strong>
+            </div>
+            <div id="mate4-chapter-pager" class="puzzle-chapter-pager"></div>
+          </div>
+          <div id="mate4-chapters" class="puzzle-chapter-grid" aria-label="Главы задач мат в четыре хода"></div>
+        </div>
+        <div id="mate4-grid" class="puzzle-grid" aria-label="Задачи выбранной главы: мат в четыре хода"></div>
       </section>
 
       <section id="mate5-bank" class="puzzle-bank" aria-labelledby="mate5-title">
@@ -366,7 +406,17 @@
           </div>
           <button id="continue-mate5" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
         </div>
-        <div id="mate5-grid" class="puzzle-grid" aria-label="Список задач мат в пять ходов"></div>
+        <div class="puzzle-chapters">
+          <div class="puzzle-chapters__top">
+            <div>
+              <small>ГЛАВЫ ПО 25 ЗАДАЧ</small>
+              <strong id="mate5-chapter-title">Глава 1</strong>
+            </div>
+            <div id="mate5-chapter-pager" class="puzzle-chapter-pager"></div>
+          </div>
+          <div id="mate5-chapters" class="puzzle-chapter-grid" aria-label="Главы задач мат в пять ходов"></div>
+        </div>
+        <div id="mate5-grid" class="puzzle-grid" aria-label="Задачи выбранной главы: мат в пять ходов"></div>
       </section>
 
       <button id="puzzles-back" class="puzzles-page__back" type="button">Вернуться в Зал поединков</button>
