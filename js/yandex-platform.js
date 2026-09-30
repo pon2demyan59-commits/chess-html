@@ -153,9 +153,7 @@
     get ysdk() { return state.ysdk; }
   };
 
-  // SDK initializes early; Game Ready is sent only after all page assets have loaded.
+  // SDK initializes early. Game Ready is sent explicitly by game.js
+  // only after the playable UI and all handlers are initialized.
   initSdk().catch(error => console.warn("Yandex SDK init failed:", error));
-  window.addEventListener("load", () => {
-    gameReady().catch(error => console.warn("Game Ready failed:", error));
-  }, { once: true });
 })();
