@@ -1761,6 +1761,7 @@ document.querySelector("#account-close").addEventListener("click",closeAccountMo
 document.querySelector("#account-yandex-login").addEventListener("click",accountYandexLogin);
 document.querySelector("#account-yandex-sync").addEventListener("click",accountYandexSync);
 document.querySelector("#enter").addEventListener("click",()=>{
+ requestMobileFullscreen();
  try{const Ctx=window.AudioContext||window.webkitAudioContext;if(Ctx){audioContext ||= new Ctx();audioContext.resume()}}catch{}
  showScreen("menu");
 });
