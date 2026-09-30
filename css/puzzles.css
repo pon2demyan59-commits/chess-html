@@ -1,0 +1,45 @@
+.puzzle-game{max-width:760px}
+.puzzle-panel{gap:14px}
+.puzzle-meta{
+  width:min(92vw,640px);
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  color:#f1d39a;
+  font-size:.95rem;
+}
+.puzzle-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:10px;
+}
+.puzzle-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  text-decoration:none;
+  box-sizing:border-box;
+}
+.puzzle-source{
+  width:min(92vw,640px);
+  color:#cdbb9a;
+  font-size:.85rem;
+  text-align:center;
+}
+.puzzle-source summary{cursor:pointer}
+.puzzle-source p{margin:.5rem 0 0}
+.puzzle-source a{color:#f1d39a}
+.square--hint{box-shadow:inset 0 0 0 4px rgba(115,190,95,.72)}
+.square--wrong{animation:puzzleWrong .28s ease}
+@keyframes puzzleWrong{
+  0%,100%{transform:translateX(0)}
+  35%{transform:translateX(-5px)}
+  70%{transform:translateX(5px)}
+}
+@media (max-width:600px){
+  .puzzle-meta{font-size:.82rem}
+  .puzzle-actions{width:min(92vw,640px)}
+  .puzzle-actions .reset{flex:1 1 30%;min-width:110px}
+}
