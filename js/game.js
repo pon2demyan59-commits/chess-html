@@ -1870,3 +1870,4 @@ window.addEventListener("pagehide",()=>{
  }catch{}
 });
 restoreSession();
+window.YandexPlatform?.gameReady?.().catch?.(error=>console.warn("Game Ready failed:",error));
