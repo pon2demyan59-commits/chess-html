@@ -20,8 +20,13 @@
     const ysdk = await window.YaGames.init();
     state.ysdk = ysdk;
     window.ysdk = ysdk;
-    state.lang = ysdk.environment?.i18n?.lang || "ru";
+    const platformLang = ysdk.environment?.i18n?.lang || "ru";
+    const supportedLanguages = ["ru"];
+    state.platformLang = platformLang;
+    state.lang = supportedLanguages.includes(platformLang) ? platformLang : "ru";
+    document.documentElement.lang = state.lang;
     document.documentElement.dataset.yandexLang = state.lang;
+    document.documentElement.dataset.yandexPlatformLang = platformLang;
 
     try {
       state.player = await ysdk.getPlayer();
@@ -106,6 +111,30 @@
     return true;
   }
 
+  async function requestFullscreen() {
+    await initSdk();
+    const fullscreen = state.ysdk?.screen?.fullscreen;
+    if (fullscreen?.status !== fullscreen?.STATUS_ON && fullscreen?.request) {
+      try {
+        await fullscreen.request();
+        return true;
+      } catch {}
+    }
+    const target = document.documentElement;
+    try {
+      if (document.fullscreenElement) return true;
+      if (target.requestFullscreen) {
+        await target.requestFullscreen({ navigationUI: "hide" });
+        return true;
+      }
+      if (target.webkitRequestFullscreen) {
+        target.webkitRequestFullscreen();
+        return true;
+      }
+    } catch {}
+    return false;
+  }
+
   window.YandexPlatform = {
     state,
     init: initSdk,
@@ -117,7 +146,9 @@
     isAuthorized,
     getCloudProgress,
     setCloudProgress,
+    requestFullscreen,
     get lang() { return state.lang; },
+    get platformLang() { return state.platformLang || state.lang; },
     get player() { return state.player; },
     get ysdk() { return state.ysdk; }
   };
