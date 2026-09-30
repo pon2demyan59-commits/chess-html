@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Шахматы — Мат в 2</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/puzzles.css">
+  <script src="js/vendor/chess.js"></script>
+  <script src="js/puzzles.js" defer></script>
+</head>
+<body>
+  <main class="game puzzle-game">
+    <header class="game__header">
+      <p class="eyebrow">ШАХМАТНЫЕ ЗАДАЧИ</p>
+      <h1>Мат в 2</h1>
+      <p class="subtitle">Белые начинают. Найди форсированный мат вторым ходом.</p>
+    </header>
+
+    <section class="game__panel puzzle-panel" aria-label="Шахматная задача">
+      <div class="puzzle-meta">
+        <strong id="puzzle-progress">Задача 1 из 50</strong>
+        <span id="puzzle-rating"></span>
+      </div>
+
+      <div id="board" class="board" role="grid" aria-label="Шахматная доска"></div>
+
+      <p id="status" class="status" role="status" aria-live="polite">Загрузка задач…</p>
+
+      <div class="puzzle-actions">
+        <button id="retry" class="reset" type="button">Заново</button>
+        <button id="next" class="reset" type="button" disabled>Следующая</button>
+        <a class="reset puzzle-link" href="index.html">В обычную игру</a>
+      </div>
+
+      <details class="puzzle-source">
+        <summary>Источник задачи</summary>
+        <p id="source"></p>
+      </details>
+    </section>
+  </main>
+</body>
+</html>
