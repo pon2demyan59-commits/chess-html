@@ -23,7 +23,9 @@ const onlineTimeControlKey="chess-online-time-control-v1";
 let selectedOnlineTimeControl=localStorage.getItem(onlineTimeControlKey)||"standard30";
 if(!onlineTimeControls[selectedOnlineTimeControl])selectedOnlineTimeControl="standard30";
 let onlineClockRow=null,onlineClockTimer=null,onlineTimeoutClaiming=false;
-let cloudSyncTimer=null,cloudLoading=false;
+let cloudSyncTimer=null,cloudLoading=false,cloudLoadPromise=null,cloudSaveQueue=Promise.resolve();
+const progressTimeKey="chess-progress-updated-at-v1";
+let progressUpdatedAt=localStorage.getItem(progressTimeKey)||"1970-01-01T00:00:00.000Z";
 function yandexPlatform(){return window.YandexPlatform||null}
 function yandexAuthorized(){return !!yandexPlatform()?.isAuthorized?.()}
 function setAccountMessage(text,error=false){
@@ -66,60 +68,70 @@ function cloudSnapshot(){
   stats,
   level_stats:levelStats,
   piece_theme:pieceTheme,
-  updated_at:new Date().toISOString()
+  updated_at:progressUpdatedAt
  };
 }
-async function saveCloudProgressNow(){
+function saveCloudProgressNow(){
  const platform=yandexPlatform();
- if(!platform?.isAuthorized?.()||cloudLoading)return false;
- try{
-  return await platform.setCloudProgress(cloudSnapshot(),true);
- }catch(error){
-  console.warn("Yandex cloud save failed:",error);
-  return false;
- }
+ if(!platform?.isAuthorized?.()||cloudLoading)return Promise.resolve(false);
+ const snapshot=JSON.parse(JSON.stringify(cloudSnapshot()));
+ cloudSaveQueue=cloudSaveQueue.catch(()=>false).then(async()=>{
+  try{return await platform.setCloudProgress(snapshot,true)}
+  catch(error){console.warn("Yandex cloud save failed:",error);return false}
+ });
+ return cloudSaveQueue;
 }
 function scheduleCloudSync(){
- if(!yandexAuthorized()||cloudLoading)return;
+ if(cloudLoading)return;
+ progressUpdatedAt=new Date().toISOString();
+ try{localStorage.setItem(progressTimeKey,progressUpdatedAt)}catch{}
+ if(!yandexAuthorized())return;
  clearTimeout(cloudSyncTimer);
  cloudSyncTimer=setTimeout(()=>saveCloudProgressNow(),700);
 }
 function applyCloudProgress(row){
  if(!row||typeof row!=="object")return;
  cloudLoading=true;
+ const localTime=Date.parse(progressUpdatedAt)||0,cloudTime=Date.parse(row.updated_at)||0;
+ const cloudIsNewer=cloudTime>localTime;
+ const counter=value=>Number.isSafeInteger(value)&&value>=0?value:0;
  try{
-  if(row.nickname){localStorage.setItem(nicknameKey,String(row.nickname).slice(0,24))}
-  if(Number.isInteger(row.energy)){energy=Math.max(0,Math.min(MAX_ENERGY,row.energy));localStorage.setItem(energyKey,String(energy))}
-  if(Number.isFinite(Number(row.energy_last_at))&&Number(row.energy_last_at)>0){energyLastAt=Number(row.energy_last_at);localStorage.setItem(energyTimeKey,String(energyLastAt))}
-  if(Array.isArray(row.completed_puzzles)){completedPuzzles=new Set(row.completed_puzzles);saveCompletedPuzzles()}
+  if(cloudIsNewer&&row.nickname){localStorage.setItem(nicknameKey,String(row.nickname).slice(0,24))}
+  if(cloudIsNewer&&Number.isInteger(row.energy)){energy=Math.max(0,Math.min(MAX_ENERGY,row.energy));localStorage.setItem(energyKey,String(energy))}
+  if(cloudIsNewer&&Number.isFinite(Number(row.energy_last_at))&&Number(row.energy_last_at)>0){energyLastAt=Number(row.energy_last_at);localStorage.setItem(energyTimeKey,String(energyLastAt))}
+  if(Array.isArray(row.completed_puzzles)){completedPuzzles=new Set([...completedPuzzles,...row.completed_puzzles.filter(id=>typeof id==="string")]);saveCompletedPuzzles()}
   if(row.stats&&typeof row.stats==="object"){
-   for(const side of ["white","black"])if(row.stats[side])Object.assign(stats[side],row.stats[side]);
+   for(const side of ["white","black"])for(const outcome of ["wins","losses","draws"])stats[side][outcome]=Math.max(stats[side][outcome],counter(row.stats[side]?.[outcome]));
    localStorage.setItem(statsKey,JSON.stringify(stats));
   }
   if(Array.isArray(row.level_stats)){
-   for(let i=0;i<Math.min(levelStats.length,row.level_stats.length);i++)if(row.level_stats[i])Object.assign(levelStats[i],row.level_stats[i]);
+   for(let i=0;i<levelStats.length;i++)for(const outcome of ["wins","losses","draws"])levelStats[i][outcome]=Math.max(levelStats[i][outcome],counter(row.level_stats[i]?.[outcome]));
    localStorage.setItem(levelStatsKey,JSON.stringify(levelStats));
   }
-  if(["fantasy","classic","wood","neon"].includes(row.piece_theme))setPieceTheme(row.piece_theme);
+  if(cloudIsNewer&&["fantasy","classic","wood","neon"].includes(row.piece_theme))setPieceTheme(row.piece_theme);
+  progressUpdatedAt=new Date(Math.max(localTime,cloudTime)).toISOString();
+  localStorage.setItem(progressTimeKey,progressUpdatedAt);
   refreshProfileUI();renderEnergy();renderPuzzleHub();showStats();
  }finally{cloudLoading=false}
 }
-async function loadCloudProgress(){
- const platform=yandexPlatform();
- if(!platform?.isAuthorized?.())return false;
- cloudLoading=true;
+function loadCloudProgress(){
+ if(cloudLoadPromise)return cloudLoadPromise;
+ cloudLoadPromise=loadCloudProgressOnce().finally(()=>{cloudLoadPromise=null});
+ return cloudLoadPromise;
+}
+async function loadCloudProgressOnce(){
+ const platform=yandexPlatform();if(!platform?.isAuthorized?.())return false;
+ cloudLoading=true;clearTimeout(cloudSyncTimer);
+ const wasInert=Object.values(screens).map(screen=>screen.inert);
+ for(const screen of Object.values(screens))screen.inert=true;
  try{
+  await cloudSaveQueue;
   const data=await platform.getCloudProgress();
   if(data)applyCloudProgress(data);
-  else{
-   cloudLoading=false;
-   await saveCloudProgressNow();
-  }
-  return true;
- }catch(error){
-  console.warn("Yandex cloud load failed:",error);
-  return false;
- }finally{cloudLoading=false}
+  cloudLoading=false;
+  return await saveCloudProgressNow();
+ }catch(error){console.warn("Yandex cloud load failed:",error);return false}
+ finally{cloudLoading=false;Object.values(screens).forEach((screen,index)=>screen.inert=wasInert[index])}
 }
 async function accountYandexLogin(){
  const platform=yandexPlatform();
@@ -129,9 +141,8 @@ async function accountYandexLogin(){
   const player=await platform.authorize();
   if(!player?.isAuthorized?.()){setAccountMessage("Вход не выполнен. Можно продолжить играть без авторизации.");refreshAccountUI();return}
   refreshAccountUI();
-  await loadCloudProgress();
-  await saveCloudProgressNow();
-  setAccountMessage("Яндекс ID подключён. Прогресс синхронизирован.");
+  const synced=await loadCloudProgress();
+  setAccountMessage(synced?"Яндекс ID подключён. Прогресс синхронизирован.":"Вход выполнен. Облако недоступно, локальный прогресс сохранён.",!synced);
  }catch(error){
   console.warn("Yandex authorization failed:",error);
   setAccountMessage("Не удалось выполнить вход через Яндекс. Попробуй позже.",true);
@@ -150,7 +161,7 @@ async function initializeAccount(){
   refreshAccountUI();
   if(platform.isAuthorized())await loadCloudProgress();
  }catch(error){console.warn("Yandex Player init failed:",error)}
- window.addEventListener("yandex-player-changed",async()=>{refreshAccountUI();if(yandexAuthorized())await loadCloudProgress()});
+ window.addEventListener("yandex-player-changed",refreshAccountUI);
 }
 
 const spriteCache={};
@@ -194,7 +205,7 @@ function themedGlyphSprite(type,color,theme){
  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">${filter}<text x="60" y="91" text-anchor="middle" font-size="91" font-family="Georgia,Times New Roman,serif" font-weight="700" fill="${p.fill}" stroke="${p.stroke}" stroke-width="2.2" paint-order="stroke" ${theme==="neon"?'filter="url(#g)"':""}>${glyph}</text></svg>`;
  return "data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg);
 }
-function setPieceTheme(theme){
+function setPieceTheme(theme,markProgress=true){
  if(!["fantasy","classic","wood","neon"].includes(theme))theme="fantasy";
  pieceTheme=theme;
  try{localStorage.setItem(pieceThemeKey,theme)}catch{}
@@ -205,7 +216,7 @@ function setPieceTheme(theme){
   button.setAttribute("aria-pressed",String(selected));
  });
  if(boardElement&&typeof board!=="undefined")render();
- scheduleCloudSync();
+ if(markProgress)scheduleCloudSync();
 }
 const names={p:"pawn",n:"knight",b:"bishop",r:"rook",q:"queen",k:"king"};
 const colorName=x=>x==="w"?"white":"black";
@@ -504,7 +515,7 @@ function saveGameState(){
  if(!gameStarted||!chess)return;
  try{
   sessionStorage.setItem(gameStateKey,JSON.stringify({
-   fen:chess.fen(),gameMode,playerColor,botColor,menuSide,difficultyLevel,puzzleIndex,puzzleCategory,puzzleStep,finished,
+   fen:chess.fen(),startFen:chess.history({verbose:true})[0]?.before||chess.fen(),history:chess.history({verbose:true}).map(m=>({from:m.from,to:m.to,...(m.promotion?{promotion:m.promotion}:{})})),gameMode,playerColor,botColor,menuSide,difficultyLevel,puzzleIndex,puzzleCategory,puzzleStep,finished,
    onlineMatchId,onlineColor,onlineOpponent,onlineVersion,selectedOnlineTimeControl,
    lastMove:lastMove?{from:lastMove.from,to:lastMove.to,san:lastMove.san,promotion:lastMove.promotion||null}:null
   }));
@@ -513,13 +524,21 @@ function saveGameState(){
 function syncMenuSelections(){
  document.querySelector("#level-value").textContent=difficultyNames[difficultyLevel-1];
  for(const item of levelsElement.children){
-  const selected=Number(item.textContent)===difficultyLevel;
+  const selected=Number(item.dataset.level)===difficultyLevel;
   item.classList.toggle("is-selected",selected);item.setAttribute("aria-pressed",String(selected));
  }
  for(const item of document.querySelectorAll(".side-option")){
   const selected=item.dataset.side===menuSide;
   item.classList.toggle("is-selected",selected);item.setAttribute("aria-pressed",String(selected));
  }
+}
+function restoreChessPosition(saved){
+ if(Array.isArray(saved.history)&&saved.startFen){
+  const restored=new Chess();restored.load(saved.startFen);
+  for(const move of saved.history){if(!restored.move(move))throw new Error("Invalid saved move")}
+  if(restored.fen()!==saved.fen)throw new Error("Saved history does not match position");
+  chess=restored;
+ }else{chess.load(saved.fen)} // Compatibility with earlier position-only saves.
 }
 function restoreSession(){
  let savedScreen="welcome";
@@ -539,7 +558,8 @@ function restoreSession(){
     puzzleStep=Math.max(0,Math.min(8,Number(saved.puzzleStep)||0));
     finished=!!saved.finished;gameStarted=true;
     onlineMatchId=saved.onlineMatchId||null;onlineColor=saved.onlineColor||null;onlineOpponent=saved.onlineOpponent||"";onlineVersion=Number(saved.onlineVersion)||0;if(onlineTimeControls[saved.selectedOnlineTimeControl])selectedOnlineTimeControl=saved.selectedOnlineTimeControl;
-    chess.load(saved.fen);syncBoard();closePromotion();resetReview();
+    restoreChessPosition(saved);syncBoard();closePromotion();resetReview();
+    if(gameMode==="puzzle"){const puzzle=activePuzzles()[puzzleIndex];puzzleLine=(isTacticCategory(puzzleCategory)||puzzleMoveCount()>1)?buildPuzzleLine(puzzle):[]}
     lastMove=saved.lastMove||null;selected=null;moves=[];
     document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
     document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
@@ -1746,6 +1766,7 @@ for(let level=1;level<=6;level++){
  const button=document.createElement("button");
  button.type="button";
  button.textContent=difficultyNames[level-1];
+ button.dataset.level=String(level);
  button.setAttribute("aria-label",`Сложность: ${difficultyNames[level-1]}`);
  button.addEventListener("click",()=>{
   difficultyLevel=level;
@@ -1780,7 +1801,7 @@ document.querySelector("#enter").addEventListener("click",()=>{
 document.querySelector("#open-stats").addEventListener("click",()=>showScreen("stats"));
 document.querySelector("#stats-back").addEventListener("click",()=>showScreen("menu"));
 document.querySelectorAll("[data-piece-theme]").forEach(button=>button.addEventListener("click",()=>setPieceTheme(button.dataset.pieceTheme)));
-setPieceTheme(pieceTheme);
+setPieceTheme(pieceTheme,false);
 document.querySelector("#start-online").addEventListener("click",openOnlineModal);
 document.querySelector("#online-close").addEventListener("click",()=>cancelOnlineSearch(true));
 document.querySelector("#online-cancel").addEventListener("click",()=>cancelOnlineSearch(true));
