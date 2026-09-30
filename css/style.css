@@ -1509,3 +1509,24 @@ html[data-piece-theme="neon"] .piece-image{filter:drop-shadow(0 0 5px #45dfff88)
  .puzzle-chapter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
  .puzzle-chapter-pager{width:100%;justify-content:space-between}
 }
+
+.tactic-category--active{
+ position:relative;
+ border-color:#71879b!important;
+ background:linear-gradient(145deg,#203445,#152332)!important;
+ color:#e8ddc6!important;
+ cursor:pointer!important;
+ opacity:1!important;
+}
+.tactic-category--active:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.tactic-category__progress{
+ display:inline-block;
+ margin-top:5px;
+ padding:3px 7px;
+ border-radius:999px;
+ background:#d7b061;
+ color:#25180b;
+ font-size:10px;
+ font-weight:900;
+}
+.tactic-bank[hidden]{display:none!important}
