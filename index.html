@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="css/style.css">
   <script src="vendor/chess.js/chess.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="js/mate2-puzzles.js" defer></script>
   <script src="js/game.js" defer></script>
 </head>
 <body>
@@ -212,7 +213,12 @@
             <small>50 задач · доступно сейчас</small>
             <span id="mate1-progress" class="puzzle-category__progress">0/50 решено</span>
           </button>
-          <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">2</span><strong>Мат в 2 хода</strong><small>Скоро</small></button>
+          <button class="puzzle-category puzzle-category--active" type="button" data-puzzle-category="mate2">
+            <span class="puzzle-category__number">2</span>
+            <strong>Мат в 2 хода</strong>
+            <small>50 задач · доступно сейчас</small>
+            <span id="mate2-progress" class="puzzle-category__progress">0/50 решено</span>
+          </button>
           <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">3</span><strong>Мат в 3 хода</strong><small>Скоро</small></button>
           <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">4</span><strong>Мат в 4 хода</strong><small>Скоро</small></button>
           <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">5</span><strong>Мат в 5 ходов</strong><small>Скоро</small></button>
@@ -250,6 +256,18 @@
           <button id="continue-puzzle" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
         </div>
         <div id="puzzle-grid" class="puzzle-grid" aria-label="Список задач мат в один ход"></div>
+      </section>
+
+      <section id="mate2-bank" class="puzzle-bank" aria-labelledby="mate2-title">
+        <div class="puzzle-bank__header">
+          <div>
+            <p class="eyebrow">50 ЗАДАЧ</p>
+            <h3 id="mate2-title">Мат в два хода</h3>
+            <p>Найди форсирующий первый ход, дождись ответа соперника и поставь мат вторым ходом.</p>
+          </div>
+          <button id="continue-mate2" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
+        </div>
+        <div id="mate2-grid" class="puzzle-grid" aria-label="Список задач мат в два хода"></div>
       </section>
 
       <button id="puzzles-back" class="puzzles-page__back" type="button">Вернуться в Зал поединков</button>
