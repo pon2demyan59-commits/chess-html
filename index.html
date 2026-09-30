@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Шахматы — против компьютера</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css">\n  <link rel="stylesheet" href="css/puzzles.css">
   <script src="js/game.js" defer></script>
 </head>
 <body>
@@ -19,9 +19,9 @@
       <div id="board" class="board" role="grid" aria-label="Шахматная доска"></div>
       <div class="player player--white"><span class="player__avatar">♔</span><div><strong>Игрок</strong><small>Белые</small></div></div>
       <p id="status" class="status" role="status" aria-live="polite">Возьми белую фигуру и перетащи её.</p>
-      <button id="reset" class="reset" type="button">Новая партия</button>
+      <div class="puzzle-actions">\n        <button id="reset" class="reset" type="button">Новая партия</button>\n        <a class="reset puzzle-link" href="puzzles.html">Задачи: мат в 2</a>\n      </div>
     </section>
-    <footer>Перетаскивай фигуры мышью или пальцем. Учебная версия: базовые ходы и простой бот. Шах, рокировку и взятие на проходе добавим позже.</footer>
+    <footer>Перетаскивай фигуры мышью или пальцем. Играй против компьютера или тренируй тактику в режиме «Мат в 2».</footer>
   </main>
 </body>
 </html>
