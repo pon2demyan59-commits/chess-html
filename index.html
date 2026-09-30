@@ -9,6 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="js/mate2-puzzles.js" defer></script>
   <script src="js/mate3-puzzles.js" defer></script>
+  <script src="js/mate4-puzzles.js" defer></script>
+  <script src="js/mate5-puzzles.js" defer></script>
   <script src="js/game.js" defer></script>
 </head>
 <body>
@@ -271,8 +273,18 @@
             <small>50 задач · доступно сейчас</small>
             <span id="mate3-progress" class="puzzle-category__progress">0/50 решено</span>
           </button>
-          <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">4</span><strong>Мат в 4 хода</strong><small>Скоро</small></button>
-          <button class="puzzle-category" type="button" disabled><span class="puzzle-category__number">5</span><strong>Мат в 5 ходов</strong><small>Скоро</small></button>
+          <button class="puzzle-category puzzle-category--active" type="button" data-puzzle-category="mate4">
+            <span class="puzzle-category__number">4</span>
+            <strong>Мат в 4 хода</strong>
+            <small>50 задач · доступно сейчас</small>
+            <span id="mate4-progress" class="puzzle-category__progress">0/50 решено</span>
+          </button>
+          <button class="puzzle-category puzzle-category--active" type="button" data-puzzle-category="mate5">
+            <span class="puzzle-category__number">5</span>
+            <strong>Мат в 5 ходов</strong>
+            <small>50 задач · доступно сейчас</small>
+            <span id="mate5-progress" class="puzzle-category__progress">0/50 решено</span>
+          </button>
         </div>
       </section>
 
@@ -331,6 +343,30 @@
           <button id="continue-mate3" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
         </div>
         <div id="mate3-grid" class="puzzle-grid" aria-label="Список задач мат в три хода"></div>
+      </section>
+
+      <section id="mate4-bank" class="puzzle-bank" aria-labelledby="mate4-title">
+        <div class="puzzle-bank__header">
+          <div>
+            <p class="eyebrow">50 ЗАДАЧ</p>
+            <h3 id="mate4-title">Мат в четыре хода</h3>
+            <p>Найди форсированную комбинацию и доведи атаку до мата четвёртым своим ходом.</p>
+          </div>
+          <button id="continue-mate4" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
+        </div>
+        <div id="mate4-grid" class="puzzle-grid" aria-label="Список задач мат в четыре хода"></div>
+      </section>
+
+      <section id="mate5-bank" class="puzzle-bank" aria-labelledby="mate5-title">
+        <div class="puzzle-bank__header">
+          <div>
+            <p class="eyebrow">50 ЗАДАЧ</p>
+            <h3 id="mate5-title">Мат в пять ходов</h3>
+            <p>Самые длинные матовые комбинации раздела: рассчитай всю форсированную линию до пятого своего хода.</p>
+          </div>
+          <button id="continue-mate5" class="puzzle-bank__continue" type="button">Продолжить нерешённую</button>
+        </div>
+        <div id="mate5-grid" class="puzzle-grid" aria-label="Список задач мат в пять ходов"></div>
       </section>
 
       <button id="puzzles-back" class="puzzles-page__back" type="button">Вернуться в Зал поединков</button>
