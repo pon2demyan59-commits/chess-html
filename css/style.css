@@ -1455,3 +1455,57 @@ html[data-piece-theme="neon"] .piece-image{filter:drop-shadow(0 0 5px #45dfff88)
  .account-chip{margin-left:0}
  .account-modal__actions{grid-template-columns:1fr}
 }
+
+.puzzle-chapters{
+ margin:18px 0 16px;
+ padding:14px;
+ border:1px solid #ffffff12;
+ border-radius:14px;
+ background:#08121eb8;
+}
+.puzzle-chapters__top{
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:14px;
+ margin-bottom:12px;
+}
+.puzzle-chapters__top>div:first-child{display:grid;gap:2px}
+.puzzle-chapters__top small{color:#8c99a5;font-size:10px;font-weight:900;letter-spacing:.12em}
+.puzzle-chapters__top strong{color:#f3d8a5;font:800 20px Georgia,serif}
+.puzzle-chapter-grid{
+ display:grid;
+ grid-template-columns:repeat(5,minmax(0,1fr));
+ gap:8px;
+}
+.puzzle-chapter{
+ min-height:82px;
+ display:grid;
+ align-content:center;
+ gap:4px;
+ padding:10px;
+ border:1px solid #566b7d;
+ border-radius:11px;
+ background:linear-gradient(#223444,#172532);
+ color:#eadabb;
+ text-align:left;
+ cursor:pointer;
+}
+.puzzle-chapter:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.puzzle-chapter strong{font:800 15px Georgia,serif}
+.puzzle-chapter span{color:#9eabb3;font-size:11px}
+.puzzle-chapter b{color:#d8b56f;font-size:11px}
+.puzzle-chapter.is-complete{border-color:#719367;background:linear-gradient(#2b4434,#1c3025)}
+.puzzle-chapter.is-selected{outline:2px solid #d6aa62;outline-offset:1px}
+.puzzle-chapter-pager{display:flex;align-items:center;gap:7px}
+.puzzle-chapter-pager button{
+ min-width:38px;padding:7px 9px;border:1px solid #687d8d;border-radius:8px;
+ background:#203342;color:#e9dcc2;font-weight:800;cursor:pointer;
+}
+.puzzle-chapter-pager button:disabled{opacity:.35;cursor:default}
+.puzzle-chapter-pager span{min-width:76px;color:#aeb8bf;font-size:11px;text-align:center}
+@media(max-width:700px){
+ .puzzle-chapters__top{align-items:flex-start;flex-direction:column}
+ .puzzle-chapter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .puzzle-chapter-pager{width:100%;justify-content:space-between}
+}
