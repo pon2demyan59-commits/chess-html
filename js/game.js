@@ -282,8 +282,12 @@ function isMobileViewport(){
 }
 async function requestMobileFullscreen(){
  if(!isMobileViewport()||document.fullscreenElement)return;
- const target=document.documentElement;
  try{
+  if(window.YandexPlatform?.requestFullscreen){
+   const ok=await window.YandexPlatform.requestFullscreen();
+   if(ok)return;
+  }
+  const target=document.documentElement;
   if(target.requestFullscreen)await target.requestFullscreen({navigationUI:"hide"});
   else if(target.webkitRequestFullscreen)target.webkitRequestFullscreen();
  }catch{/* Полноэкранный режим может быть недоступен в конкретном браузере/iframe. */}
@@ -1245,8 +1249,17 @@ boardElement.addEventListener("pointerdown",onPointerDown);
 boardElement.addEventListener("pointermove",onPointerMove);
 boardElement.addEventListener("pointerup",onPointerUp);
 boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];if(board&&!moving)render()});
-window.addEventListener("blur",()=>{cancelDrag();selected=null;moves=[];suspendGameAudio();if(board&&!moving)render()});
-window.addEventListener("focus",()=>{if(!platformPaused)resumeGameAudio()});
+window.addEventListener("blur",()=>{
+ cancelDrag();selected=null;moves=[];
+ platformGameplayStop();suspendGameAudio();
+ if(board&&!moving)render();
+});
+window.addEventListener("focus",()=>{
+ if(!platformPaused){
+  resumeGameAudio();
+  if(gameplayIsActive())platformGameplayStart();
+ }
+});
 document.addEventListener("visibilitychange",()=>{
  if(document.hidden){platformGameplayStop();suspendGameAudio()}
  else if(gameplayIsActive()){platformGameplayStart();resumeGameAudio()}
