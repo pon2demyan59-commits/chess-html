@@ -11,6 +11,7 @@ const SUPABASE_KEY="sb_publishable_6wPIJdK8YSke4Gx3_s0E6A_0uLmi9tP";
 const supabaseClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let onlineMatchId=null,onlineColor=null,onlineOpponent="",onlineVersion=0,onlineChannel=null;
 let matchmakingTimer=null,matchmakingStartedAt=0,onlinePolling=false;
+let queueCountsTimer=null,queueCountsLoading=false,onlineSearchEpoch=0,onlineSearchControl=null,onlineSearchStopping=false,onlineSearchRequest=null,onlineAuthPromise=null;
 const onlineTimeControls={
  blitz3_2:{label:t("Блиц 3+2"),clock:"total",initial:180,increment:2},
  blitz5_0:{label:t("Блиц 5+0"),clock:"total",initial:300,increment:0},
@@ -57,6 +58,7 @@ function openAccountModal(){
  setAccountMessage("");
  refreshAccountUI();
  modal.hidden=false;
+ refreshQueueCounts();queueCountsTimer=setInterval(refreshQueueCounts,5000);
 }
 function closeAccountModal(){const modal=document.querySelector("#account-modal");if(modal)modal.hidden=true}
 function cloudSnapshot(){
@@ -693,6 +695,7 @@ async function loadPvpStats(){
   await ensureOnlineAuth();
   await supabaseClient.rpc("ensure_pvp_profile",{p_nickname:nickname});
   const {data,error}=await supabaseClient.rpc("get_my_pvp_stats");
+  if(epoch!==onlineSearchEpoch){await supabaseClient.rpc("cancel_matchmaking");return false}
   if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;
   if(!row)return;
@@ -779,6 +782,7 @@ function openProfileModal(focus=true){
  if(error)error.hidden=true;
  input.value=getPlayerNickname();
  modal.hidden=false;
+ refreshQueueCounts();queueCountsTimer=setInterval(refreshQueueCounts,5000);
  if(focus)setTimeout(()=>input.focus(),0);
 }
 function closeProfileModal(){
@@ -868,30 +872,62 @@ function selectOnlineTimeControl(control){
 function setOnlineSearching(searching){
  document.querySelector(".online-modal__card").dataset.searching=String(searching);
  document.querySelectorAll("[data-time-control], [data-search-control]").forEach(button=>button.disabled=searching);
+ document.querySelector("#online-search-any").hidden=searching;
+ document.querySelector(".online-modal__any-note").hidden=searching;
 }
 async function ensureOnlineAuth(){
  if(!supabaseClient)throw new Error(t("Supabase не загрузился"));
- const {data:{session}}=await supabaseClient.auth.getSession();
- if(session?.user)return session.user;
- const {data,error}=await supabaseClient.auth.signInAnonymously();
- if(error)throw error;
- return data.user;
+ if(!onlineAuthPromise)onlineAuthPromise=(async()=>{
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  if(session?.user)return session.user;
+  const {data,error}=await supabaseClient.auth.signInAnonymously();
+  if(error)throw error;
+  return data.user;
+ })().finally(()=>{onlineAuthPromise=null});
+ return onlineAuthPromise;
+}
+function stopQueueCounts(){clearInterval(queueCountsTimer);queueCountsTimer=null}
+async function refreshQueueCounts(){
+ if(queueCountsLoading||document.querySelector("#online-modal").hidden)return;
+ queueCountsLoading=true;
+ try{
+  await ensureOnlineAuth();
+  const {data,error}=await supabaseClient.rpc("get_queue_counts");
+  if(error)throw error;
+  const counts=new Map((data||[]).map(row=>[row.time_control,Number(row.players)||0]));
+  document.querySelectorAll("[data-queue-count]").forEach(el=>{
+   el.textContent=t("Ищут: {0}",[counts.get(el.dataset.queueCount)||0]);
+  });
+ }catch{
+  document.querySelectorAll("[data-queue-count]").forEach(el=>el.textContent=t("Ищут: —"));
+ }finally{queueCountsLoading=false}
 }
 function openOnlineModal(){
+ if(onlineSearchStopping)return;
  setOnlineSearching(false);
  const nickname=getPlayerNickname();
  if(!nickname){openProfileModal();return}
  const modal=document.querySelector("#online-modal");
+ stopQueueCounts();
  refreshProfileUI();
  selectOnlineTimeControl(selectedOnlineTimeControl);
  modal.hidden=false;
+ refreshQueueCounts();queueCountsTimer=setInterval(refreshQueueCounts,5000);
  document.querySelector("#online-waiting").hidden=true;
  document.querySelector("#online-search").hidden=false;
 }
 async function cancelOnlineSearch(close=true){
- setOnlineSearching(false);
+ if(onlineSearchStopping)return;
+ onlineSearchStopping=true;
+ onlineSearchEpoch++;
+ if(close)stopQueueCounts();
+ setOnlineSearching(true);
  clearInterval(matchmakingTimer);matchmakingTimer=null;onlinePolling=false;
- try{if(supabaseClient)await supabaseClient.rpc("cancel_matchmaking")}catch{}
+ try{
+  if(onlineSearchRequest)await onlineSearchRequest;
+  if(supabaseClient)await supabaseClient.rpc("cancel_matchmaking");
+ }catch{}
+ onlineSearchStopping=false;setOnlineSearching(false);
  document.querySelector("#online-waiting").hidden=true;
  document.querySelector("#online-search").hidden=false;
  if(close)document.querySelector("#online-modal").hidden=true;
@@ -901,27 +937,35 @@ function updateOnlineTimer(){
  const sec=Math.floor((Date.now()-matchmakingStartedAt)/1000);
  document.querySelector("#online-wait-time").textContent=`${String(Math.floor(sec/60)).padStart(2,"0")}:${String(sec%60).padStart(2,"0")}`;
 }
-async function pollMatchmaking(nickname){
+async function pollMatchmaking(nickname,epoch){
+ if(epoch!==onlineSearchEpoch)return false;
  if(onlinePolling)return;
  onlinePolling=true;
  try{
-  const {data,error}=await supabaseClient.rpc("find_match",{p_nickname:nickname,p_time_control:selectedOnlineTimeControl});
+  onlineSearchRequest=Promise.resolve(supabaseClient.rpc("find_match",{p_nickname:nickname,p_time_control:onlineSearchControl}));
+  const {data,error}=await onlineSearchRequest;
+  if(epoch!==onlineSearchEpoch)return false;
   if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;
   if(row?.state==="matched"&&row.match_id){
    clearInterval(matchmakingTimer);matchmakingTimer=null;
    document.querySelector("#online-status").textContent=t("Соперник найден!");
-   setTimeout(()=>startOnlineMatch(row.match_id,row.color,row.opponent_nickname),450);
+   setTimeout(()=>{if(epoch===onlineSearchEpoch)startOnlineMatch(row.match_id,row.color,row.opponent_nickname)},450);
+   return true;
   }else{
-   document.querySelector("#online-status").textContent=t("Ищем соперника · {0}",[onlineTimeControls[selectedOnlineTimeControl].label]);
+   document.querySelector("#online-status").textContent=t("Ищем соперника · {0}",[onlineSearchControl==="any"?t("Все режимы"):onlineTimeControls[onlineSearchControl].label]);
   }
  }catch(error){
+  if(epoch!==onlineSearchEpoch)return false;
   document.querySelector("#online-status").textContent=error.message?.includes("Anonymous")||error.message?.includes("anonymous")
    ?t("Онлайн-поединки временно недоступны. Можно сыграть с компьютером.")
    :t("Ошибка соединения. Повторяем…");
- }finally{onlinePolling=false}
+ }finally{onlinePolling=false;onlineSearchRequest=null}
 }
-async function beginOnlineSearch(){
+async function beginOnlineSearch(control=selectedOnlineTimeControl){
+ if(onlineSearchStopping||document.querySelector(".online-modal__card").dataset.searching==="true")return;
+ const epoch=++onlineSearchEpoch;
+ onlineSearchControl=typeof control==="string"?control:selectedOnlineTimeControl;
  requestMobileFullscreen();
  const nickname=getPlayerNickname();
  if(!nickname){document.querySelector("#online-modal").hidden=true;openProfileModal();return}
@@ -931,14 +975,16 @@ async function beginOnlineSearch(){
  document.querySelector("#online-status").textContent=t("Подключаемся…");
  try{
   await ensureOnlineAuth();
+  if(epoch!==onlineSearchEpoch)return;
   matchmakingStartedAt=Date.now();updateOnlineTimer();
-  await pollMatchmaking(nickname);
-  matchmakingTimer=setInterval(()=>{updateOnlineTimer();pollMatchmaking(nickname)},1200);
+  const matched=await pollMatchmaking(nickname,epoch);
+  if(epoch===onlineSearchEpoch&&!matched)matchmakingTimer=setInterval(()=>{updateOnlineTimer();pollMatchmaking(nickname,epoch)},1200);
  }catch(error){
   document.querySelector("#online-status").textContent=t("Не удалось подключиться. Попробуй позже или сыграй с компьютером.");
  }
 }
 async function startOnlineMatch(matchId,color,opponent){
+ stopQueueCounts();
  clearInterval(matchmakingTimer);matchmakingTimer=null;onlinePolling=false;
  document.querySelector("#online-modal").hidden=true;
  onlineMatchId=matchId;onlineColor=color;onlineOpponent=opponent||t("Соперник");onlineVersion=0;
@@ -1856,7 +1902,8 @@ setPieceTheme(pieceTheme,false);
 document.querySelector("#start-online").addEventListener("click",openOnlineModal);
 document.querySelector("#online-close").addEventListener("click",()=>cancelOnlineSearch(true));
 document.querySelector("#online-cancel").addEventListener("click",()=>cancelOnlineSearch(true));
-document.querySelector("#online-search").addEventListener("click",beginOnlineSearch);
+document.querySelector("#online-search").addEventListener("click",()=>beginOnlineSearch());
+document.querySelector("#online-search-any").addEventListener("click",()=>beginOnlineSearch("any"));
 document.querySelectorAll("[data-time-control]").forEach(button=>button.addEventListener("click",()=>selectOnlineTimeControl(button.dataset.timeControl)));
 document.querySelectorAll("[data-search-control]").forEach(button=>{
  button.setAttribute("aria-label",t("Искать: {0}",[onlineTimeControls[button.dataset.searchControl].label]));
