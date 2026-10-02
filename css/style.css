@@ -1788,3 +1788,13 @@ html[data-piece-theme="classic"] .square--selected{background:#b1aa50}
  .online-modal__nickname{margin-bottom:12px}.online-modal__selection{padding:10px;gap:8px}
 }
 @media(prefers-reduced-motion:reduce){.time-control-grid button,.online-modal__search{transition:none}.online-waiting__spinner{animation:none}}
+
+.time-control-option{min-width:0;border:1px solid #778b9d40;border-radius:13px;padding:0 6px 6px;background:linear-gradient(145deg,#25384a80,#121e2b);transition:border-color .18s,box-shadow .18s}
+.time-control-option:has(.is-selected){border-color:#edc677;box-shadow:0 0 0 2px #e5bc6819,inset 0 1px #f7d78733}
+.time-control-option>[data-time-control],.time-control-option>[data-time-control].is-selected{width:100%;border:0;border-radius:10px;background:transparent;box-shadow:none}
+.time-control-grid .time-control-search{display:flex;flex-direction:row;gap:7px;width:100%;min-height:34px;padding:7px 4px;border:1px solid #d4b16c75;border-radius:8px;background:linear-gradient(120deg,#dfb565,#f1d18f);color:#241c11;font:700 12px system-ui;box-shadow:0 2px 0 #604526}
+.time-control-grid .time-control-search:disabled{opacity:.55;cursor:wait}
+.time-control-grid--single .time-control-option{display:grid;grid-template-columns:minmax(0,1fr) 130px;align-items:center;gap:8px;padding:5px 8px}
+.time-control-grid--single .time-control-search{min-height:38px}
+@media(max-width:400px){.time-control-grid .time-control-search{font-size:11px;gap:4px}.time-control-grid--single .time-control-option{grid-template-columns:minmax(0,1fr) 105px}}
+@media(prefers-reduced-motion:reduce){.time-control-option{transition:none}}

@@ -867,7 +867,7 @@ function selectOnlineTimeControl(control){
 }
 function setOnlineSearching(searching){
  document.querySelector(".online-modal__card").dataset.searching=String(searching);
- document.querySelectorAll("[data-time-control]").forEach(button=>button.disabled=searching);
+ document.querySelectorAll("[data-time-control], [data-search-control]").forEach(button=>button.disabled=searching);
 }
 async function ensureOnlineAuth(){
  if(!supabaseClient)throw new Error(t("Supabase не загрузился"));
@@ -1857,6 +1857,15 @@ document.querySelector("#start-online").addEventListener("click",openOnlineModal
 document.querySelector("#online-close").addEventListener("click",()=>cancelOnlineSearch(true));
 document.querySelector("#online-cancel").addEventListener("click",()=>cancelOnlineSearch(true));
 document.querySelector("#online-search").addEventListener("click",beginOnlineSearch);
+document.querySelectorAll("[data-time-control]").forEach(button=>button.addEventListener("click",()=>selectOnlineTimeControl(button.dataset.timeControl)));
+document.querySelectorAll("[data-search-control]").forEach(button=>{
+ button.setAttribute("aria-label",t("Искать: {0}",[onlineTimeControls[button.dataset.searchControl].label]));
+ button.addEventListener("click",()=>{
+  if(document.querySelector(".online-modal__card").dataset.searching==="true")return;
+  selectOnlineTimeControl(button.dataset.searchControl);
+  beginOnlineSearch();
+ });
+});
 document.querySelector("#open-profile").addEventListener("click",()=>openProfileModal());
 document.querySelector("#profile-close").addEventListener("click",closeProfileModal);
 document.querySelector("#profile-save").addEventListener("click",savePlayerNickname);
