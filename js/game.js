@@ -1,3 +1,4 @@
+const t=(message,values)=>window.ChessI18n.t(message,values);
 // Учебные шахматы: основные ходы, простой бот и эффект взятия.
 
 const boardElement=document.querySelector("#board");
@@ -11,13 +12,13 @@ const supabaseClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{au
 let onlineMatchId=null,onlineColor=null,onlineOpponent="",onlineVersion=0,onlineChannel=null;
 let matchmakingTimer=null,matchmakingStartedAt=0,onlinePolling=false;
 const onlineTimeControls={
- blitz3_2:{label:"Блиц 3+2",clock:"total",initial:180,increment:2},
- blitz5_0:{label:"Блиц 5+0",clock:"total",initial:300,increment:0},
- blitz5_3:{label:"Блиц 5+3",clock:"total",initial:300,increment:3},
- rapid10_0:{label:"Рапид 10+0",clock:"total",initial:600,increment:0},
- rapid10_5:{label:"Рапид 10+5",clock:"total",initial:600,increment:5},
- rapid15_10:{label:"Рапид 15+10",clock:"total",initial:900,increment:10},
- standard30:{label:"Стандарт · 30 сек/ход",clock:"per_move",initial:30,increment:0}
+ blitz3_2:{label:t("Блиц 3+2"),clock:"total",initial:180,increment:2},
+ blitz5_0:{label:t("Блиц 5+0"),clock:"total",initial:300,increment:0},
+ blitz5_3:{label:t("Блиц 5+3"),clock:"total",initial:300,increment:3},
+ rapid10_0:{label:t("Рапид 10+0"),clock:"total",initial:600,increment:0},
+ rapid10_5:{label:t("Рапид 10+5"),clock:"total",initial:600,increment:5},
+ rapid15_10:{label:t("Рапид 15+10"),clock:"total",initial:900,increment:10},
+ standard30:{label:t("Стандарт · 30 сек/ход"),clock:"per_move",initial:30,increment:0}
 };
 const onlineTimeControlKey="chess-online-time-control-v1";
 let selectedOnlineTimeControl=localStorage.getItem(onlineTimeControlKey)||"standard30";
@@ -38,16 +39,16 @@ function refreshAccountUI(){
  const title=document.querySelector("#account-chip-title");
  const note=document.querySelector("#account-chip-note");
  if(chip)chip.classList.toggle("is-connected",connected);
- if(title)title.textContent=connected?"Прогресс в облаке":"Играть без авторизации";
- if(note)note.textContent=connected?"Яндекс ID подключён":"Авторизация необязательна";
+ if(title)title.textContent=connected?t("Прогресс в облаке"):t("Играть без авторизации");
+ if(note)note.textContent=connected?t("Яндекс ID подключён"):t("Авторизация необязательна");
  const guest=document.querySelector("#account-yandex-guest");
  const signed=document.querySelector("#account-yandex-signed");
  if(guest)guest.hidden=connected;
  if(signed)signed.hidden=!connected;
  const name=document.querySelector("#account-yandex-name");
  if(name&&connected){
-  let playerName="Игрок";
-  try{playerName=platform.player?.getName?.()||"Игрок"}catch{}
+  let playerName=t("Игрок");
+  try{playerName=platform.player?.getName?.()||t("Игрок")}catch{}
   name.textContent=playerName;
  }
 }
@@ -129,35 +130,36 @@ async function loadCloudProgressOnce(){
   const data=await platform.getCloudProgress();
   if(data)applyCloudProgress(data);
   cloudLoading=false;
-  return await saveCloudProgressNow();
+  // Keep writes serialized, but do not lock the board while an optional save waits.
+  saveCloudProgressNow();
+  return true;
  }catch(error){console.warn("Yandex cloud load failed:",error);return false}
  finally{cloudLoading=false;Object.values(screens).forEach((screen,index)=>screen.inert=wasInert[index])}
 }
 async function accountYandexLogin(){
  const platform=yandexPlatform();
- if(!platform){setAccountMessage("SDK Яндекс Игр пока недоступен.",true);return}
- setAccountMessage("Открываем вход через Яндекс…");
+ if(!platform){setAccountMessage(t("SDK Яндекс Игр пока недоступен."),true);return}
+ setAccountMessage(t("Открываем вход через Яндекс…"));
  try{
   const player=await platform.authorize();
-  if(!player?.isAuthorized?.()){setAccountMessage("Вход не выполнен. Можно продолжить играть без авторизации.");refreshAccountUI();return}
+  if(!player?.isAuthorized?.()){setAccountMessage(t("Вход не выполнен. Можно продолжить играть без авторизации."));refreshAccountUI();return}
   refreshAccountUI();
   const synced=await loadCloudProgress();
-  setAccountMessage(synced?"Яндекс ID подключён. Прогресс синхронизирован.":"Вход выполнен. Облако недоступно, локальный прогресс сохранён.",!synced);
+  setAccountMessage(synced?t("Яндекс ID подключён. Прогресс синхронизирован."):t("Вход выполнен. Облако недоступно, локальный прогресс сохранён."),!synced);
  }catch(error){
   console.warn("Yandex authorization failed:",error);
-  setAccountMessage("Не удалось выполнить вход через Яндекс. Попробуй позже.",true);
+  setAccountMessage(t("Не удалось выполнить вход через Яндекс. Попробуй позже."),true);
  }
 }
 async function accountYandexSync(){
- setAccountMessage("Синхронизируем прогресс…");
+ setAccountMessage(t("Синхронизируем прогресс…"));
  const ok=await saveCloudProgressNow();
- setAccountMessage(ok?"Прогресс сохранён в облаке.":"Не удалось сохранить прогресс.",!ok);
+ setAccountMessage(ok?t("Прогресс сохранён в облаке."):t("Не удалось сохранить прогресс."),!ok);
 }
 async function initializeAccount(){
  const platform=yandexPlatform();if(!platform)return;
  try{
   await platform.init();
-  await platform.refreshPlayer();
   refreshAccountUI();
   if(platform.isAuthorized())await loadCloudProgress();
  }catch(error){console.warn("Yandex Player init failed:",error)}
@@ -248,7 +250,7 @@ let chess=new Chess();
 const square=(r,c)=>files[c]+(8-r);
 function syncBoard(){board=chess.board().map(row=>row.map(p=>p&&{type:names[p.type],color:colorName(p.color)}));turn=colorName(chess.turn())}
 const files="abcdefgh";
-const puzzles=[ {id:"m1-12",category:"mate1",side:"black",piece:"R",label:"Мат ладьёй",fen:"8/8/8/7K/3k4/8/6r1/1r6 b - - 0 1",from:[7,1],to:[7,7]}, {id:"m1-43",category:"mate1",side:"white",piece:"P",label:"Мат пешкой",fen:"7k/5K2/6P1/8/4B3/8/8/8 w - - 0 1",from:[2,6],to:[1,6]}, {id:"m1-16",category:"mate1",side:"black",piece:"R",label:"Мат ладьёй",fen:"5k2/2q5/8/1p6/r7/1K6/8/1N4r1 b - - 0 1",from:[7,6],to:[7,1]}, {id:"m1-31",category:"mate1",side:"white",piece:"N",label:"Мат конём",fen:"8/8/8/K4QNN/7k/8/4N3/8 w - - 0 1",from:[3,6],to:[5,5]}, {id:"m1-38",category:"mate1",side:"black",piece:"N",label:"Мат конём",fen:"8/8/8/2n1R3/8/8/4n1r1/k4b1K b - - 0 1",from:[6,4],to:[5,6]}, {id:"m1-20",category:"mate1",side:"black",piece:"R",label:"Мат ладьёй",fen:"7K/2r5/8/8/3r4/8/5k2/7b b - - 0 1",from:[4,3],to:[0,3]}, {id:"m1-45",category:"mate1",side:"white",piece:"P",label:"Мат пешкой",fen:"k7/2K5/1P6/8/8/8/5B2/8 w - - 0 1",from:[2,1],to:[1,1]}, {id:"m1-02",category:"mate1",side:"black",piece:"Q",label:"Мат ферзём",fen:"6K1/3q4/8/8/1q6/8/2n5/k7 b - - 0 1",from:[4,1],to:[0,1]}, {id:"m1-33",category:"mate1",side:"white",piece:"N",label:"Мат конём",fen:"4kN2/1K2P3/8/1N6/8/8/8/4R3 w - - 0 1",from:[3,1],to:[2,3]}, {id:"m1-42",category:"mate1",side:"black",piece:"P",label:"Мат пешкой",fen:"8/8/4b3/8/8/1p6/2k5/K7 b - - 0 1",from:[5,1],to:[6,1]}, {id:"m1-50",category:"mate1",side:"black",piece:"P",label:"Мат пешкой",fen:"8/8/7b/8/3r4/K4p1q/8/1k6 b - - 0 1",from:[5,5],to:[6,5]}, {id:"m1-06",category:"mate1",side:"black",piece:"Q",label:"Мат ферзём",fen:"8/8/3q2r1/8/4k3/8/2q3n1/5K2 b - - 0 1",from:[2,3],to:[7,3]}, {id:"m1-41",category:"mate1",side:"white",piece:"P",label:"Мат пешкой",fen:"7k/5K2/6P1/8/8/8/2B5/8 w - - 0 1",from:[2,6],to:[1,6]}, {id:"m1-13",category:"mate1",side:"white",piece:"R",label:"Мат ладьёй",fen:"3k4/8/3K4/1R5B/1Q4N1/8/8/8 w - - 0 1",from:[3,1],to:[0,1]}, {id:"m1-23",category:"mate1",side:"white",piece:"B",label:"Мат слоном",fen:"7k/7N/4B2K/8/7B/8/2n5/8 w - - 0 1",from:[4,7],to:[2,5]}, {id:"m1-14",category:"mate1",side:"black",piece:"R",label:"Мат ладьёй",fen:"8/8/4k3/8/3r4/8/5r2/1K6 b - - 0 1",from:[4,3],to:[7,3]}, {id:"m1-34",category:"mate1",side:"black",piece:"N",label:"Мат конём",fen:"2K1n1q1/8/1k6/8/8/7p/6n1/8 b - - 0 1",from:[0,4],to:[2,5]}, {id:"m1-17",category:"mate1",side:"white",piece:"R",label:"Мат ладьёй",fen:"1k6/8/K1R5/8/8/8/8/2R5 w - - 0 1",from:[2,2],to:[0,2]}, {id:"m1-30",category:"mate1",side:"black",piece:"B",label:"Мат слоном",fen:"8/6k1/8/8/7p/2p5/8/2K2br1 b - - 0 1",from:[7,5],to:[5,3]}, {id:"m1-32",category:"mate1",side:"black",piece:"N",label:"Мат конём",fen:"8/3n4/8/8/4n3/8/r3n2k/1K6 b - - 0 1",from:[4,4],to:[5,2]}, {id:"m1-04",category:"mate1",side:"black",piece:"Q",label:"Мат ферзём",fen:"6K1/2q5/8/5n2/8/2k4b/8/8 b - - 0 1",from:[1,2],to:[1,6]}, {id:"m1-09",category:"mate1",side:"white",piece:"Q",label:"Мат ферзём",fen:"1K6/8/8/8/Q2Q4/8/8/1k6 w - - 0 1",from:[4,3],to:[7,0]}, {id:"m1-26",category:"mate1",side:"black",piece:"B",label:"Мат слоном",fen:"8/8/5b2/8/4k3/7q/8/6K1 b - - 0 1",from:[2,5],to:[4,3]}, {id:"m1-10",category:"mate1",side:"black",piece:"Q",label:"Мат ферзём",fen:"8/8/6q1/1p6/7K/k4bp1/8/8 b - - 0 1",from:[2,6],to:[4,6]}, {id:"m1-11",category:"mate1",side:"white",piece:"R",label:"Мат ладьёй",fen:"k7/B6R/8/8/4R3/3K4/8/8 w - - 0 1",from:[4,4],to:[0,4]}, {id:"m1-46",category:"mate1",side:"black",piece:"P",label:"Мат пешкой",fen:"8/8/3b4/8/8/6p1/5k2/7K b - - 0 1",from:[5,6],to:[6,6]}, {id:"m1-21",category:"mate1",side:"white",piece:"B",label:"Мат слоном",fen:"8/1P6/8/8/5K2/6Bk/4B3/8 w - - 0 1",from:[6,4],to:[7,5]}, {id:"m1-27",category:"mate1",side:"white",piece:"B",label:"Мат слоном",fen:"1K4B1/7p/8/8/8/8/5Q2/7k w - - 0 1",from:[0,6],to:[3,3]}, {id:"m1-01",category:"mate1",side:"white",piece:"Q",label:"Мат ферзём",fen:"1k6/8/7K/4N3/4Q3/3P1Q2/8/8 w - - 0 1",from:[4,4],to:[1,1]}, {id:"m1-47",category:"mate1",side:"white",piece:"P",label:"Мат пешкой",fen:"k7/2K5/1P6/8/3B4/8/8/8 w - - 0 1",from:[2,1],to:[1,1]}, {id:"m1-28",category:"mate1",side:"black",piece:"B",label:"Мат слоном",fen:"3K1b2/1r6/k2n4/8/8/8/8/8 b - - 0 1",from:[0,5],to:[1,4]}, {id:"m1-07",category:"mate1",side:"white",piece:"Q",label:"Мат ферзём",fen:"7B/7k/5Q2/8/1B6/8/8/5K2 w - - 0 1",from:[2,5],to:[1,6]}, {id:"m1-44",category:"mate1",side:"black",piece:"P",label:"Мат пешкой",fen:"8/8/8/8/2b5/1p6/2k5/K7 b - - 0 1",from:[5,1],to:[6,1]}, {id:"m1-05",category:"mate1",side:"white",piece:"Q",label:"Мат ферзём",fen:"2B1Q3/6P1/6B1/8/8/7K/8/7k w - - 0 1",from:[0,4],to:[7,4]}, {id:"m1-39",category:"mate1",side:"white",piece:"N",label:"Мат конём",fen:"2k5/2PN4/8/8/K5B1/6Q1/8/8 w - - 0 1",from:[1,3],to:[3,2]}, {id:"m1-08",category:"mate1",side:"black",piece:"Q",label:"Мат ферзём",fen:"K7/3n1k2/8/8/8/8/8/1q6 b - - 0 1",from:[7,1],to:[0,1]}, {id:"m1-19",category:"mate1",side:"white",piece:"R",label:"Мат ладьёй",fen:"8/7K/8/8/R7/8/2R5/7k w - - 0 1",from:[4,0],to:[7,0]}, {id:"m1-25",category:"mate1",side:"white",piece:"B",label:"Мат слоном",fen:"1B3K2/8/8/8/8/k4B2/2Q3Q1/8 w - - 0 1",from:[0,1],to:[2,3]}, {id:"m1-36",category:"mate1",side:"black",piece:"N",label:"Мат конём",fen:"kN5K/4r3/8/7n/6b1/8/8/7r b - - 0 1",from:[3,7],to:[2,5]}, {id:"m1-40",category:"mate1",side:"black",piece:"N",label:"Мат конём",fen:"6k1/8/7b/8/8/8/8/1n1Kn1r1 b - - 0 1",from:[7,1],to:[5,2]}, {id:"m1-48",category:"mate1",side:"black",piece:"P",label:"Мат пешкой",fen:"8/8/8/8/5b2/6p1/5k2/7K b - - 0 1",from:[5,6],to:[6,6]}, {id:"m1-03",category:"mate1",side:"white",piece:"Q",label:"Мат ферзём",fen:"8/2Pb4/8/8/1K6/Q7/Q7/4k3 w - - 0 1",from:[5,0],to:[7,2]}, {id:"m1-35",category:"mate1",side:"white",piece:"N",label:"Мат конём",fen:"8/1P1R4/8/8/8/3K4/3B4/3k3N w - - 0 1",from:[7,7],to:[6,5]}, {id:"m1-22",category:"mate1",side:"black",piece:"B",label:"Мат слоном",fen:"4b3/8/3b4/8/8/1q6/3K4/5k2 b - - 0 1",from:[2,3],to:[4,5]}, {id:"m1-18",category:"mate1",side:"black",piece:"R",label:"Мат ладьёй",fen:"8/K3p3/8/1q6/8/6k1/8/2r5 b - - 0 1",from:[7,2],to:[7,0]}, {id:"m1-37",category:"mate1",side:"white",piece:"N",label:"Мат конём",fen:"4R3/5k2/8/6K1/P3N3/8/1B6/8 w - - 0 1",from:[4,4],to:[2,3]}, {id:"m1-24",category:"mate1",side:"black",piece:"B",label:"Мат слоном",fen:"k2q4/8/K3p3/4b3/8/8/2b5/8 b - - 0 1",from:[6,2],to:[5,3]}, {id:"m1-49",category:"mate1",side:"white",piece:"P",label:"Мат пешкой",fen:"2k3r1/3R4/1P6/8/8/2K4B/7B/8 w - - 0 1",from:[2,1],to:[1,1]}, {id:"m1-29",category:"mate1",side:"white",piece:"B",label:"Мат слоном",fen:"5k2/5P2/5K2/8/8/8/7B/8 w - - 0 1",from:[6,7],to:[2,3]}, {id:"m1-15",category:"mate1",side:"white",piece:"R",label:"Мат ладьёй",fen:"8/5R2/8/1Q6/8/2P5/3P4/k4K2 w - - 0 1",from:[1,5],to:[1,0]}];
+const puzzles=[ {id:"m1-12",category:"mate1",side:"black",piece:"R",label:t("Мат ладьёй"),fen:"8/8/8/7K/3k4/8/6r1/1r6 b - - 0 1",from:[7,1],to:[7,7]}, {id:"m1-43",category:"mate1",side:"white",piece:"P",label:t("Мат пешкой"),fen:"7k/5K2/6P1/8/4B3/8/8/8 w - - 0 1",from:[2,6],to:[1,6]}, {id:"m1-16",category:"mate1",side:"black",piece:"R",label:t("Мат ладьёй"),fen:"5k2/2q5/8/1p6/r7/1K6/8/1N4r1 b - - 0 1",from:[7,6],to:[7,1]}, {id:"m1-31",category:"mate1",side:"white",piece:"N",label:t("Мат конём"),fen:"8/8/8/K4QNN/7k/8/4N3/8 w - - 0 1",from:[3,6],to:[5,5]}, {id:"m1-38",category:"mate1",side:"black",piece:"N",label:t("Мат конём"),fen:"8/8/8/2n1R3/8/8/4n1r1/k4b1K b - - 0 1",from:[6,4],to:[5,6]}, {id:"m1-20",category:"mate1",side:"black",piece:"R",label:t("Мат ладьёй"),fen:"7K/2r5/8/8/3r4/8/5k2/7b b - - 0 1",from:[4,3],to:[0,3]}, {id:"m1-45",category:"mate1",side:"white",piece:"P",label:t("Мат пешкой"),fen:"k7/2K5/1P6/8/8/8/5B2/8 w - - 0 1",from:[2,1],to:[1,1]}, {id:"m1-02",category:"mate1",side:"black",piece:"Q",label:t("Мат ферзём"),fen:"6K1/3q4/8/8/1q6/8/2n5/k7 b - - 0 1",from:[4,1],to:[0,1]}, {id:"m1-33",category:"mate1",side:"white",piece:"N",label:t("Мат конём"),fen:"4kN2/1K2P3/8/1N6/8/8/8/4R3 w - - 0 1",from:[3,1],to:[2,3]}, {id:"m1-42",category:"mate1",side:"black",piece:"P",label:t("Мат пешкой"),fen:"8/8/4b3/8/8/1p6/2k5/K7 b - - 0 1",from:[5,1],to:[6,1]}, {id:"m1-50",category:"mate1",side:"black",piece:"P",label:t("Мат пешкой"),fen:"8/8/7b/8/3r4/K4p1q/8/1k6 b - - 0 1",from:[5,5],to:[6,5]}, {id:"m1-06",category:"mate1",side:"black",piece:"Q",label:t("Мат ферзём"),fen:"8/8/3q2r1/8/4k3/8/2q3n1/5K2 b - - 0 1",from:[2,3],to:[7,3]}, {id:"m1-41",category:"mate1",side:"white",piece:"P",label:t("Мат пешкой"),fen:"7k/5K2/6P1/8/8/8/2B5/8 w - - 0 1",from:[2,6],to:[1,6]}, {id:"m1-13",category:"mate1",side:"white",piece:"R",label:t("Мат ладьёй"),fen:"3k4/8/3K4/1R5B/1Q4N1/8/8/8 w - - 0 1",from:[3,1],to:[0,1]}, {id:"m1-23",category:"mate1",side:"white",piece:"B",label:t("Мат слоном"),fen:"7k/7N/4B2K/8/7B/8/2n5/8 w - - 0 1",from:[4,7],to:[2,5]}, {id:"m1-14",category:"mate1",side:"black",piece:"R",label:t("Мат ладьёй"),fen:"8/8/4k3/8/3r4/8/5r2/1K6 b - - 0 1",from:[4,3],to:[7,3]}, {id:"m1-34",category:"mate1",side:"black",piece:"N",label:t("Мат конём"),fen:"2K1n1q1/8/1k6/8/8/7p/6n1/8 b - - 0 1",from:[0,4],to:[2,5]}, {id:"m1-17",category:"mate1",side:"white",piece:"R",label:t("Мат ладьёй"),fen:"1k6/8/K1R5/8/8/8/8/2R5 w - - 0 1",from:[2,2],to:[0,2]}, {id:"m1-30",category:"mate1",side:"black",piece:"B",label:t("Мат слоном"),fen:"8/6k1/8/8/7p/2p5/8/2K2br1 b - - 0 1",from:[7,5],to:[5,3]}, {id:"m1-32",category:"mate1",side:"black",piece:"N",label:t("Мат конём"),fen:"8/3n4/8/8/4n3/8/r3n2k/1K6 b - - 0 1",from:[4,4],to:[5,2]}, {id:"m1-04",category:"mate1",side:"black",piece:"Q",label:t("Мат ферзём"),fen:"6K1/2q5/8/5n2/8/2k4b/8/8 b - - 0 1",from:[1,2],to:[1,6]}, {id:"m1-09",category:"mate1",side:"white",piece:"Q",label:t("Мат ферзём"),fen:"1K6/8/8/8/Q2Q4/8/8/1k6 w - - 0 1",from:[4,3],to:[7,0]}, {id:"m1-26",category:"mate1",side:"black",piece:"B",label:t("Мат слоном"),fen:"8/8/5b2/8/4k3/7q/8/6K1 b - - 0 1",from:[2,5],to:[4,3]}, {id:"m1-10",category:"mate1",side:"black",piece:"Q",label:t("Мат ферзём"),fen:"8/8/6q1/1p6/7K/k4bp1/8/8 b - - 0 1",from:[2,6],to:[4,6]}, {id:"m1-11",category:"mate1",side:"white",piece:"R",label:t("Мат ладьёй"),fen:"k7/B6R/8/8/4R3/3K4/8/8 w - - 0 1",from:[4,4],to:[0,4]}, {id:"m1-46",category:"mate1",side:"black",piece:"P",label:t("Мат пешкой"),fen:"8/8/3b4/8/8/6p1/5k2/7K b - - 0 1",from:[5,6],to:[6,6]}, {id:"m1-21",category:"mate1",side:"white",piece:"B",label:t("Мат слоном"),fen:"8/1P6/8/8/5K2/6Bk/4B3/8 w - - 0 1",from:[6,4],to:[7,5]}, {id:"m1-27",category:"mate1",side:"white",piece:"B",label:t("Мат слоном"),fen:"1K4B1/7p/8/8/8/8/5Q2/7k w - - 0 1",from:[0,6],to:[3,3]}, {id:"m1-01",category:"mate1",side:"white",piece:"Q",label:t("Мат ферзём"),fen:"1k6/8/7K/4N3/4Q3/3P1Q2/8/8 w - - 0 1",from:[4,4],to:[1,1]}, {id:"m1-47",category:"mate1",side:"white",piece:"P",label:t("Мат пешкой"),fen:"k7/2K5/1P6/8/3B4/8/8/8 w - - 0 1",from:[2,1],to:[1,1]}, {id:"m1-28",category:"mate1",side:"black",piece:"B",label:t("Мат слоном"),fen:"3K1b2/1r6/k2n4/8/8/8/8/8 b - - 0 1",from:[0,5],to:[1,4]}, {id:"m1-07",category:"mate1",side:"white",piece:"Q",label:t("Мат ферзём"),fen:"7B/7k/5Q2/8/1B6/8/8/5K2 w - - 0 1",from:[2,5],to:[1,6]}, {id:"m1-44",category:"mate1",side:"black",piece:"P",label:t("Мат пешкой"),fen:"8/8/8/8/2b5/1p6/2k5/K7 b - - 0 1",from:[5,1],to:[6,1]}, {id:"m1-05",category:"mate1",side:"white",piece:"Q",label:t("Мат ферзём"),fen:"2B1Q3/6P1/6B1/8/8/7K/8/7k w - - 0 1",from:[0,4],to:[7,4]}, {id:"m1-39",category:"mate1",side:"white",piece:"N",label:t("Мат конём"),fen:"2k5/2PN4/8/8/K5B1/6Q1/8/8 w - - 0 1",from:[1,3],to:[3,2]}, {id:"m1-08",category:"mate1",side:"black",piece:"Q",label:t("Мат ферзём"),fen:"K7/3n1k2/8/8/8/8/8/1q6 b - - 0 1",from:[7,1],to:[0,1]}, {id:"m1-19",category:"mate1",side:"white",piece:"R",label:t("Мат ладьёй"),fen:"8/7K/8/8/R7/8/2R5/7k w - - 0 1",from:[4,0],to:[7,0]}, {id:"m1-25",category:"mate1",side:"white",piece:"B",label:t("Мат слоном"),fen:"1B3K2/8/8/8/8/k4B2/2Q3Q1/8 w - - 0 1",from:[0,1],to:[2,3]}, {id:"m1-36",category:"mate1",side:"black",piece:"N",label:t("Мат конём"),fen:"kN5K/4r3/8/7n/6b1/8/8/7r b - - 0 1",from:[3,7],to:[2,5]}, {id:"m1-40",category:"mate1",side:"black",piece:"N",label:t("Мат конём"),fen:"6k1/8/7b/8/8/8/8/1n1Kn1r1 b - - 0 1",from:[7,1],to:[5,2]}, {id:"m1-48",category:"mate1",side:"black",piece:"P",label:t("Мат пешкой"),fen:"8/8/8/8/5b2/6p1/5k2/7K b - - 0 1",from:[5,6],to:[6,6]}, {id:"m1-03",category:"mate1",side:"white",piece:"Q",label:t("Мат ферзём"),fen:"8/2Pb4/8/8/1K6/Q7/Q7/4k3 w - - 0 1",from:[5,0],to:[7,2]}, {id:"m1-35",category:"mate1",side:"white",piece:"N",label:t("Мат конём"),fen:"8/1P1R4/8/8/8/3K4/3B4/3k3N w - - 0 1",from:[7,7],to:[6,5]}, {id:"m1-22",category:"mate1",side:"black",piece:"B",label:t("Мат слоном"),fen:"4b3/8/3b4/8/8/1q6/3K4/5k2 b - - 0 1",from:[2,3],to:[4,5]}, {id:"m1-18",category:"mate1",side:"black",piece:"R",label:t("Мат ладьёй"),fen:"8/K3p3/8/1q6/8/6k1/8/2r5 b - - 0 1",from:[7,2],to:[7,0]}, {id:"m1-37",category:"mate1",side:"white",piece:"N",label:t("Мат конём"),fen:"4R3/5k2/8/6K1/P3N3/8/1B6/8 w - - 0 1",from:[4,4],to:[2,3]}, {id:"m1-24",category:"mate1",side:"black",piece:"B",label:t("Мат слоном"),fen:"k2q4/8/K3p3/4b3/8/8/2b5/8 b - - 0 1",from:[6,2],to:[5,3]}, {id:"m1-49",category:"mate1",side:"white",piece:"P",label:t("Мат пешкой"),fen:"2k3r1/3R4/1P6/8/8/2K4B/7B/8 w - - 0 1",from:[2,1],to:[1,1]}, {id:"m1-29",category:"mate1",side:"white",piece:"B",label:t("Мат слоном"),fen:"5k2/5P2/5K2/8/8/8/7B/8 w - - 0 1",from:[6,7],to:[2,3]}, {id:"m1-15",category:"mate1",side:"white",piece:"R",label:t("Мат ладьёй"),fen:"8/5R2/8/1Q6/8/2P5/3P4/k4K2 w - - 0 1",from:[1,5],to:[1,0]}];
 const mate2Puzzles=window.MATE2_PUZZLES||[];
 const mate3Puzzles=window.MATE3_PUZZLES||[];
 const mate4Puzzles=window.MATE4_PUZZLES||[];
@@ -256,10 +258,10 @@ const mate5Puzzles=window.MATE5_PUZZLES||[];
 const tacticPuzzles=window.TACTIC_PUZZLES||{};
 const tacticCategories=Object.keys(tacticPuzzles);
 const tacticLabels={
- "tactic-fork":"Вилка","tactic-pin":"Связка","tactic-skewer":"Сквозной удар",
- "tactic-discovered":"Вскрытое нападение","tactic-doublecheck":"Двойной шах",
- "tactic-deflection":"Отвлечение","tactic-defender":"Уничтожение защитника",
- "tactic-interference":"Перекрытие","tactic-sacrifice":"Жертва"
+ "tactic-fork":t("Вилка"),"tactic-pin":t("Связка"),"tactic-skewer":t("Сквозной удар"),
+ "tactic-discovered":t("Вскрытое нападение"),"tactic-doublecheck":t("Двойной шах"),
+ "tactic-deflection":t("Отвлечение"),"tactic-defender":t("Уничтожение защитника"),
+ "tactic-interference":t("Перекрытие"),"tactic-sacrifice":t("Жертва")
 };
 let selectedTacticCategory="tactic-fork";
 let puzzleCategory="mate1",puzzleStep=0,puzzleLine=[];
@@ -286,7 +288,7 @@ let drag=null,pendingPromotion=null;
 let sceneTimers=[];
 let moving=false,motionToken=0,motionTimer=null,motionGhosts=[];
 let lastMove=null,reviewMode=false,reviewPly=0,reviewMoves=[],reviewStartFen="",finalMessage="";
-const difficultyNames=["Пешка","Слон","Конь","Ладья","Офицер","Король"];
+const difficultyNames=[t("Пешка"),t("Слон"),t("Конь"),t("Ладья"),t("Офицер"),t("Король")];
 let playerColor="white",botColor="black",menuSide="white",difficultyLevel=1,gameStarted=false,gameMode="match",puzzleIndex=0;
 let platformPaused=false;
 const pauseReasons=new Set(document.hidden?["hidden"]:[]);
@@ -359,7 +361,7 @@ const completedPuzzleKey="free-time-chess-completed-puzzles-v1";
 const screenKey="free-time-chess-screen-v1";
 const gameStateKey="free-time-chess-game-state-v1";
 const scrollKey="free-time-chess-scroll-v1";
-const MAX_ENERGY=6;
+const MAX_ENERGY=50;
 const ENERGY_REGEN_MS=30*60*1000;
 let energy=loadEnergy();
 let energyLastAt=loadEnergyTime();
@@ -399,12 +401,12 @@ function applyTimedEnergy(){
  saveEnergy();
 }
 function energyCountdown(){
- if(energy>=MAX_ENERGY)return "Запас энергии полный";
+ if(energy>=MAX_ENERGY)return t("Запас энергии полный");
  const remain=Math.max(0,ENERGY_REGEN_MS-(Date.now()-energyLastAt));
  const total=Math.ceil(remain/1000);
  const minutes=Math.floor(total/60);
  const seconds=total%60;
- return `+1 ⚡ через ${String(minutes).padStart(2,"0")}:${String(seconds).padStart(2,"0")}`;
+ return t("+1 ⚡ через {0}:{1}",[String(minutes).padStart(2,"0"),String(seconds).padStart(2,"0")]);
 }
 function renderEnergy(message=""){
  const free=introductoryFreePlay();
@@ -413,10 +415,10 @@ function renderEnergy(message=""){
  const adNote=document.querySelector(".puzzle-hero__adnote");if(adNote)adNote.hidden=!canOfferEnergyAd();
  for(const selector of [".energy-card",".puzzles-energy","#energy-timer"]){const element=document.querySelector(selector);if(element)element.hidden=free}
  for(const selector of ["#energy-ad","#puzzles-energy-ad"]){const element=document.querySelector(selector);if(element)element.hidden=!canOfferEnergyAd()}
- if(free){message=message||(introductorySession==="first"?"Знакомься с игрой без ограничений: задачи в первой сессии бесплатны.":"Первые минуты знакомства — без расхода энергии.")}
+ if(free){message=message||(introductorySession==="first"?t("Знакомься с игрой без ограничений: задачи в первой сессии бесплатны."):t("Первые минуты знакомства — без расхода энергии."))}
  else if(!message){
   const note=document.querySelector("#energy-note");
-  if(note?.textContent.includes("без ограничений")||note?.textContent.includes("без расхода энергии"))message="Новые задачи расходуют 1 ⚡. Первые пять задач и повтор решённых — бесплатно.";
+  if(note?.textContent.includes(t("без ограничений"))||note?.textContent.includes(t("без расхода энергии")))message=t("Новые задачи расходуют 1 ⚡. Первые пять задач и повтор решённых — бесплатно.");
  }
  applyTimedEnergy();
  for(const id of ["#energy-value","#puzzles-energy-value"]){
@@ -445,13 +447,13 @@ function addEnergy(amount,message){
  applyTimedEnergy();
  energy=Math.min(MAX_ENERGY,energy+amount);
  if(energy>=MAX_ENERGY)energyLastAt=Date.now();
- saveEnergy();renderEnergy(message||`Энергия пополнена: ${energy}/${MAX_ENERGY}.`);
+ saveEnergy();renderEnergy(message||t("Энергия пополнена: {0}/{1}.",[energy,MAX_ENERGY]));
 }
 function spendEnergy(amount=1){
  if(introductoryFreePlay())return true;
  applyTimedEnergy();
  if(energy<amount){
-  renderEnergy("Энергия закончилась. Подожди восстановления, сыграй партию или посмотри рекламу.");
+  renderEnergy(t("Энергия закончилась. Подожди восстановления, сыграй партию или посмотри рекламу."));
   return false;
  }
  if(energy===MAX_ENERGY)energyLastAt=Date.now();
@@ -470,11 +472,11 @@ function renderPuzzleCategory(category){
  if(tactic){
   const bankTitle=document.querySelector("#tactic-bank-title");
   const desc=document.querySelector("#tactic-bank-description");
-  if(bankTitle)bankTitle.textContent=tacticLabels[category]||"Тактика";
-  if(desc)desc.textContent="Найди лучший ход и проведи тактическую комбинацию до конца.";
+  if(bankTitle)bankTitle.textContent=tacticLabels[category]||t("Тактика");
+  if(desc)desc.textContent=t("Найди лучший ход и проведи тактическую комбинацию до конца.");
  }
  const title=document.querySelector(tactic?"#tactic-chapter-title":`#${category}-chapter-title`);
- if(title)title.textContent=`Глава ${state.selected+1} · задачи ${chapterStart+1}–${chapterEnd}`;
+ if(title)title.textContent=t("Глава {0} · задачи {1}–{2}",[state.selected+1,chapterStart+1,chapterEnd]);
 
  const chapters=document.querySelector(tactic?"#tactic-chapters":`#${category}-chapters`);
  if(chapters){
@@ -487,7 +489,7 @@ function renderPuzzleCategory(category){
    const button=document.createElement("button");
    button.type="button";
    button.className="puzzle-chapter"+(solved===total?" is-complete":"")+(chapter===state.selected?" is-selected":"");
-   button.innerHTML=`<strong>Глава ${chapter+1}</strong><span>Задачи ${start+1}–${end}</span><b>${solved}/${total} решено</b>`;
+   button.innerHTML=t("<strong>Глава {0}</strong><span>Задачи {1}–{2}</span><b>{3}/{4} решено</b>",[chapter+1,start+1,end,solved,total]);
    button.addEventListener("click",()=>{
     state.selected=chapter;
     renderPuzzleCategory(category);
@@ -513,9 +515,9 @@ function renderPuzzleCategory(category){
    const p=list[index],done=completedPuzzles.has(p.id);
    const button=document.createElement("button");
    button.type="button";button.className="puzzle-tile"+(done?" is-complete":"");
-   button.setAttribute("aria-label",`Задача ${index+1}${done?", решена":""}`);
+   button.setAttribute("aria-label",t("Задача {0}{1}",[index+1,done?t(", решена"):""]));
    const number=document.createElement("strong");number.textContent=index+1;
-   const status=document.createElement("span");status.textContent=done?"✓ Решена":introductoryFreePlay()||introductoryPuzzleIds.includes(p.id)?"Бесплатно":"1 ⚡";
+   const status=document.createElement("span");status.textContent=done?t("✓ Решена"):introductoryFreePlay()||introductoryPuzzleIds.includes(p.id)?t("Бесплатно"):"1 ⚡";
    button.append(number,status);
    button.addEventListener("click",()=>startPuzzleWithEnergy(index,category));
    grid.append(button);
@@ -527,7 +529,7 @@ function renderPuzzleHub(){
   const list=listForCategory(category);
   const solved=list.filter(p=>completedPuzzles.has(p.id)).length;
   const progress=document.querySelector(`#${category}-progress`);
-  if(progress)progress.textContent=`${solved}/${list.length} решено`;
+  if(progress)progress.textContent=t("{0}/{1} решено",[solved,list.length]);
   renderPuzzleCategory(category);
  }
  for(const category of tacticCategories){
@@ -601,40 +603,40 @@ function restoreSession(){
     restoreChessPosition(saved);syncBoard();closePromotion();resetReview();
     if(gameMode==="puzzle"){const puzzle=activePuzzles()[puzzleIndex];puzzleLine=(isTacticCategory(puzzleCategory)||puzzleMoveCount()>1)?buildPuzzleLine(puzzle):[]}
     lastMove=saved.lastMove||null;selected=null;moves=[];
-    document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
-    document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
+    document.querySelector("#player-side").textContent=playerColor==="white"?t("Белые"):t("Чёрные");
+    document.querySelector("#opponent-side").textContent=botColor==="white"?t("Белые"):t("Чёрные");
     document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
     document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
     if(gameMode==="puzzle"){
-     document.querySelector("#opponent-name").textContent="Задача";
-     document.querySelector("#match-info").textContent=`Задача ${puzzleIndex+1}/${activePuzzles().length} • ${isTacticCategory(puzzleCategory)?(tacticLabels[puzzleCategory]||"тактика").toLowerCase():puzzleCategory==="mate5"?"мат в пять ходов":puzzleCategory==="mate4"?"мат в четыре хода":puzzleCategory==="mate3"?"мат в три хода":puzzleCategory==="mate2"?"мат в два хода":"мат в один ход"}`;
-     resetButton.textContent="Повторить задачу";
+     document.querySelector("#opponent-name").textContent=t("Задача");
+     document.querySelector("#match-info").textContent=t("Задача {0}/{1} • {2}",[puzzleIndex+1,activePuzzles().length,isTacticCategory(puzzleCategory)?(tacticLabels[puzzleCategory]||t("тактика")).toLowerCase():puzzleCategory==="mate5"?t("мат в пять ходов"):puzzleCategory==="mate4"?t("мат в четыре хода"):puzzleCategory==="mate3"?t("мат в три хода"):puzzleCategory==="mate2"?t("мат в два хода"):t("мат в один ход")]);
+     resetButton.textContent=t("Повторить задачу");
      document.querySelector("#resign").hidden=true;
     }else if(gameMode==="hotseat"){
      playerColor=turn;
      setHotseatPlayers();
-     document.querySelector("#match-info").textContent="Один экран • после каждого хода доска поворачивается";
-     resetButton.textContent="Новая партия";
+     document.querySelector("#match-info").textContent=t("Один экран • после каждого хода доска поворачивается");
+     resetButton.textContent=t("Новая партия");
      document.querySelector("#resign").hidden=true;
     }else if(gameMode==="online"){
      playerColor=onlineColor==="black"?"black":"white";botColor=playerColor==="white"?"black":"white";
-     document.querySelector("#opponent-name").textContent=onlineOpponent||"Соперник";
-     document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
-     document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
+     document.querySelector("#opponent-name").textContent=onlineOpponent||t("Соперник");
+     document.querySelector("#opponent-side").textContent=botColor==="white"?t("Белые"):t("Чёрные");
+     document.querySelector("#player-side").textContent=playerColor==="white"?t("Белые"):t("Чёрные");
      document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
      document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
-     document.querySelector("#match-info").textContent=`Онлайн-партия · ${onlineTimeControls[selectedOnlineTimeControl]?.label||"контроль времени"}`;
+     document.querySelector("#match-info").textContent=t("Онлайн-партия · {0}",[onlineTimeControls[selectedOnlineTimeControl]?.label||t("контроль времени")]);
      resetButton.hidden=true;
      document.querySelector("#resign").hidden=true;
     }else{
-     document.querySelector("#opponent-name").textContent="Компьютер";
-     document.querySelector("#match-info").textContent=`Ты играешь за ${playerColor==="white"?"белых":"чёрных"} • уровень бота: ${difficultyNames[difficultyLevel-1]}`;
-     resetButton.textContent="Новая партия";
+     document.querySelector("#opponent-name").textContent=t("Компьютер");
+     document.querySelector("#match-info").textContent=t("Ты играешь за {0} • уровень бота: {1}",[playerColor==="white"?t("белых"):t("чёрных"),difficultyNames[difficultyLevel-1]]);
+     resetButton.textContent=t("Новая партия");
      document.querySelector("#resign").hidden=finished;
     }
     document.querySelector("#claim-draw").hidden=true;
     document.querySelector("#next-puzzle").hidden=true;
-    statusElement.textContent=finished?"Партия завершена.":gameMode==="puzzle"?"Продолжай решать задачу.":gameMode==="hotseat"?`Ход ${turn==="white"?"белых — Игрок 1":"чёрных — Игрок 2"}.`:gameMode==="online"?(turn===playerColor?"Твой ход.":"Ход соперника…"):turn===playerColor?"Твой ход.":"Компьютер думает…";
+    statusElement.textContent=finished?t("Партия завершена."):gameMode==="puzzle"?t("Продолжай решать задачу."):gameMode==="hotseat"?t("Ход {0}.",[turn==="white"?t("белых — Игрок 1"):t("чёрных — Игрок 2")]):gameMode==="online"?(turn===playerColor?t("Твой ход."):t("Ход соперника…")):turn===playerColor?t("Твой ход."):t("Компьютер думает…");
     syncMenuSelections();render();renderMoveList();showScreen("game",false);
     if(!finished&&gameMode==="match"&&turn===botColor)botTimer=setTimeout(botMove,700);
     if(gameMode==="online"&&onlineMatchId)subscribeOnlineMatch(onlineMatchId);
@@ -684,7 +686,7 @@ async function loadPvpStats(){
  const nickname=getPlayerNickname();
  if(!nickname){
   rating.textContent="0";if(menuRating)menuRating.textContent="0";games.textContent="0";wins.textContent="0";draws.textContent="0";losses.textContent="0";
-  if(note)note.textContent="Создай игровой ник, чтобы начать играть PvP.";
+  if(note)note.textContent=t("Создай игровой ник, чтобы начать играть PvP.");
   return;
  }
  try{
@@ -700,9 +702,9 @@ async function loadPvpStats(){
   wins.textContent=row.wins||0;
   draws.textContent=row.draws||0;
   losses.textContent=row.losses||0;
-  if(note)note.textContent="Рейтинг используется при подборе наиболее близкого по силе соперника.";
+  if(note)note.textContent=t("Рейтинг используется при подборе наиболее близкого по силе соперника.");
  }catch{
-  if(note)note.textContent="PvP-статистика временно недоступна.";
+  if(note)note.textContent=t("PvP-статистика временно недоступна.");
  }
 }
 function showStats(){
@@ -733,17 +735,7 @@ function showStats(){
   const data=levelStats[i],games=data.wins+data.losses+data.draws;
   const row=document.createElement("article");
   row.className="stats-level-row";
-  row.innerHTML=`
-   <span class="stats-level-row__level">${i+1}</span>
-   <div class="stats-level-row__main">
-    <strong>${difficultyNames[i]}</strong>
-    <small>${games} партий</small>
-   </div>
-   <div class="stats-level-row__numbers">
-    <span><b>${data.wins}</b><small>победы</small></span>
-    <span><b>${data.losses}</b><small>поражения</small></span>
-    <span><b>${data.draws}</b><small>ничьи</small></span>
-   </div>`;
+  row.innerHTML=t("\n   <span class=\"stats-level-row__level\">{0}</span>\n   <div class=\"stats-level-row__main\">\n    <strong>{1}</strong>\n    <small>{2} партий</small>\n   </div>\n   <div class=\"stats-level-row__numbers\">\n    <span><b>{3}</b><small>победы</small></span>\n    <span><b>{4}</b><small>поражения</small></span>\n    <span><b>{5}</b><small>ничьи</small></span>\n   </div>",[i+1,difficultyNames[i],games,data.wins,data.losses,data.draws]);
   body.append(row);
  }
 }
@@ -758,6 +750,7 @@ function recordResult(outcome){
  showStats();scheduleCloudSync();
 }
 function showScreen(name,resetScroll=true){
+ document.querySelector("#language-picker").hidden=name!=="welcome"&&name!=="menu";
  for(const [key,element] of Object.entries(screens))element.hidden=key!==name;
  try{sessionStorage.setItem(screenKey,name)}catch{}
  if(name==="menu"){showStats();loadPvpStats();document.querySelector("#menu-title").focus()}
@@ -776,8 +769,8 @@ function refreshProfileUI(){
  const nickname=getPlayerNickname();
  const chip=document.querySelector("#profile-chip-name");
  const onlineName=document.querySelector("#online-profile-name");
- if(chip)chip.textContent=nickname||"Создать ник";
- if(onlineName)onlineName.textContent=nickname||"Игрок";
+ if(chip)chip.textContent=nickname||t("Создать ник");
+ if(onlineName)onlineName.textContent=nickname||t("Игрок");
 }
 function openProfileModal(focus=true){
  const modal=document.querySelector("#profile-modal");
@@ -796,7 +789,7 @@ async function savePlayerNickname(){
  const error=document.querySelector("#profile-error");
  const nickname=input.value.trim().replace(/\s+/g," ").slice(0,24);
  if(nickname.length<2){
-  error.textContent="Ник должен содержать минимум 2 символа.";
+  error.textContent=t("Ник должен содержать минимум 2 символа.");
   error.hidden=false;input.focus();return false;
  }
  localStorage.setItem(nicknameKey,nickname);
@@ -868,7 +861,7 @@ function selectOnlineTimeControl(control){
  document.querySelectorAll("[data-time-control]").forEach(button=>button.classList.toggle("is-selected",button.dataset.timeControl===control));
 }
 async function ensureOnlineAuth(){
- if(!supabaseClient)throw new Error("Supabase не загрузился");
+ if(!supabaseClient)throw new Error(t("Supabase не загрузился"));
  const {data:{session}}=await supabaseClient.auth.getSession();
  if(session?.user)return session.user;
  const {data,error}=await supabaseClient.auth.signInAnonymously();
@@ -906,15 +899,15 @@ async function pollMatchmaking(nickname){
   const row=Array.isArray(data)?data[0]:data;
   if(row?.state==="matched"&&row.match_id){
    clearInterval(matchmakingTimer);matchmakingTimer=null;
-   document.querySelector("#online-status").textContent="Соперник найден!";
+   document.querySelector("#online-status").textContent=t("Соперник найден!");
    setTimeout(()=>startOnlineMatch(row.match_id,row.color,row.opponent_nickname),450);
   }else{
-   document.querySelector("#online-status").textContent=`Ищем соперника · ${onlineTimeControls[selectedOnlineTimeControl].label}`;
+   document.querySelector("#online-status").textContent=t("Ищем соперника · {0}",[onlineTimeControls[selectedOnlineTimeControl].label]);
   }
  }catch(error){
   document.querySelector("#online-status").textContent=error.message?.includes("Anonymous")||error.message?.includes("anonymous")
-   ?"Нужно включить Anonymous Sign-Ins в Supabase."
-   :"Ошибка соединения. Повторяем…";
+   ?t("Онлайн-поединки временно недоступны. Можно сыграть с компьютером.")
+   :t("Ошибка соединения. Повторяем…");
  }finally{onlinePolling=false}
 }
 async function beginOnlineSearch(){
@@ -923,36 +916,36 @@ async function beginOnlineSearch(){
  if(!nickname){document.querySelector("#online-modal").hidden=true;openProfileModal();return}
  document.querySelector("#online-search").hidden=true;
  document.querySelector("#online-waiting").hidden=false;
- document.querySelector("#online-status").textContent="Подключаемся…";
+ document.querySelector("#online-status").textContent=t("Подключаемся…");
  try{
   await ensureOnlineAuth();
   matchmakingStartedAt=Date.now();updateOnlineTimer();
   await pollMatchmaking(nickname);
   matchmakingTimer=setInterval(()=>{updateOnlineTimer();pollMatchmaking(nickname)},1200);
  }catch(error){
-  document.querySelector("#online-status").textContent="Не удалось войти в онлайн. Проверь Anonymous Sign-Ins.";
+  document.querySelector("#online-status").textContent=t("Не удалось подключиться. Попробуй позже или сыграй с компьютером.");
  }
 }
 async function startOnlineMatch(matchId,color,opponent){
  clearInterval(matchmakingTimer);matchmakingTimer=null;onlinePolling=false;
  document.querySelector("#online-modal").hidden=true;
- onlineMatchId=matchId;onlineColor=color;onlineOpponent=opponent||"Соперник";onlineVersion=0;
+ onlineMatchId=matchId;onlineColor=color;onlineOpponent=opponent||t("Соперник");onlineVersion=0;
  gameMode="online";gameStarted=true;finished=false;
  playerColor=color==="black"?"black":"white";botColor=playerColor==="white"?"black":"white";
  chess.reset();syncBoard();closePromotion();resetReview();
  selected=null;moves=[];lastMove=null;
- document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
- document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
+ document.querySelector("#player-side").textContent=playerColor==="white"?t("Белые"):t("Чёрные");
+ document.querySelector("#opponent-side").textContent=botColor==="white"?t("Белые"):t("Чёрные");
  document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
  document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
  document.querySelector("#opponent-name").textContent=onlineOpponent;
- document.querySelector("#match-info").textContent="Онлайн-партия";
+ document.querySelector("#match-info").textContent=t("Онлайн-партия");
  resetButton.hidden=true;document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#resign").hidden=true;document.querySelector("#next-puzzle").hidden=true;
  showScreen("game");
  setOnlineClocksVisible(true);
  await subscribeOnlineMatch(matchId);
- statusElement.textContent=turn===playerColor?"Твой ход.":"Ход соперника…";
+ statusElement.textContent=turn===playerColor?t("Твой ход."):t("Ход соперника…");
  saveGameState();platformGameplayStart();
 }
 async function subscribeOnlineMatch(matchId){
@@ -981,12 +974,12 @@ function applyOnlineMatch(row,animateRemote=true){
   if(finished){
    loadPvpStats();
    const won=(row.status==="white_won"&&playerColor==="white")||(row.status==="black_won"&&playerColor==="black");
-   const message=row.status==="draw"?"Ничья.":row.status==="abandoned"?"Соперник покинул партию.":row.finish_reason==="timeout"?(won?"Время соперника вышло. Ты победил!":"Твоё время вышло. Победа соперника."):won?"Шах и мат! Ты победил!":"Шах и мат! Соперник победил.";
+   const message=row.status==="draw"?t("Ничья."):row.status==="abandoned"?t("Соперник покинул партию."):row.finish_reason==="timeout"?(won?t("Время соперника вышло. Ты победил!"):t("Твоё время вышло. Победа соперника.")):won?t("Шах и мат! Ты победил!"):t("Шах и мат! Соперник победил.");
    statusElement.textContent=message;
    showResult(row.status==="draw"?"draw":"mate",message);
   }else{
-   document.querySelector("#match-info").textContent=`Онлайн-партия · ${onlineTimeControls[row.time_control]?.label||"контроль времени"}`;
-   statusElement.textContent=turn===playerColor?"Твой ход.":"Ход соперника…";
+   document.querySelector("#match-info").textContent=t("Онлайн-партия · {0}",[onlineTimeControls[row.time_control]?.label||t("контроль времени")]);
+   statusElement.textContent=turn===playerColor?t("Твой ход."):t("Ход соперника…");
   }
  };
  if(!animateRemote||!row.last_move||row.fen===chess.fen()){apply();return}
@@ -1005,7 +998,7 @@ async function submitOnlineMove(played,status="active"){
   p_status:status
  });
  if(error){
-  statusElement.textContent="Не удалось отправить ход. Восстанавливаю позицию…";
+  statusElement.textContent=t("Не удалось отправить ход. Восстанавливаю позицию…");
   const {data:row}=await supabaseClient.from("matches").select("*").eq("id",onlineMatchId).single();
   if(row)applyOnlineMatch(row,false);
   return false;
@@ -1018,12 +1011,12 @@ async function submitOnlineMove(played,status="active"){
 
 function setHotseatPlayers(){
  const whiteTurn=turn==="white";
- document.querySelector("#player-side").textContent=whiteTurn?"Белые":"Чёрные";
- document.querySelector("#opponent-side").textContent=whiteTurn?"Чёрные":"Белые";
+ document.querySelector("#player-side").textContent=whiteTurn?t("Белые"):t("Чёрные");
+ document.querySelector("#opponent-side").textContent=whiteTurn?t("Чёрные"):t("Белые");
  document.querySelector("#player-avatar").textContent=whiteTurn?"♔":"♚";
  document.querySelector("#opponent-avatar").textContent=whiteTurn?"♚":"♔";
- document.querySelector("#opponent-name").textContent=whiteTurn?"Игрок 2":"Игрок 1";
- document.querySelector(".player--human strong").textContent=whiteTurn?"Игрок 1":"Игрок 2";
+ document.querySelector("#opponent-name").textContent=whiteTurn?t("Игрок 2"):t("Игрок 1");
+ document.querySelector(".player--human strong").textContent=whiteTurn?t("Игрок 1"):t("Игрок 2");
 }
 function startHotseat(){
  setOnlineClocksVisible(false);
@@ -1034,12 +1027,12 @@ function startHotseat(){
  playerColor="white";botColor="black";
  selected=null;moves=[];finished=false;gameStarted=true;
  setHotseatPlayers();
- document.querySelector("#match-info").textContent="Один экран • после каждого хода доска поворачивается";
- resetButton.textContent="Новая партия";
+ document.querySelector("#match-info").textContent=t("Один экран • после каждого хода доска поворачивается");
+ resetButton.textContent=t("Новая партия");
  document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#resign").hidden=true;
  document.querySelector("#next-puzzle").hidden=true;
- statusElement.textContent="Ход белых — Игрок 1.";
+ statusElement.textContent=t("Ход белых — Игрок 1.");
  render();saveGameState();platformGameplayStart();
 }
 function restartCurrentGame(){
@@ -1056,16 +1049,16 @@ function startGame(){
  playerColor=menuSide;botColor=playerColor==="white"?"black":"white";
  chess.reset();syncBoard();closePromotion();resetReview();
  selected=null;moves=[];finished=false;gameStarted=true;
- document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
- document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
+ document.querySelector("#player-side").textContent=playerColor==="white"?t("Белые"):t("Чёрные");
+ document.querySelector("#opponent-side").textContent=botColor==="white"?t("Белые"):t("Чёрные");
  document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
  document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
- document.querySelector("#match-info").textContent=`Ты играешь за ${playerColor==="white"?"белых":"чёрных"} • уровень бота: ${difficultyNames[difficultyLevel-1]}`;
- document.querySelector("#opponent-name").textContent="Компьютер";
- resetButton.textContent="Новая партия";document.querySelector("#claim-draw").hidden=true;
+ document.querySelector("#match-info").textContent=t("Ты играешь за {0} • уровень бота: {1}",[playerColor==="white"?t("белых"):t("чёрных"),difficultyNames[difficultyLevel-1]]);
+ document.querySelector("#opponent-name").textContent=t("Компьютер");
+ resetButton.textContent=t("Новая партия");document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#resign").hidden=false;
  document.querySelector("#next-puzzle").hidden=true;
- statusElement.textContent=playerColor==="white"?"Твой ход: возьми белую фигуру.":"Компьютер ходит первым…";
+ statusElement.textContent=playerColor==="white"?t("Твой ход: возьми белую фигуру."):t("Компьютер ходит первым…");
  render();saveGameState();platformGameplayStart();
  if(playerColor==="black")botTimer=setTimeout(botMove,850);
 }
@@ -1080,7 +1073,7 @@ function buildPuzzleLine(puzzle){
   const temp=new Chess(puzzle.sourceFen),line=[];
   for(const san of puzzle.sanLine){
    const played=temp.move(san);
-   if(!played)throw new Error(`Неверная SAN-линия задачи ${puzzle.id}: ${san}`);
+   if(!played)throw new Error(t("Неверная SAN-линия задачи {0}: {1}",[puzzle.id,san]));
    line.push(played.from+played.to+(played.promotion||""));
   }
   return line;
@@ -1105,19 +1098,19 @@ function startPuzzle(index){
  botColor=playerColor==="white"?"black":"white";
  syncBoard();closePromotion();resetReview();
  selected=null;moves=[];
- document.querySelector("#player-side").textContent=playerColor==="white"?"Белые":"Чёрные";
- document.querySelector("#opponent-side").textContent=botColor==="white"?"Белые":"Чёрные";
+ document.querySelector("#player-side").textContent=playerColor==="white"?t("Белые"):t("Чёрные");
+ document.querySelector("#opponent-side").textContent=botColor==="white"?t("Белые"):t("Чёрные");
  document.querySelector("#player-avatar").textContent=playerColor==="white"?"♔":"♚";
  document.querySelector("#opponent-avatar").textContent=botColor==="white"?"♔":"♚";
- document.querySelector("#opponent-name").textContent="Задача";
- const modeText=isTacticCategory(puzzleCategory)?`тактика: ${(tacticLabels[puzzleCategory]||"комбинация").toLowerCase()}`:puzzleCategory==="mate5"?"мат в пять ходов":puzzleCategory==="mate4"?"мат в четыре хода":puzzleCategory==="mate3"?"мат в три хода":puzzleCategory==="mate2"?"мат в два хода":"мат в один ход";
- document.querySelector("#match-info").textContent=`Задача ${index+1}/${list.length} • ${modeText}`;
- statusElement.textContent=isTacticCategory(puzzleCategory)?`${playerColor==="white"?"Белые":"Чёрные"} начинают. Найди лучший тактический ход.`:longPuzzle?`${playerColor==="white"?"Белые":"Чёрные"} начинают. Найди форсирующий первый ход.`:"Найди ход, после которого королю не спастись.";
+ document.querySelector("#opponent-name").textContent=t("Задача");
+ const modeText=isTacticCategory(puzzleCategory)?t("тактика: {0}",[(tacticLabels[puzzleCategory]||t("комбинация")).toLowerCase()]):puzzleCategory==="mate5"?t("мат в пять ходов"):puzzleCategory==="mate4"?t("мат в четыре хода"):puzzleCategory==="mate3"?t("мат в три хода"):puzzleCategory==="mate2"?t("мат в два хода"):t("мат в один ход");
+ document.querySelector("#match-info").textContent=t("Задача {0}/{1} • {2}",[index+1,list.length,modeText]);
+ statusElement.textContent=isTacticCategory(puzzleCategory)?t("{0} начинают. Найди лучший тактический ход.",[playerColor==="white"?t("Белые"):t("Чёрные")]):longPuzzle?t("{0} начинают. Найди форсирующий первый ход.",[playerColor==="white"?t("Белые"):t("Чёрные")]):t("Найди ход, после которого королю не спастись.");
  if(introductoryPuzzleIds.includes(puzzle.id)&&!completedPuzzles.has(puzzle.id)){
-  const pieceLabel={R:"ладьи",Q:"ферзя",P:"пешки"}[puzzle.piece];
-  statusElement.textContent=`Разминка: поставь мат одним ходом. Начни с ${pieceLabel} на ${square(...puzzle.from)}.`;
+  const pieceLabel={R:t("ладьи"),Q:t("ферзя"),P:t("пешки")}[puzzle.piece];
+  statusElement.textContent=t("Разминка: поставь мат одним ходом. Начни с {0} на {1}.",[pieceLabel,square(...puzzle.from)]);
  }
- resetButton.textContent="Повторить задачу";document.querySelector("#claim-draw").hidden=true;
+ resetButton.textContent=t("Повторить задачу");document.querySelector("#claim-draw").hidden=true;
  document.querySelector("#resign").hidden=true;document.querySelector("#next-puzzle").hidden=true;
  render();saveGameState();platformGameplayStart();
 }
@@ -1125,9 +1118,9 @@ function finishPuzzle(puzzle,to,message){
  finished=true;platformGameplayStop();render();renderMoveList();
  const firstSolve=markPuzzleComplete(puzzle.id);
  playScene("mate",{to,color:playerColor==="white"?"w":"b"},message);
- statusElement.textContent=firstSolve?"Верно! Задача решена и сохранена.":"Верно! Повтор пройден — энергия не тратилась.";
+ statusElement.textContent=firstSolve?t("Верно! Задача решена и сохранена."):t("Верно! Повтор пройден — энергия не тратилась.");
  const list=activePuzzles(),next=document.querySelector("#next-puzzle");
- next.textContent=puzzleIndex===list.length-1?"Начать задачи заново":"Следующая задача";
+ next.textContent=puzzleIndex===list.length-1?t("Начать задачи заново"):t("Следующая задача");
  next.hidden=false;saveGameState();
 }
 function playPuzzleMove(fr,fc,r,c,dragState=null,promotion=null){
@@ -1136,12 +1129,12 @@ function playPuzzleMove(fr,fc,r,c,dragState=null,promotion=null){
  const uci=from+to+(promotion||"");
  if(puzzleCategory==="mate1"){
   if(fr!==puzzle.from[0]||fc!==puzzle.from[1]||r!==puzzle.to[0]||c!==puzzle.to[1]){
-   dragState?.ghost?.remove();render();statusElement.textContent="Это не мат. Попробуй другой ход.";return;
+   dragState?.ghost?.remove();render();statusElement.textContent=t("Это не мат. Попробуй другой ход.");return;
   }
   const legal=chess.moves({square:from,verbose:true}).find(m=>m.to===to&&(!promotion||m.promotion===promotion));
   moving=true;animateMoveBeforeCommit(legal,()=>{
    chess.move({from,to,promotion:promotion||undefined});syncBoard();lastMove=chess.history({verbose:true}).at(-1);
-   finishPuzzle(puzzle,to,"Верно! Мат в один ход.");
+   finishPuzzle(puzzle,to,t("Верно! Мат в один ход."));
   },dragState);return;
  }
  if(!puzzleLine.length)puzzleLine=buildPuzzleLine(puzzle);
@@ -1149,34 +1142,34 @@ function playPuzzleMove(fr,fc,r,c,dragState=null,promotion=null){
  const expected=puzzleLine[expectedIndex];
  if(uci!==expected){
   dragState?.ghost?.remove();render();
-  statusElement.textContent=puzzleStep===0?"Неверный первый ход. Попробуй ещё раз.":isTacticCategory(puzzleCategory)?"Этот ход не продолжает комбинацию. Попробуй другой.":"Этот ход не продолжает форсированный мат. Попробуй другой.";
+  statusElement.textContent=puzzleStep===0?t("Неверный первый ход. Попробуй ещё раз."):isTacticCategory(puzzleCategory)?t("Этот ход не продолжает комбинацию. Попробуй другой."):t("Этот ход не продолжает форсированный мат. Попробуй другой.");
   return;
  }
  const legal=chess.moves({square:from,verbose:true}).find(m=>m.to===to&&(!promotion||m.promotion===promotion));
- if(!legal){dragState?.ghost?.remove();render();statusElement.textContent="Этот ход сейчас невозможен.";return}
+ if(!legal){dragState?.ghost?.remove();render();statusElement.textContent=t("Этот ход сейчас невозможен.");return}
  moving=true;animateMoveBeforeCommit(legal,()=>{
   const played=chess.move({from,to,promotion:promotion||undefined});syncBoard();lastMove=played;render();renderMoveList();
   const finalUserMove=expectedIndex===puzzleLine.length-1;
   if(finalUserMove){
    if(isTacticCategory(puzzleCategory)){
-    finishPuzzle(puzzle,to,`Верно! Тактика «${tacticLabels[puzzleCategory]||puzzle.label}» решена.`);return;
+    finishPuzzle(puzzle,to,t("Верно! Тактика «{0}» решена.",[tacticLabels[puzzleCategory]||puzzle.label]));return;
    }
-   if(!chess.isCheckmate()){moving=false;statusElement.textContent="Линия завершилась, но мат не подтверждён.";return}
-   finishPuzzle(puzzle,to,`Верно! Мат в ${puzzleMoveCount()} хода.`);return;
+   if(!chess.isCheckmate()){moving=false;statusElement.textContent=t("Линия завершилась, но мат не подтверждён.");return}
+   finishPuzzle(puzzle,to,t("Верно! Мат в {0} хода.",[puzzleMoveCount()]));return;
   }
   puzzleStep++;saveGameState();
-  statusElement.textContent="Верно. Соперник отвечает…";
+  statusElement.textContent=t("Верно. Соперник отвечает…");
   const replyUci=puzzleLine[puzzleStep*2];
   sceneAfter(450,()=>{
    const reply={from:replyUci.slice(0,2),to:replyUci.slice(2,4)};
    if(replyUci.length>4)reply.promotion=replyUci[4];
    const replyLegal=chess.moves({square:reply.from,verbose:true}).find(m=>m.to===reply.to&&(!reply.promotion||m.promotion===reply.promotion));
-   if(!replyLegal){moving=false;statusElement.textContent="Ошибка линии задачи: ответ соперника нелегален.";return}
+   if(!replyLegal){moving=false;statusElement.textContent=t("Ошибка линии задачи: ответ соперника нелегален.");return}
    moving=true;animateMoveBeforeCommit(replyLegal,()=>{
     const answered=chess.move(reply);syncBoard();lastMove=answered;render();renderMoveList();
     moving=false;
     const total=isTacticCategory(puzzleCategory)?Math.ceil((puzzleLine.length-1)/2):puzzleMoveCount();
-    statusElement.textContent=isTacticCategory(puzzleCategory)?"Ответ сделан. Продолжи комбинацию.":puzzleStep<total-1?`Ответ сделан. Найди ${puzzleStep===1?"второй":puzzleStep===2?"третий":puzzleStep===3?"четвёртый":"следующий"} форсирующий ход.`:"Ход соперника сделан. Теперь поставь мат.";
+    statusElement.textContent=isTacticCategory(puzzleCategory)?t("Ответ сделан. Продолжи комбинацию."):puzzleStep<total-1?t("Ответ сделан. Найди {0} форсирующий ход.",[puzzleStep===1?t("второй"):puzzleStep===2?t("третий"):puzzleStep===3?t("четвёртый"):t("следующий")]):t("Ход соперника сделан. Теперь поставь мат.");
     saveGameState();
    });
   });
@@ -1187,7 +1180,7 @@ function closePromotion(){pendingPromotion=null;document.querySelector("#promoti
 function needsPromotion(fr,fc,r,c){return chess.moves({square:square(fr,fc),verbose:true}).some(m=>m.to===square(r,c)&&m.promotion)}
 function requestPromotion(fr,fc,r,c){
  pendingPromotion={fr,fc,r,c};const choices=document.querySelector("#promotion-choices");choices.replaceChildren();
- for(const [code,label] of [["q","Ферзь"],["r","Ладья"],["b","Слон"],["n","Конь"]]){
+ for(const [code,label] of [["q",t("Ферзь")],["r",t("Ладья")],["b",t("Слон")],["n",t("Конь")]]){
   const button=document.createElement("button"),img=document.createElement("img"),caption=document.createElement("span");
   button.type="button";button.setAttribute("aria-label",label);img.src=getPieceSprite(names[code],playerColor);img.alt="";caption.textContent=label;
   button.append(img,caption);button.addEventListener("click",()=>{const m=pendingPromotion;closePromotion();if(gameMode==="puzzle")playPuzzleMove(m.fr,m.fc,m.r,m.c,null,code);else move(m.fr,m.fc,m.r,m.c,code)});choices.append(button);
@@ -1205,13 +1198,13 @@ function repetitionCount(){
  return count;
 }
 function drawState(){const n=Number(chess.fen().split(" ")[4]),reps=repetitionCount();return {
- automatic:n>=150?"75 ходов без взятия и хода пешкой":reps>=5?"пятикратное повторение позиции":null,
- claim:n>=100?"50 ходов без взятия и хода пешкой":reps>=3?"троекратное повторение позиции":null};}
+ automatic:n>=150?t("75 ходов без взятия и хода пешкой"):reps>=5?t("пятикратное повторение позиции"):null,
+ claim:n>=100?t("50 ходов без взятия и хода пешкой"):reps>=3?t("троекратное повторение позиции"):null};}
 function endMatch(result,message,awardEnergy=true){
  finished=true;platformGameplayStop();finalMessage=message;statusElement.textContent=message;
  document.querySelector("#claim-draw").hidden=true;document.querySelector("#resign").hidden=true;
  document.querySelector("#analysis-entry").hidden=false;recordResult(result);
- if(awardEnergy)addEnergy(1,"Партия завершена: +1 ⚡ энергии для задач.");
+ if(awardEnergy)addEnergy(1,t("Партия завершена: +1 ⚡ энергии для задач."));
  saveGameState();
 }
 function render(){
@@ -1220,7 +1213,7 @@ function render(){
   const r=playerColor==="white"?dr:7-dr,c=playerColor==="white"?dc:7-dc;
   const cell=document.createElement("button"),p=board[r][c],canGo=moves.some(m=>m.r===r&&m.c===c);
   cell.type="button";cell.className="square "+((r+c)%2?"square--dark":"square--light");
-  cell.setAttribute("role","gridcell");cell.setAttribute("aria-label",files[c]+(8-r)+(p?" "+p.color+" "+p.type:" пусто"));
+  cell.setAttribute("role","gridcell");cell.setAttribute("aria-label",files[c]+(8-r)+(p?" "+p.color+" "+p.type:t(" пусто")));
   if(lastMove?.from===square(r,c))cell.classList.add("square--last-from");
   if(lastMove?.to===square(r,c))cell.classList.add("square--last-to");
   if(selected&&selected.r===r&&selected.c===c)cell.classList.add("square--selected");
@@ -1275,7 +1268,7 @@ function onPointerDown(event){
  source.classList.add("square--drag-source");
  positionGhost(event);
  boardElement.setPointerCapture(event.pointerId);
- statusElement.textContent="Перетащи фигуру на подсвеченную клетку.";
+ statusElement.textContent=t("Перетащи фигуру на подсвеченную клетку.");
 }
 function positionGhost(event){
  if(!drag)return;
@@ -1326,7 +1319,7 @@ function onPointerUp(event){
   }
  }else{
   cancelDrag();selected=null;moves=[];render();
-  statusElement.textContent="Ход отменён. Возьми фигуру и перетащи её на другую клетку.";
+  statusElement.textContent=t("Ход отменён. Возьми фигуру и перетащи её на другую клетку.");
  }
 }
 boardElement.addEventListener("pointerdown",onPointerDown);
@@ -1369,37 +1362,37 @@ function move(fr,fc,r,c,promotion,dragState=null){
     loadPvpStats();
     finished=true;
     const won=(onlineStatus==="white_won"&&playerColor==="white")||(onlineStatus==="black_won"&&playerColor==="black");
-    const message=onlineStatus==="draw"?"Ничья.":won?"Шах и мат! Ты победил!":"Шах и мат! Соперник победил.";
+    const message=onlineStatus==="draw"?t("Ничья."):won?t("Шах и мат! Ты победил!"):t("Шах и мат! Соперник победил.");
     statusElement.textContent=message;
     if(chess.isCheckmate())playScene("mate",played,message);else showResult("draw",message);
    }else{
     const check=chess.isCheck();if(check)playScene("check",played);
-    statusElement.textContent="Ход отправлен. Ждём соперника…";
+    statusElement.textContent=t("Ход отправлен. Ждём соперника…");
    }
    return;
   }
   if(chess.isCheckmate()){
    if(gameMode==="hotseat"){
     finished=true;
-    const winner=played.color==="w"?"Игрок 1 (белые)":"Игрок 2 (чёрные)";
-    const message=`Шах и мат! Победил ${winner}.`;
+    const winner=played.color==="w"?t("Игрок 1 (белые)"):t("Игрок 2 (чёрные)");
+    const message=t("Шах и мат! Победил {0}.",[winner]);
     statusElement.textContent=message;saveGameState();playScene("mate",played,message);return;
    }
    const result=colorName(played.color)===playerColor?"wins":"losses";
-   const message=result==="wins"?"Шах и мат! Ты победил!":"Шах и мат! Компьютер победил!";
+   const message=result==="wins"?t("Шах и мат! Ты победил!"):t("Шах и мат! Компьютер победил!");
    endMatch(result,message);playScene("mate",played,message);return;
   }
   if(chess.isStalemate()){
    if(gameMode==="hotseat"){
-    finished=true;const message="Пат — ничья.";
+    finished=true;const message=t("Пат — ничья.");
     statusElement.textContent=message;saveGameState();playScene("stalemate",played,message);return;
    }
-   endMatch("draws","Пат — ничья.");playScene("stalemate",played,"Пат — ничья.");return;
+   endMatch("draws",t("Пат — ничья."));playScene("stalemate",played,t("Пат — ничья."));return;
   }
-  if(chess.isInsufficientMaterial()){const message="Ничья: мат невозможен при оставшихся фигурах.";if(gameMode==="hotseat"){finished=true;statusElement.textContent=message;saveGameState();showResult("draw",message)}else{endMatch("draws",message);showResult("draw",message)}return}
-  const draw=drawState();if(draw.automatic){const message=`Ничья: ${draw.automatic}.`;if(gameMode==="hotseat"){finished=true;statusElement.textContent=message;saveGameState();showResult("draw",message)}else{endMatch("draws",message);showResult("draw",message)}return}
+  if(chess.isInsufficientMaterial()){const message=t("Ничья: мат невозможен при оставшихся фигурах.");if(gameMode==="hotseat"){finished=true;statusElement.textContent=message;saveGameState();showResult("draw",message)}else{endMatch("draws",message);showResult("draw",message)}return}
+  const draw=drawState();if(draw.automatic){const message=t("Ничья: {0}.",[draw.automatic]);if(gameMode==="hotseat"){finished=true;statusElement.textContent=message;saveGameState();showResult("draw",message)}else{endMatch("draws",message);showResult("draw",message)}return}
   document.querySelector("#claim-draw").hidden=!(draw.claim&&turn===playerColor);
-  if(turn===botColor&&draw.claim){const message=`Компьютер заявил ничью: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message);return}
+  if(turn===botColor&&draw.claim){const message=t("Компьютер заявил ничью: {0}.",[draw.claim]);endMatch("draws",message);showResult("draw",message);return}
   const check=chess.isCheck();if(check)playScene("check",played);
   if(gameMode==="hotseat"){
    setHotseatPlayers();
@@ -1407,14 +1400,14 @@ function move(fr,fc,r,c,promotion,dragState=null){
    void boardElement.offsetWidth;
    boardElement.classList.add("board--turn-switch");
    statusElement.textContent=check
-    ?`Шах! Ход ${turn==="white"?"белых — Игрок 1":"чёрных — Игрок 2"}.`
-    :`Ход ${turn==="white"?"белых — Игрок 1":"чёрных — Игрок 2"}.`;
+    ?t("Шах! Ход {0}.",[turn==="white"?t("белых — Игрок 1"):t("чёрных — Игрок 2")])
+    :t("Ход {0}.",[turn==="white"?t("белых — Игрок 1"):t("чёрных — Игрок 2")]);
    saveGameState();return;
   }
   if(turn===botColor){
-   statusElement.textContent=check?"Шах компьютеру! Он думает…":played.captured?"Попадание! Компьютер думает…":"Компьютер думает…";
+   statusElement.textContent=check?t("Шах компьютеру! Он думает…"):played.captured?t("Попадание! Компьютер думает…"):t("Компьютер думает…");
    botTimer=setTimeout(botMove,check?1700:650);
-  }else statusElement.textContent=check?"Шах твоему королю! Защити его.":played.captured?"Компьютер взял фигуру! Твой ход.":"Твой ход.";
+  }else statusElement.textContent=check?t("Шах твоему королю! Защити его."):played.captured?t("Компьютер взял фигуру! Твой ход."):t("Твой ход.");
  },dragState);
 }
 function botMove(){
@@ -1518,13 +1511,13 @@ function resetReview(){
 function renderMoveList(){
  const list=document.querySelector("#moves-list");list.replaceChildren();
  const history=reviewMode?reviewMoves:chess.history({verbose:true});
- if(!history.length){const empty=document.createElement("p");empty.className="moves-empty";empty.textContent="Пока ходов нет";list.append(empty);return}
+ if(!history.length){const empty=document.createElement("p");empty.className="moves-empty";empty.textContent=t("Пока ходов нет");list.append(empty);return}
  for(let i=0;i<history.length;i+=2){
   const row=document.createElement("div");row.className="moves-row";
   const number=document.createElement("span");number.className="moves-row__number";number.textContent=`${Math.floor(i/2)+1}.`;row.append(number);
   for(let j=i;j<Math.min(i+2,history.length);j++){
    const item=document.createElement("button");item.type="button";item.className="moves-row__move";
-   item.textContent=history[j].san;item.title=`Ход ${j+1}: ${history[j].san}`;
+   item.textContent=history[j].san;item.title=t("Ход {0}: {1}",[j+1,history[j].san]);
    item.disabled=!reviewMode;
    if(reviewMode&&reviewPly===j+1)item.classList.add("is-current");
    item.addEventListener("click",()=>setReviewPly(j+1));row.append(item);
@@ -1540,7 +1533,7 @@ function setReviewPly(ply){
  for(let i=0;i<reviewPly;i++){const m=reviewMoves[i];replay.move({from:m.from,to:m.to,promotion:m.promotion})}
  board=replay.board().map(row=>row.map(p=>p&&{type:names[p.type],color:colorName(p.color)}));
  lastMove=reviewMoves[reviewPly-1]||null;selected=null;moves=[];render();renderMoveList();
- document.querySelector("#review-position").textContent=reviewPly?`Ход ${Math.ceil(reviewPly/2)}: ${lastMove.san}`:"Начальная позиция";
+ document.querySelector("#review-position").textContent=reviewPly?t("Ход {0}: {1}",[Math.ceil(reviewPly/2),lastMove.san]):t("Начальная позиция");
  for(const [id,disabled] of [["#review-first",!reviewPly],["#review-prev",!reviewPly],["#review-next",reviewPly===reviewMoves.length],["#review-last",reviewPly===reviewMoves.length]])document.querySelector(id).disabled=disabled;
 }
 function openReview(){
@@ -1548,7 +1541,7 @@ function openReview(){
  clearScene();reviewMoves=chess.history({verbose:true});reviewStartFen=reviewMoves[0]?.before||chess.fen();reviewMode=true;
  document.querySelector("#analysis-entry").hidden=true;document.querySelector("#review-controls").hidden=false;
  setReviewPly(reviewMoves.length);
- statusElement.textContent="Разбор партии: выбирай ход в записи или листай стрелками.";
+ statusElement.textContent=t("Разбор партии: выбирай ход в записи или листай стрелками.");
  document.querySelector("#review-controls").scrollIntoView?.({block:"nearest",behavior:"smooth"});
 }
 function closeReview(){
@@ -1669,8 +1662,8 @@ function kingCell(squareName){
 }
 function showResult(kind,message){
  const panel=document.querySelector("#result-panel");panel.className=`result-panel result-panel--${kind}`;
- document.querySelector("#result-eyebrow").textContent=kind==="mate"?"БИТВА ОКОНЧЕНА":kind==="stalemate"?"ХОДОВ БОЛЬШЕ НЕТ":"ПАРТИЯ ЗАВЕРШЕНА";
- document.querySelector("#result-title").textContent=kind==="mate"?"ШАХ И МАТ!":kind==="stalemate"?"ПАТ!":kind==="resign"?"ПОРАЖЕНИЕ":"НИЧЬЯ";
+ document.querySelector("#result-eyebrow").textContent=kind==="mate"?t("БИТВА ОКОНЧЕНА"):kind==="stalemate"?t("ХОДОВ БОЛЬШЕ НЕТ"):t("ПАРТИЯ ЗАВЕРШЕНА");
+ document.querySelector("#result-title").textContent=kind==="mate"?t("ШАХ И МАТ!"):kind==="stalemate"?t("ПАТ!"):kind==="resign"?t("ПОРАЖЕНИЕ"):t("НИЧЬЯ");
  document.querySelector("#result-detail").textContent=message;
  document.querySelector("#result-analysis").hidden=gameMode!=="match";
  document.querySelector("#result-new").hidden=gameMode!=="match";
@@ -1681,12 +1674,12 @@ function playScene(kind,played,message){
  const king=kingSquare(),cell=kingCell(king);
  if(kind!=="stalemate"){
   const attackers=king?chess.attackers(king,played.color):[];
-  sceneAnchor(attackers.includes(played.to)?played.to:attackers[0]||played.to,"scene-bubble scene-bubble--attack",kind==="mate"?"ШАХ И МАТ!":"ШАХ!");
-  sceneAnchor(king,"scene-bubble scene-bubble--king",kind==="mate"?"А-а-а!":"Ой! Шах!");
+  sceneAnchor(attackers.includes(played.to)?played.to:attackers[0]||played.to,"scene-bubble scene-bubble--attack",kind==="mate"?t("ШАХ И МАТ!"):t("ШАХ!"));
+  sceneAnchor(king,"scene-bubble scene-bubble--king",kind==="mate"?t("А-а-а!"):t("Ой! Шах!"));
   cell?.classList.add("square--fear");
 
  }else{
-  sceneAnchor(king,"scene-bubble scene-bubble--king","Ходить некуда…");
+  sceneAnchor(king,"scene-bubble scene-bubble--king",t("Ходить некуда…"));
   cell?.classList.add("square--fear");playDramaSound("stalemate");
  }
  if(kind==="check"){
@@ -1801,7 +1794,7 @@ function startPuzzleWithEnergy(index,category=puzzleCategory){
  const freeIntroduction=introductoryFreePlay()||introductoryPuzzleIds.includes(puzzle.id);
  if(!freeReplay&&!freeIntroduction&&!spendEnergy(1))return false;
  showScreen("game");startPuzzle(index);
- if(freeReplay)statusElement.textContent="Эта задача уже решена — повтор бесплатный.";
+ if(freeReplay)statusElement.textContent=t("Эта задача уже решена — повтор бесплатный.");
  return true;
 }
 
@@ -1812,7 +1805,7 @@ for(let level=1;level<=6;level++){
  button.type="button";
  button.textContent=difficultyNames[level-1];
  button.dataset.level=String(level);
- button.setAttribute("aria-label",`Сложность: ${difficultyNames[level-1]}`);
+ button.setAttribute("aria-label",t("Сложность: {0}",[difficultyNames[level-1]]));
  button.addEventListener("click",()=>{
   difficultyLevel=level;
   document.querySelector("#level-value").textContent=difficultyNames[level-1];
@@ -1895,7 +1888,7 @@ function requestRewardedEnergy(){
  if(!canOfferEnergyAd())return;
  const sdk=window.YandexPlatform?.ysdk||window.ysdk;
  if(gameMode==="online"&&gameStarted&&!finished){
-  renderEnergy("Во время онлайн-партии реклама недоступна.");
+  renderEnergy(t("Во время онлайн-партии реклама недоступна."));
   return;
  }
  if(sdk?.adv?.showRewardedVideo){
@@ -1903,18 +1896,18 @@ function requestRewardedEnergy(){
   setPauseReason("ad",true);
   let rewarded=false;
   const closeAd=()=>setPauseReason("ad",false);
-  const adError=()=>{renderEnergy("Реклама сейчас недоступна. Попробуй позже.");closeAd()};
+  const adError=()=>{renderEnergy(t("Реклама сейчас недоступна. Попробуй позже."));closeAd()};
   try{
    sdk.adv.showRewardedVideo({callbacks:{
     onOpen:()=>setPauseReason("ad",true),
-    onRewarded:()=>{if(!rewarded){rewarded=true;addEnergy(3,"Реклама просмотрена: +3 ⚡ энергии.");saveCloudProgressNow()}},
+    onRewarded:()=>{if(!rewarded){rewarded=true;addEnergy(10,t("Реклама просмотрена: +10 ⚡ энергии."));saveCloudProgressNow()}},
     onClose:closeAd,
     onError:adError
    }});
   }catch(error){adError()}
 
  }else{
-  renderEnergy("Реклама доступна в версии игры на Яндекс Играх.");
+  renderEnergy(t("Реклама доступна в версии игры на Яндекс Играх."));
  }
 }
 document.querySelector("#energy-ad").addEventListener("click",requestRewardedEnergy);
@@ -1924,8 +1917,8 @@ for(const screen of Object.values(screens))screen.inert=true;
 accountReady.finally(()=>{for(const screen of Object.values(screens))screen.inert=false});
 setInterval(()=>{tickIntroduction();renderEnergy()},1000);
 
-document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!=="match"||finished||moving||turn!==playerColor)return;const draw=drawState();if(draw.claim){const message=`Ничья по заявлению: ${draw.claim}.`;endMatch("draws",message);showResult("draw",message)}});
-document.querySelector("#promotion-cancel").addEventListener("click",()=>{closePromotion();render();statusElement.textContent="Превращение отменено. Выбери ход снова."});
+document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!=="match"||finished||moving||turn!==playerColor)return;const draw=drawState();if(draw.claim){const message=t("Ничья по заявлению: {0}.",[draw.claim]);endMatch("draws",message);showResult("draw",message)}});
+document.querySelector("#promotion-cancel").addEventListener("click",()=>{closePromotion();render();statusElement.textContent=t("Превращение отменено. Выбери ход снова.")});
 window.addEventListener("keydown",e=>{if(e.key==="Escape"&&pendingPromotion){closePromotion();render()}});
 
 document.querySelector("#analysis-entry").addEventListener("click",openReview);
@@ -1935,7 +1928,7 @@ document.querySelector("#result-next").addEventListener("click",()=>{const list=
 document.querySelector("#result-menu").addEventListener("click",()=>document.querySelector("#back-menu").click());
 document.querySelector("#resign").addEventListener("click",()=>{
  if(!gameStarted||finished||gameMode!=="match")return;
- clearTimeout(botTimer);cancelMotion();clearScene();const message="Ты сдался. Победа компьютера.";
+ clearTimeout(botTimer);cancelMotion();clearScene();const message=t("Ты сдался. Победа компьютера.");
  endMatch("losses",message,false);showResult("resign",message);
 });
 for(const [id,position] of [["#review-first",0],["#review-prev",-1],["#review-next",1],["#review-last",Infinity]])
@@ -1943,11 +1936,11 @@ for(const [id,position] of [["#review-first",0],["#review-prev",-1],["#review-ne
 document.querySelector("#review-close").addEventListener("click",closeReview);
 document.querySelector("#copy-pgn").addEventListener("click",async()=>{
  const pgn=chess.pgn();
- try{await navigator.clipboard.writeText(pgn);document.querySelector("#copy-pgn").textContent="PGN скопирован"}
+ try{await navigator.clipboard.writeText(pgn);document.querySelector("#copy-pgn").textContent=t("PGN скопирован")}
  catch{
   const file=new Blob([pgn],{type:"application/x-chess-pgn;charset=utf-8"}),url=URL.createObjectURL(file),link=document.createElement("a");
   link.href=url;link.download="partiya.pgn";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-  document.querySelector("#copy-pgn").textContent="PGN скачан";
+  document.querySelector("#copy-pgn").textContent=t("PGN скачан");
  }
 });
 
@@ -1959,7 +1952,14 @@ window.addEventListener("pagehide",()=>{
  }catch{}
 });
 restoreSession();
-accountReady.then(()=>window.YandexPlatform?.gameReady?.()).catch(error=>console.warn("Game Ready failed:",error));
+// Game Ready also waits for the artwork on the currently visible screen.
+const initialArtworkReady=Promise.all([...currentScreenElement().querySelectorAll("img")].map(image=>
+ image.complete?Promise.resolve():new Promise(resolve=>{
+  image.addEventListener("load",resolve,{once:true});
+  image.addEventListener("error",resolve,{once:true});
+ })
+));
+Promise.all([accountReady,initialArtworkReady]).then(()=>window.YandexPlatform?.gameReady?.()).catch(error=>console.warn("Game Ready failed:",error));
 
 
 function fitGameBoard(){

@@ -1699,3 +1699,14 @@ body{
  .welcome h1{font-size:30px}.welcome__actions p{margin-bottom:8px;font-size:14px}
  .welcome__button{padding:10px 20px}
 }
+
+.language-picker {
+ position:fixed;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));
+ z-index:30;display:flex;align-items:center;gap:8px;padding:8px 12px;
+ color:#f1d39a;background:rgba(22,16,13,.94);border:1px solid #b78a45;border-radius:12px;
+ font:14px Georgia,serif;box-shadow:0 3px 16px #0006;
+}
+.language-picker[hidden]{display:none}
+.language-picker select{max-width:125px;color:#f1d39a;background:#261b14;border:1px solid #b78a45;border-radius:7px;padding:6px;font:inherit;cursor:pointer}
+.language-picker select:focus-visible{outline:2px solid #f1d39a;outline-offset:3px}
+@media(max-width:400px){.language-picker{gap:5px;padding:5px 8px;font-size:12px;top:8px;right:8px}}

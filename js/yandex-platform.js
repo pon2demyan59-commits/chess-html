@@ -10,6 +10,14 @@
   };
 
   let initPromise = null, readyPromise = null;
+  // Optional account services must not leave the playable UI locked forever.
+  function withTimeout(operation, milliseconds = 6000) {
+    let timer;
+    return Promise.race([
+      Promise.resolve(operation),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("Yandex service timed out")), milliseconds); })
+    ]).finally(() => clearTimeout(timer));
+  }
   function initSdk() {
     if (!initPromise) initPromise = initializeSdk().catch(error => { initPromise = null; throw error; });
     return initPromise;
@@ -23,13 +31,14 @@
       return state;
     }
 
-    const ysdk = await window.YaGames.init();
+    const ysdk = await withTimeout(window.YaGames.init(), 8000);
     state.ysdk = ysdk;
     window.ysdk = ysdk;
     const platformLang = ysdk.environment?.i18n?.lang || "ru";
-    const supportedLanguages = ["ru"];
+    const supportedLanguages = ["ru", "en", "es", "de"];
+    window.ChessI18n?.usePlatformLanguage(platformLang);
     state.platformLang = platformLang;
-    state.lang = supportedLanguages.includes(platformLang) ? platformLang : "ru";
+    state.lang = window.ChessI18n?.language || (supportedLanguages.includes(platformLang) ? platformLang : "en");
     document.documentElement.lang = state.lang;
     document.documentElement.dataset.yandexLang = state.lang;
     document.documentElement.dataset.yandexPlatformLang = platformLang;
@@ -46,7 +55,7 @@
     ysdk.on?.("game_api_resume", resume);
 
     try {
-      state.player = await ysdk.getPlayer();
+      state.player = await withTimeout(ysdk.getPlayer());
     } catch (error) {
       console.warn("Yandex Player initialization failed:", error);
     }
@@ -86,7 +95,7 @@
     await initSdk();
     if (!state.ysdk) return null;
     try {
-      state.player = await state.ysdk.getPlayer();
+      state.player = await withTimeout(state.ysdk.getPlayer());
       return state.player;
     } catch {
       return null;
@@ -111,7 +120,7 @@
   async function getCloudProgress() {
     const player = state.player || await refreshPlayer();
     if (!player?.isAuthorized?.()) return null;
-    const data = await player.getData(["chess_progress"]);
+    const data = await withTimeout(player.getData(["chess_progress"]));
     return data?.chess_progress || null;
   }
 
