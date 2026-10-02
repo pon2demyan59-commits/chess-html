@@ -858,7 +858,16 @@ function selectOnlineTimeControl(control){
  if(!onlineTimeControls[control])return;
  selectedOnlineTimeControl=control;
  try{localStorage.setItem(onlineTimeControlKey,control)}catch{}
- document.querySelectorAll("[data-time-control]").forEach(button=>button.classList.toggle("is-selected",button.dataset.timeControl===control));
+ document.querySelectorAll("[data-time-control]").forEach(button=>{
+  const selected=button.dataset.timeControl===control;
+  button.classList.toggle("is-selected",selected);
+  button.setAttribute("aria-pressed",String(selected));
+ });
+ document.querySelector("#online-selected-format").textContent=onlineTimeControls[control].label;
+}
+function setOnlineSearching(searching){
+ document.querySelector(".online-modal__card").dataset.searching=String(searching);
+ document.querySelectorAll("[data-time-control]").forEach(button=>button.disabled=searching);
 }
 async function ensureOnlineAuth(){
  if(!supabaseClient)throw new Error(t("Supabase не загрузился"));
@@ -869,6 +878,7 @@ async function ensureOnlineAuth(){
  return data.user;
 }
 function openOnlineModal(){
+ setOnlineSearching(false);
  const nickname=getPlayerNickname();
  if(!nickname){openProfileModal();return}
  const modal=document.querySelector("#online-modal");
@@ -879,6 +889,7 @@ function openOnlineModal(){
  document.querySelector("#online-search").hidden=false;
 }
 async function cancelOnlineSearch(close=true){
+ setOnlineSearching(false);
  clearInterval(matchmakingTimer);matchmakingTimer=null;onlinePolling=false;
  try{if(supabaseClient)await supabaseClient.rpc("cancel_matchmaking")}catch{}
  document.querySelector("#online-waiting").hidden=true;
@@ -914,6 +925,7 @@ async function beginOnlineSearch(){
  requestMobileFullscreen();
  const nickname=getPlayerNickname();
  if(!nickname){document.querySelector("#online-modal").hidden=true;openProfileModal();return}
+ setOnlineSearching(true);
  document.querySelector("#online-search").hidden=true;
  document.querySelector("#online-waiting").hidden=false;
  document.querySelector("#online-status").textContent=t("Подключаемся…");

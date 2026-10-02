@@ -1738,3 +1738,53 @@ body{
 html[data-piece-theme="classic"] .square--light{background:#f0d9b5}
 html[data-piece-theme="classic"] .square--dark{background:#b78a62}
 html[data-piece-theme="classic"] .square--selected{background:#b1aa50}
+
+/* Online duel lobby. */
+.online-modal{background:radial-gradient(ellipse at center,#1d263c99,#050912f2);backdrop-filter:blur(12px)}
+.online-modal__card{width:min(100%,720px);padding:26px 30px;border:1px solid #c7a56877;border-radius:26px;background:radial-gradient(ellipse at 50% 0,#dcb96b17,transparent 50%),linear-gradient(145deg,#182637,#101823 65%,#241f22);box-shadow:0 32px 100px #000c,inset 0 1px #ffe7b528;text-align:center}
+.online-modal__close{display:grid;place-items:center;top:14px;right:14px;width:34px;height:34px;border:1px solid #c3ab7840;border-radius:50%;background:#ffffff06;font-size:23px;transition:background .2s}
+.online-modal__close:hover{background:#ffffff16}
+.online-modal__duel-art{display:flex;align-items:center;justify-content:center;gap:22px;margin:0 auto 10px;height:76px}
+.online-modal__duel-art img{height:76px;width:76px;object-fit:contain;filter:drop-shadow(0 8px 9px #0009)}
+.online-modal__duel-art img:first-child{transform:rotate(-9deg)}
+.online-modal__duel-art img:last-child{transform:rotate(9deg)}
+.online-modal__duel-art span{font-size:31px;color:#e6bf76;text-shadow:0 0 24px #e5b66966}
+.online-modal .eyebrow{font-size:10px;letter-spacing:.22em;color:#bcaa82;margin:6px 0}
+.online-modal h2{font-size:clamp(27px,4vw,38px);margin:4px 0 14px;line-height:1.1}
+.online-modal__lead{font-size:11px;margin:0 0 5px;color:#94a1b1}
+.online-modal__nickname{width:fit-content;margin:0 auto 18px;padding:8px 18px;border:1px solid #c6aa6933;border-radius:30px;background:#060e1880;max-width:100%;overflow-wrap:anywhere}
+.time-control-picker{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 16px;margin:18px 0;text-align:left}
+.time-control-group{gap:9px}
+.time-control-group>span{font-size:10px;letter-spacing:.18em;color:#c4b18a;padding-left:3px}
+.time-control-group:last-child{grid-column:1/-1}
+.time-control-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.time-control-grid--single{grid-template-columns:1fr}
+.time-control-grid button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:82px;padding:12px 5px;border:1px solid #778b9d40;border-radius:13px;background:linear-gradient(145deg,#25384a80,#121e2b);color:#e7e3d7;transition:transform .18s,border-color .18s,box-shadow .18s}
+.time-control-grid button:hover:not(:disabled){transform:translateY(-3px);border-color:#c9a96799;filter:none}
+.time-control-grid button.is-selected{border-color:#edc677;background:linear-gradient(135deg,#6b4d293d,#333d40);box-shadow:0 0 0 2px #e5bc6819,inset 0 1px #f7d78733;color:#ffe6b1}
+.time-control-grid button.is-selected::after{content:'✓';position:absolute;top:4px;right:6px;font:700 10px system-ui;color:#edc677}
+.time-control-grid strong{font:700 24px Georgia,serif;letter-spacing:.02em}
+.time-control-grid small{font-size:10px;line-height:1.4;text-align:center;color:#9cabb9}
+.time-control-grid--single button{min-height:58px;flex-direction:row;gap:14px}
+.online-modal__selection{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:12px 15px;border:1px solid #c0a87926;border-radius:10px;background:#080f1880}
+.online-modal__selection span{color:#8f9fb0;font-size:11px}
+.online-modal__selection strong{color:#e8d3a6;font:700 13px system-ui;text-align:right}
+.online-modal__search{display:flex;align-items:center;justify-content:center;gap:15px;min-height:52px;margin-top:16px;border-radius:12px;border:1px solid #ffe0a2;background:linear-gradient(110deg,#e4b965,#f4d998 50%,#c89243);font:800 18px Georgia,serif;box-shadow:0 4px 0 #704923,0 8px 24px #d2a45623;transition:filter .18s,transform .18s}
+.online-modal__search:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.online-modal__search:active{transform:translateY(2px)}
+.online-modal__card[data-searching="true"] .time-control-picker{display:none}
+.online-waiting{gap:12px;margin:20px 0 4px;padding:24px 14px;border:1px solid #b49b6230;border-radius:18px;background:radial-gradient(ellipse at center,#d9b15d0d,transparent 70%),#07101c55}
+.online-waiting__spinner{width:68px;height:68px;border-width:2px;border-color:#d1b17424;border-top-color:#f7d58e;box-shadow:0 0 26px #d1a75114}
+#online-wait-time{font:500 35px monospace;letter-spacing:.08em;color:#f0d497}
+.online-waiting small{max-width:400px;line-height:1.5}
+.online-waiting button{margin-top:5px;padding:10px 20px;border:1px solid #bba5784d;border-radius:10px;background:#1e2b3c;color:#d5dce3;font-size:13px}
+.online-modal button:focus-visible{outline:2px solid #ffe1a0;outline-offset:3px}
+@media(max-width:560px){
+ .online-modal{padding:10px}.online-modal__card{padding:20px 14px;border-radius:20px;max-height:calc(100dvh - 20px)}
+ .online-modal__duel-art{height:62px;gap:16px}.online-modal__duel-art img{width:62px;height:62px}
+ .time-control-picker{grid-template-columns:1fr;gap:12px}.time-control-group:last-child{grid-column:auto}
+ .time-control-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.time-control-grid--single{grid-template-columns:1fr}
+ .time-control-grid button{min-height:69px;padding:9px 4px}.time-control-grid strong{font-size:22px}.time-control-grid small{font-size:9px}
+ .online-modal__nickname{margin-bottom:12px}.online-modal__selection{padding:10px;gap:8px}
+}
+@media(prefers-reduced-motion:reduce){.time-control-grid button,.online-modal__search{transition:none}.online-waiting__spinner{animation:none}}
