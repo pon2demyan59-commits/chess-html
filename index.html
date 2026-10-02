@@ -6,17 +6,28 @@
   <title>Шахматы в свободное время</title>
   <script src="/sdk.js"></script>
   <link rel="stylesheet" href="css/style.css">
+  <script src="js/translations.js" defer></script>
+  <script src="js/i18n.js" defer></script>
   <script src="js/yandex-platform.js" defer></script>
   <script src="vendor/chess.js/chess.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="vendor/supabase/supabase-2.117.2.js" defer></script>
   <script src="js/mate2-puzzles.js" defer></script>
   <script src="js/mate3-puzzles.js" defer></script>
   <script src="js/mate4-puzzles.js" defer></script>
   <script src="js/mate5-puzzles.js" defer></script>
   <script src="js/tactics-puzzles.js" defer></script>
-  <script src="js/game.js" defer></script>
+  <script src="js/start-game.js" defer></script>
 </head>
 <body>
+  <label id="language-picker" class="language-picker">
+    <span>Язык</span>
+    <select data-language-select aria-label="Язык игры">
+      <option value="ru">Русский</option>
+      <option value="en">English</option>
+      <option value="es">Español</option>
+      <option value="de">Deutsch</option>
+    </select>
+  </label>
   <main id="welcome" class="welcome">
     <picture class="welcome__art">
       <source media="(max-width: 700px)" srcset="assets/intro/poster-mobile.webp">
@@ -89,14 +100,14 @@
             <span class="energy-card__icon" aria-hidden="true">⚡</span>
             <div>
               <small>Энергия</small>
-              <strong><span id="energy-value">6</span>/<span id="energy-max">6</span></strong>
+              <strong><span id="energy-value">50</span>/<span id="energy-max">50</span></strong>
             </div>
           </div>
           <p id="energy-note" class="energy-note">Энергия расходуется только на задачи. +1 ⚡ автоматически каждые 30 минут и +1 ⚡ за завершённую партию.</p>
           <small id="energy-timer" class="energy-timer">Запас энергии полный</small>
           <button id="puzzle-entry" class="puzzle-hero__play" type="button">Открыть задачи</button>
-          <button id="energy-ad" class="puzzle-hero__ad" type="button">Получить +3 ⚡ за рекламу</button>
-          <small class="puzzle-hero__adnote">Смотри рекламу по желанию и получай +3 ⚡ энергии.</small>
+          <button id="energy-ad" class="puzzle-hero__ad" type="button">Получить +10 ⚡ за рекламу</button>
+          <small class="puzzle-hero__adnote">Смотри рекламу по желанию и получай +10 ⚡ энергии.</small>
         </div>
       </section>
 
@@ -114,7 +125,7 @@
             <strong>Наш стиль</strong><small>Фэнтези</small>
           </button>
           <button class="piece-style-option" type="button" data-piece-theme="classic" aria-pressed="false">
-            <span class="piece-style-option__preview piece-style-option__preview--classic">♔♞</span>
+            <span class="piece-style-option__preview piece-style-option__preview--classic"><img src="assets/pieces/classic/white-king.svg" alt=""><img src="assets/pieces/classic/black-knight.svg" alt=""></span>
             <strong>Классика</strong><small>Турнирный</small>
           </button>
           <button class="piece-style-option" type="button" data-piece-theme="wood" aria-pressed="false">
@@ -197,7 +208,7 @@
   <div id="online-modal" class="online-modal" hidden>
     <div class="online-modal__card" role="dialog" aria-modal="true" aria-labelledby="online-title">
       <button id="online-close" class="online-modal__close" type="button" aria-label="Закрыть">×</button>
-      <span class="online-modal__crest" aria-hidden="true">⚔</span>
+      <div class="online-modal__duel-art" aria-hidden="true"><img src="assets/pieces/classic/white-king.svg" alt=""><span>⚔</span><img src="assets/pieces/classic/black-king.svg" alt=""></div>
       <p class="eyebrow">ОНЛАЙН-ПОЕДИНОК</p>
       <h2 id="online-title">Найти соперника</h2>
       <p class="online-modal__lead">Поиск будет запущен от имени:</p>
@@ -209,27 +220,28 @@
         <div class="time-control-group">
           <span>БЛИЦ</span>
           <div class="time-control-grid">
-            <button type="button" data-time-control="blitz3_2"><strong>3+2</strong><small>3 мин + 2 сек/ход</small></button>
-            <button type="button" data-time-control="blitz5_0"><strong>5+0</strong><small>5 минут</small></button>
-            <button type="button" data-time-control="blitz5_3"><strong>5+3</strong><small>5 мин + 3 сек/ход</small></button>
+            <div class="time-control-option"><button type="button" data-time-control="blitz3_2"><strong>3+2</strong><small>3 мин + 2 сек/ход</small></button><button class="time-control-search" type="button" data-search-control="blitz3_2">Искать <span aria-hidden="true">→</span></button></div>
+            <div class="time-control-option"><button type="button" data-time-control="blitz5_0"><strong>5+0</strong><small>5 минут</small></button><button class="time-control-search" type="button" data-search-control="blitz5_0">Искать <span aria-hidden="true">→</span></button></div>
+            <div class="time-control-option"><button type="button" data-time-control="blitz5_3"><strong>5+3</strong><small>5 мин + 3 сек/ход</small></button><button class="time-control-search" type="button" data-search-control="blitz5_3">Искать <span aria-hidden="true">→</span></button></div>
           </div>
         </div>
         <div class="time-control-group">
           <span>РАПИД</span>
           <div class="time-control-grid">
-            <button type="button" data-time-control="rapid10_0"><strong>10+0</strong><small>10 минут</small></button>
-            <button type="button" data-time-control="rapid10_5"><strong>10+5</strong><small>10 мин + 5 сек/ход</small></button>
-            <button type="button" data-time-control="rapid15_10"><strong>15+10</strong><small>15 мин + 10 сек/ход</small></button>
+            <div class="time-control-option"><button type="button" data-time-control="rapid10_0"><strong>10+0</strong><small>10 минут</small></button><button class="time-control-search" type="button" data-search-control="rapid10_0">Искать <span aria-hidden="true">→</span></button></div>
+            <div class="time-control-option"><button type="button" data-time-control="rapid10_5"><strong>10+5</strong><small>10 мин + 5 сек/ход</small></button><button class="time-control-search" type="button" data-search-control="rapid10_5">Искать <span aria-hidden="true">→</span></button></div>
+            <div class="time-control-option"><button type="button" data-time-control="rapid15_10"><strong>15+10</strong><small>15 мин + 10 сек/ход</small></button><button class="time-control-search" type="button" data-search-control="rapid15_10">Искать <span aria-hidden="true">→</span></button></div>
           </div>
         </div>
         <div class="time-control-group">
           <span>СТАНДАРТ</span>
           <div class="time-control-grid time-control-grid--single">
-            <button class="is-selected" type="button" data-time-control="standard30"><strong>30 сек</strong><small>на каждый ход</small></button>
+            <div class="time-control-option"><button class="is-selected" type="button" data-time-control="standard30"><strong>30 сек</strong><small>на каждый ход</small></button><button class="time-control-search" type="button" data-search-control="standard30">Искать <span aria-hidden="true">→</span></button></div>
           </div>
         </div>
       </div>
-      <button id="online-search" class="online-modal__search" type="button">Начать поиск</button>
+      <div class="online-modal__selection"><span>Выбранный формат</span><strong id="online-selected-format"></strong></div>
+      <button id="online-search" class="online-modal__search" type="button"><span aria-hidden="true">⚔</span> Начать поиск <span aria-hidden="true">→</span></button>
       <div id="online-waiting" class="online-waiting" hidden>
         <span class="online-waiting__spinner" aria-hidden="true"></span>
         <strong>Ищем соперника…</strong>
@@ -247,9 +259,9 @@
         <p>Выбери направление тренировки. Решённые задачи можно повторять без энергии.</p>
         <div class="puzzles-energy">
           <span aria-hidden="true">⚡</span>
-          <strong><span id="puzzles-energy-value">6</span>/<span id="puzzles-energy-max">6</span></strong>
+          <strong><span id="puzzles-energy-value">50</span>/<span id="puzzles-energy-max">50</span></strong>
           <small id="puzzles-energy-timer">Запас энергии полный</small>
-          <button id="puzzles-energy-ad" type="button">+3 ⚡ за рекламу</button>
+          <button id="puzzles-energy-ad" type="button">+10 ⚡ за рекламу</button>
         </div>
         <p id="puzzles-energy-message" class="puzzles-energy-message">Энергия расходуется только на новые задачи. +1 ⚡ автоматически каждые 30 минут и +1 ⚡ за завершённую партию. Решённые задачи можно повторять бесплатно.</p>
       </header>
@@ -598,4 +610,3 @@
   </main>
 </body>
 </html>
-
