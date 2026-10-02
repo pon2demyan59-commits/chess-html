@@ -1710,3 +1710,31 @@ body{
 .language-picker select{max-width:125px;color:#f1d39a;background:#261b14;border:1px solid #b78a45;border-radius:7px;padding:6px;font:inherit;cursor:pointer}
 .language-picker select:focus-visible{outline:2px solid #f1d39a;outline-offset:3px}
 @media(max-width:400px){.language-picker{gap:5px;padding:5px 8px;font-size:12px;top:8px;right:8px}}
+
+/* Let the board occupy all of the remaining viewport, rather than a 1130px shell. */
+.game{width:100%;max-width:none}
+.piece-style-option__preview--classic{display:flex;align-items:center;justify-content:center}
+.piece-style-option__preview--classic img{width:48%;height:90%;object-fit:contain}
+@media(min-width:801px),(max-height:540px) and (orientation:landscape){
+ .game__panel{display:grid;grid-template-columns:minmax(0,1fr) clamp(200px,22vw,300px);grid-template-rows:auto auto minmax(60px,1fr) auto auto;grid-template-areas:"board opponent" "board human" "board moves" "board status" "board actions";gap:8px 12px}
+ .game__arena{display:contents}
+ .game__arena .board-stage{grid-area:board;align-self:center;justify-self:center;max-width:100%}
+ .game__arena .moves-panel{grid-area:moves;width:100%;max-width:none;height:auto;min-height:0;flex:none}
+ .player--opponent{grid-area:opponent}.player--human{grid-area:human}
+ .player{width:100%;margin:0;padding:5px 8px}
+ .status{grid-area:status;margin:0;overflow-wrap:anywhere}
+ .game__actions{grid-area:actions;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .game__actions button{min-width:0;white-space:normal}
+ .game__actions #back-menu{grid-column:1/-1}
+}
+@media(max-width:800px) and (min-height:541px),(max-width:540px) and (orientation:portrait){
+ .game__arena .moves-panel{flex-basis:44px;height:44px}
+ .game__arena .moves-panel h3{display:none}
+}
+@media(min-width:801px),(max-height:540px) and (orientation:landscape){
+ .game__arena .moves-list{display:block;overflow-x:hidden;overflow-y:auto;touch-action:pan-y}
+ .game__arena .moves-row{min-width:0;margin:0 0 6px;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr)}
+}
+html[data-piece-theme="classic"] .square--light{background:#f0d9b5}
+html[data-piece-theme="classic"] .square--dark{background:#b78a62}
+html[data-piece-theme="classic"] .square--selected{background:#b1aa50}

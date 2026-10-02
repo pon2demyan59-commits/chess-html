@@ -1747,6 +1747,7 @@ function playMetalClash(){
 // Картинки генерируются как SVG с прозрачным фоном, поэтому не требуют внешних файлов.
 function getPieceSprite(type,color){
  const key=color+"-"+type;
+ if(pieceTheme==="classic")return `assets/pieces/classic/${key}.svg`;
  if(pieceTheme!=="fantasy")return themedGlyphSprite(type,color,pieceTheme);
  if(customSprites[key])return customSprites[key];
  if(spriteCache[key])return spriteCache[key];
@@ -1965,13 +1966,27 @@ Promise.all([accountReady,initialArtworkReady]).then(()=>window.YandexPlatform?.
 function fitGameBoard(){
  if(screens.game.hidden)return;
  const arena=document.querySelector(".game__arena");
- const compact=innerWidth<=800||(innerHeight<=540&&innerWidth>innerHeight);
- const gap=compact?6:12;
- const width=arena.clientWidth-(compact?0:Math.min(220,arena.clientWidth*.3)+gap);
- const height=arena.clientHeight-(compact?64+gap:0);
+ const panel=document.querySelector(".game__panel");
+ const sidebar=innerWidth>800||(innerHeight<=540&&innerWidth>innerHeight);
+ let width,height;
+ if(sidebar){
+  const style=getComputedStyle(panel);
+  const paddingX=(parseFloat(style.paddingLeft)||0)+(parseFloat(style.paddingRight)||0);
+  const paddingY=(parseFloat(style.paddingTop)||0)+(parseFloat(style.paddingBottom)||0);
+  const columns=style.gridTemplateColumns?.split(" ")||[];
+  const sideWidth=parseFloat(columns[1])||Math.min(300,Math.max(200,innerWidth*.22));
+  width=panel.clientWidth-paddingX-sideWidth-(parseFloat(style.columnGap)||12);
+  height=panel.clientHeight-paddingY;
+ }else{
+  const movesPanel=arena.querySelector(".moves-panel");
+  width=arena.clientWidth;
+  height=arena.clientHeight-movesPanel.getBoundingClientRect().height-(parseFloat(getComputedStyle(arena).rowGap)||6);
+ }
  const size=Math.max(0,Math.floor(Math.min(width,height)));
  arena.style.setProperty("--board-size",size+"px");
 }
-new ResizeObserver(fitGameBoard).observe(document.querySelector(".game__arena"));
+const boardLayoutObserver=new ResizeObserver(fitGameBoard);
+boardLayoutObserver.observe(document.querySelector(".game__panel"));
+boardLayoutObserver.observe(document.querySelector(".game__arena"));
 window.addEventListener("resize",fitGameBoard);
 fitGameBoard();
