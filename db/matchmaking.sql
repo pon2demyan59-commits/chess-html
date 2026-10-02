@@ -74,7 +74,7 @@ begin
     return query select 'matched'::text,new_match.id,'black'::text,opponent.nickname;
   end if;
 end;
-$function$
+$function$;
 
 revoke all on function private.find_match_internal(text,text) from public,anon;
 grant usage on schema private to authenticated;

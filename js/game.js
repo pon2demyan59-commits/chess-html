@@ -11,6 +11,7 @@ const SUPABASE_KEY="sb_publishable_6wPIJdK8YSke4Gx3_s0E6A_0uLmi9tP";
 const supabaseClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let onlineMatchId=null,onlineColor=null,onlineOpponent="",onlineVersion=0,onlineChannel=null;
 let matchmakingTimer=null,matchmakingStartedAt=0,onlinePolling=false;
+let presenceTimer=null,presenceLoading=false;
 let queueCountsTimer=null,queueCountsLoading=false,onlineSearchEpoch=0,onlineSearchControl=null,onlineSearchStopping=false,onlineSearchRequest=null,onlineAuthPromise=null;
 const onlineTimeControls={
  blitz3_2:{label:t("Блиц 3+2"),clock:"total",initial:180,increment:2},
@@ -58,7 +59,6 @@ function openAccountModal(){
  setAccountMessage("");
  refreshAccountUI();
  modal.hidden=false;
- refreshQueueCounts();queueCountsTimer=setInterval(refreshQueueCounts,5000);
 }
 function closeAccountModal(){const modal=document.querySelector("#account-modal");if(modal)modal.hidden=true}
 function cloudSnapshot(){
@@ -782,7 +782,6 @@ function openProfileModal(focus=true){
  if(error)error.hidden=true;
  input.value=getPlayerNickname();
  modal.hidden=false;
- refreshQueueCounts();queueCountsTimer=setInterval(refreshQueueCounts,5000);
  if(focus)setTimeout(()=>input.focus(),0);
 }
 function closeProfileModal(){
@@ -886,6 +885,24 @@ async function ensureOnlineAuth(){
  })().finally(()=>{onlineAuthPromise=null});
  return onlineAuthPromise;
 }
+async function updatePlayerPresence(){
+ if(presenceLoading)return;
+ presenceLoading=true;
+ const counter=document.querySelector("#online-player-count");
+ try{
+  await ensureOnlineAuth();
+  const {data,error}=await supabaseClient.rpc("heartbeat_presence");
+  if(error||!Number.isSafeInteger(Number(data))||data===null)throw error||new Error("Invalid presence count");
+  counter.textContent=t("Сейчас в игре: {0}",[Number(data)]);
+ }catch{
+  counter.textContent=t("Сейчас в игре: —");
+ }finally{presenceLoading=false}
+}
+function startPlayerPresence(){
+ clearInterval(presenceTimer);
+ updatePlayerPresence();
+ presenceTimer=setInterval(updatePlayerPresence,10000);
+}
 function stopQueueCounts(){clearInterval(queueCountsTimer);queueCountsTimer=null}
 async function refreshQueueCounts(){
  if(queueCountsLoading||document.querySelector("#online-modal").hidden)return;
@@ -912,6 +929,7 @@ function openOnlineModal(){
  refreshProfileUI();
  selectOnlineTimeControl(selectedOnlineTimeControl);
  modal.hidden=false;
+ updatePlayerPresence();
  refreshQueueCounts();queueCountsTimer=setInterval(refreshQueueCounts,5000);
  document.querySelector("#online-waiting").hidden=true;
  document.querySelector("#online-search").hidden=false;
@@ -1386,7 +1404,10 @@ boardElement.addEventListener("pointerup",onPointerUp);
 boardElement.addEventListener("pointercancel",()=>{cancelDrag();selected=null;moves=[];if(board&&!moving)render()});
 window.addEventListener("blur",()=>setPauseReason("blur",true));
 window.addEventListener("focus",()=>setPauseReason("blur",false));
-document.addEventListener("visibilitychange",()=>setPauseReason("hidden",document.hidden));
+document.addEventListener("visibilitychange",()=>{
+ setPauseReason("hidden",document.hidden);
+ if(!document.hidden)updatePlayerPresence();
+});
 window.addEventListener("yandex-game-pause",handlePlatformPause);
 window.addEventListener("yandex-game-resume",handlePlatformResume);
 window.addEventListener("yandex-sdk-ready",()=>setPauseReason("sdk",!!yandexPlatform()?.state.platformPaused));
@@ -2015,12 +2036,15 @@ document.querySelector("#copy-pgn").addEventListener("click",async()=>{
 
 
 window.addEventListener("pagehide",()=>{
+ clearInterval(presenceTimer);presenceTimer=null;
  try{
   sessionStorage.setItem(scrollKey,String(currentScreenElement()?.scrollTop||0));
   saveGameState();
  }catch{}
 });
 restoreSession();
+startPlayerPresence();
+window.addEventListener("pageshow",startPlayerPresence);
 // Game Ready also waits for the artwork on the currently visible screen.
 const initialArtworkReady=Promise.all([...currentScreenElement().querySelectorAll("img")].map(image=>
  image.complete?Promise.resolve():new Promise(resolve=>{
