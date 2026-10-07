@@ -16,6 +16,7 @@
   <script src="js/mate4-puzzles.js" defer></script>
   <script src="js/mate5-puzzles.js" defer></script>
   <script src="js/tactics-puzzles.js" defer></script>
+  <script src="js/online-state.js" defer></script>
   <script src="js/start-game.js" defer></script>
 </head>
 <body>
@@ -571,7 +572,6 @@
           <strong class="result-panel__title" id="result-title"></strong>
           <span class="result-panel__detail" id="result-detail"></span>
           <div class="result-panel__actions">
-            <button id="result-analysis" type="button" hidden aria-hidden="true">Разбор партии</button>
             <button id="result-new" type="button">Новая партия</button>
             <button id="result-next" type="button" hidden>Следующая задача</button>
             <button id="result-menu" type="button">В меню</button>
@@ -581,17 +581,6 @@
         <aside class="moves-panel" aria-label="Запись партии">
           <h3>Ходы партии</h3>
           <div id="moves-list" class="moves-list"><p class="moves-empty">Пока ходов нет</p></div>
-          <div id="review-controls" class="review-controls" hidden>
-            <p id="review-position" class="review-position"></p>
-            <div class="review-controls__buttons">
-              <button id="review-first" type="button" aria-label="К началу">⏮</button>
-              <button id="review-prev" type="button" aria-label="Предыдущий ход">◀</button>
-              <button id="review-next" type="button" aria-label="Следующий ход">▶</button>
-              <button id="review-last" type="button" aria-label="К концу">⏭</button>
-            </div>
-            <button id="copy-pgn" class="review-copy" type="button">Скопировать PGN</button>
-            <button id="review-close" class="review-copy" type="button">Закрыть разбор</button>
-          </div>
         </aside>
       </div>
       <div class="player player--human"><span class="player__avatar" id="player-avatar">♔</span><div><strong>Игрок</strong><small id="player-side">Белые</small></div><span id="player-clock" class="player__clock" hidden>05:00</span></div>
@@ -601,7 +590,6 @@
         <button id="promotion-cancel" class="promotion__cancel" type="button">Отмена</button>
       </div>
       <div class="game__actions">
-      <button id="analysis-entry" class="reset" type="button" hidden aria-hidden="true">Разбор партии</button>
       <button id="resign" class="back-menu" type="button">Сдаться</button>
       <button id="claim-draw" class="reset" type="button" hidden>Заявить ничью</button>
       <button id="reset" class="reset" type="button">Новая партия</button>

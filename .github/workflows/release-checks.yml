@@ -1,0 +1,21 @@
+name: Release checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/check_release.cjs
+      - run: node tests/online-state.cjs
+      - run: node tests/server-rules.cjs
+      - run: npm install --no-save playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/browser.cjs
+      - run: python3 scripts/build_release.py
+      - run: python3 scripts/build_backend.py

@@ -127,7 +127,7 @@
   async function setCloudProgress(progress, flush = true) {
     const player = state.player || await refreshPlayer();
     if (!player?.isAuthorized?.()) return false;
-    await player.setData({ chess_progress: progress }, flush);
+    await withTimeout(player.setData({ chess_progress: progress }, flush));
     return true;
   }
 

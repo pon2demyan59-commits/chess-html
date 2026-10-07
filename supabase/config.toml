@@ -1,0 +1,3 @@
+[functions.chess-match]
+# JWT is verified explicitly with Auth.getUser, including anonymous signed-in users.
+verify_jwt = false
