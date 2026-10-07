@@ -8,9 +8,15 @@ const screens={welcome:document.querySelector("#welcome"),menu:document.querySel
 const levelsElement=document.querySelector("#levels");
 const SUPABASE_URL="https://rcttgctmieaaegdywbnz.supabase.co";
 const SUPABASE_KEY="sb_publishable_6wPIJdK8YSke4Gx3_s0E6A_0uLmi9tP";
-const supabaseClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+async function onlineFetch(input,options={}){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+ const abort=()=>controller.abort();options.signal?.addEventListener('abort',abort,{once:true});
+ if(options.signal?.aborted)controller.abort();
+ try{return await fetch(input,{...options,signal:controller.signal})}finally{clearTimeout(timer);options.signal?.removeEventListener('abort',abort)}
+}
+const supabaseClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},global:{fetch:onlineFetch}});
 let onlineMatchId=null,onlineColor=null,onlineOpponent="",onlineVersion=0,onlineChannel=null;
-let matchmakingTimer=null,matchmakingStartedAt=0,onlinePolling=false;
+let matchmakingTimer=null,matchmakingStartedAt=0,onlinePolling=false,onlineFoundMatchId=null;
 let presenceTimer=null,presenceLoading=false;
 let queueCountsTimer=null,queueCountsLoading=false,onlineSearchEpoch=0,onlineSearchControl=null,onlineSearchStopping=false,onlineSearchRequest=null,onlineAuthPromise=null;
 const onlineTimeControls={
@@ -25,7 +31,23 @@ const onlineTimeControls={
 const onlineTimeControlKey="chess-online-time-control-v1";
 let selectedOnlineTimeControl=localStorage.getItem(onlineTimeControlKey)||"standard30";
 if(!onlineTimeControls[selectedOnlineTimeControl])selectedOnlineTimeControl="standard30";
-let onlineClockRow=null,onlineClockTimer=null,onlineTimeoutClaiming=false;
+let onlineClockRow=null,onlineClockTimer=null,onlineTimeoutClaiming=false,onlineClockSnapshot=null;
+let onlineSyncTimer=null,onlineSyncLoading=false,onlineConnected=false,onlineMovePending=false;
+const onlineTimeout=window.ChessOnlineState.withTimeout;
+async function matchRequest(action,extra={}){
+ const id=onlineMatchId;
+ const {data,error}=await onlineTimeout(supabaseClient.functions.invoke("chess-match",{body:{action,match_id:id,version:onlineVersion,...extra}}));
+ if(error||data?.error||!data?.row)throw error||new Error(data?.error||"Invalid match response");
+ return {...data.row,server_now:data.server_now};
+}
+function stopOnlineSync(){clearInterval(onlineSyncTimer);onlineSyncTimer=null;onlineConnected=false;onlineClockSnapshot=null}
+async function refreshOnlineMatch(){
+ if(onlineSyncLoading||onlineMovePending||moving||!onlineMatchId||gameMode!=="online")return;
+ const id=onlineMatchId;onlineSyncLoading=true;
+ try{const row=await matchRequest("snapshot");if(id!==onlineMatchId||onlineMovePending||moving)return;if(applyOnlineMatch(row,false)===false)throw new Error("Stale snapshot");onlineConnected=true}
+ catch{if(id===onlineMatchId){onlineConnected=false;statusElement.textContent=t("Ошибка соединения. Повторяем…")}}
+ finally{onlineSyncLoading=false}
+}
 let cloudSyncTimer=null,cloudLoading=false,cloudLoadPromise=null,cloudSaveQueue=Promise.resolve();
 const progressTimeKey="chess-progress-updated-at-v1";
 let progressUpdatedAt=localStorage.getItem(progressTimeKey)||"1970-01-01T00:00:00.000Z";
@@ -192,7 +214,6 @@ function tickIntroduction(){
  }
 }
 
-const spriteCache={};
 const customSprites={
  "white-pawn":"assets/pieces/fantasy/white-pawn.png",
  "black-pawn":"assets/pieces/fantasy/black-pawn.png",
@@ -289,7 +310,7 @@ let board,selected,moves,turn,finished,botTimer,audioContext;
 let drag=null,pendingPromotion=null;
 let sceneTimers=[];
 let moving=false,motionToken=0,motionTimer=null,motionGhosts=[];
-let lastMove=null,reviewMode=false,reviewPly=0,reviewMoves=[],reviewStartFen="",finalMessage="";
+let lastMove=null;
 const difficultyNames=[t("Пешка"),t("Слон"),t("Конь"),t("Ладья"),t("Офицер"),t("Король")];
 let playerColor="white",botColor="black",menuSide="white",difficultyLevel=1,gameStarted=false,gameMode="match",puzzleIndex=0;
 let platformPaused=false;
@@ -692,7 +713,7 @@ async function loadPvpStats(){
   return;
  }
  try{
-  await ensureOnlineAuth();
+  await onlineTimeout(ensureOnlineAuth());
   await supabaseClient.rpc("ensure_pvp_profile",{p_nickname:nickname});
   const {data,error}=await supabaseClient.rpc("get_my_pvp_stats");
   if(epoch!==onlineSearchEpoch){await supabaseClient.rpc("cancel_matchmaking");return false}
@@ -798,7 +819,7 @@ async function savePlayerNickname(){
  localStorage.setItem(nicknameKey,nickname);
  scheduleCloudSync();
  try{
-  const user=await ensureOnlineAuth();
+  const user=await onlineTimeout(ensureOnlineAuth());
   if(user&&supabaseClient){
    await supabaseClient.auth.updateUser({data:{nickname}});
    await supabaseClient.rpc("ensure_pvp_profile",{p_nickname:nickname});
@@ -815,30 +836,17 @@ function formatChessClock(ms){
 }
 function setOnlineClocksVisible(visible){
  for(const id of ["#player-clock","#opponent-clock"]){const el=document.querySelector(id);if(el)el.hidden=!visible}
- if(!visible){clearInterval(onlineClockTimer);onlineClockTimer=null;onlineClockRow=null}
+ if(!visible){clearInterval(onlineClockTimer);onlineClockTimer=null;onlineClockRow=null;onlineClockSnapshot=null}
 }
 function getDisplayedClockTimes(){
- const row=onlineClockRow;
- if(!row)return {white:0,black:0};
- const elapsed=row.status==="active"?Math.max(0,Date.now()-Date.parse(row.turn_started_at||new Date().toISOString())):0;
- let white=Number(row.white_time_ms)||0,black=Number(row.black_time_ms)||0;
- if(row.clock_type==="per_move"){
-  white=(Number(row.initial_seconds)||30)*1000;
-  black=(Number(row.initial_seconds)||30)*1000;
- }
- if(row.status==="active"){
-  if(row.turn==="white")white-=elapsed;
-  else black-=elapsed;
- }
- return {white:Math.max(0,white),black:Math.max(0,black)};
+ return onlineClockSnapshot?window.ChessOnlineState.clockTimes(onlineClockSnapshot,performance.now()):{white:0,black:0};
 }
 async function claimOnlineTimeout(){
- if(onlineTimeoutClaiming||!onlineMatchId||!supabaseClient)return;
+ if(onlineTimeoutClaiming||onlineMovePending||!onlineConnected||!onlineMatchId||!supabaseClient)return;
  onlineTimeoutClaiming=true;
  try{
-  const {data,error}=await supabaseClient.rpc("claim_timeout",{p_match_id:onlineMatchId});
-  if(!error&&data)applyOnlineMatch(data,false);
- }finally{setTimeout(()=>{onlineTimeoutClaiming=false},900)}
+  const data=await matchRequest("timeout");applyOnlineMatch(data,false);
+ }catch{onlineConnected=false}finally{setTimeout(()=>{onlineTimeoutClaiming=false},900)}
 }
 function updateOnlineClocks(){
  if(gameMode!=="online"||!onlineClockRow)return;
@@ -853,6 +861,7 @@ function updateOnlineClocks(){
 }
 function syncOnlineClock(row){
  onlineClockRow=row;
+ onlineClockSnapshot=window.ChessOnlineState.clockSnapshot(row,row.server_now,performance.now());
  setOnlineClocksVisible(true);
  updateOnlineClocks();
  if(!onlineClockTimer)onlineClockTimer=setInterval(updateOnlineClocks,250);
@@ -890,8 +899,8 @@ async function updatePlayerPresence(){
  presenceLoading=true;
  const counter=document.querySelector("#online-player-count");
  try{
-  await ensureOnlineAuth();
-  const {data,error}=await supabaseClient.rpc("heartbeat_presence");
+  await onlineTimeout(ensureOnlineAuth());
+  const {data,error}=await onlineTimeout(supabaseClient.rpc("heartbeat_presence"));
   if(error||!Number.isSafeInteger(Number(data))||data===null)throw error||new Error("Invalid presence count");
   counter.textContent=t("Сейчас в игре: {0}",[Number(data)]);
  }catch{
@@ -908,8 +917,8 @@ async function refreshQueueCounts(){
  if(queueCountsLoading||document.querySelector("#online-modal").hidden)return;
  queueCountsLoading=true;
  try{
-  await ensureOnlineAuth();
-  const {data,error}=await supabaseClient.rpc("get_queue_counts");
+  await onlineTimeout(ensureOnlineAuth());
+  const {data,error}=await onlineTimeout(supabaseClient.rpc("get_queue_counts"));
   if(error)throw error;
   const counts=new Map((data||[]).map(row=>[row.time_control,Number(row.players)||0]));
   document.querySelectorAll("[data-queue-count]").forEach(el=>{
@@ -942,8 +951,12 @@ async function cancelOnlineSearch(close=true){
  setOnlineSearching(true);
  clearInterval(matchmakingTimer);matchmakingTimer=null;onlinePolling=false;
  try{
-  if(onlineSearchRequest)await onlineSearchRequest;
-  if(supabaseClient)await supabaseClient.rpc("cancel_matchmaking");
+  if(onlineSearchRequest){
+   const response=await onlineTimeout(onlineSearchRequest);const row=Array.isArray(response.data)?response.data[0]:response.data;
+   if(row?.state==="matched")await onlineTimeout(supabaseClient.functions.invoke("chess-match",{body:{action:"leave",match_id:row.match_id}}));
+  }
+  if(onlineFoundMatchId){await onlineTimeout(supabaseClient.functions.invoke("chess-match",{body:{action:"leave",match_id:onlineFoundMatchId}}));onlineFoundMatchId=null}
+  if(supabaseClient)await onlineTimeout(supabaseClient.rpc("cancel_matchmaking"));
  }catch{}
  onlineSearchStopping=false;setOnlineSearching(false);
  document.querySelector("#online-waiting").hidden=true;
@@ -952,7 +965,7 @@ async function cancelOnlineSearch(close=true){
 }
 function updateOnlineTimer(){
  if(!matchmakingStartedAt)return;
- const sec=Math.floor((Date.now()-matchmakingStartedAt)/1000);
+ const sec=Math.floor((performance.now()-matchmakingStartedAt)/1000);
  document.querySelector("#online-wait-time").textContent=`${String(Math.floor(sec/60)).padStart(2,"0")}:${String(sec%60).padStart(2,"0")}`;
 }
 async function pollMatchmaking(nickname,epoch){
@@ -961,14 +974,15 @@ async function pollMatchmaking(nickname,epoch){
  onlinePolling=true;
  try{
   onlineSearchRequest=Promise.resolve(supabaseClient.rpc("find_match",{p_nickname:nickname,p_time_control:onlineSearchControl}));
-  const {data,error}=await onlineSearchRequest;
+  const {data,error}=await onlineTimeout(onlineSearchRequest);
   if(epoch!==onlineSearchEpoch)return false;
   if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;
   if(row?.state==="matched"&&row.match_id){
    clearInterval(matchmakingTimer);matchmakingTimer=null;
+   onlineFoundMatchId=row.match_id;
    document.querySelector("#online-status").textContent=t("Соперник найден!");
-   setTimeout(()=>{if(epoch===onlineSearchEpoch)startOnlineMatch(row.match_id,row.color,row.opponent_nickname)},450);
+   setTimeout(()=>{if(epoch===onlineSearchEpoch)startOnlineMatch(row.match_id,row.color,row.opponent_nickname).catch(()=>{onlineConnected=false;statusElement.textContent=t("Ошибка соединения. Повторяем…")})},450);
    return true;
   }else{
    document.querySelector("#online-status").textContent=t("Ищем соперника · {0}",[onlineSearchControl==="any"?t("Все режимы"):onlineTimeControls[onlineSearchControl].label]);
@@ -982,6 +996,7 @@ async function pollMatchmaking(nickname,epoch){
 }
 async function beginOnlineSearch(control=selectedOnlineTimeControl){
  if(onlineSearchStopping||document.querySelector(".online-modal__card").dataset.searching==="true")return;
+ onlineFoundMatchId=null;
  const epoch=++onlineSearchEpoch;
  onlineSearchControl=typeof control==="string"?control:selectedOnlineTimeControl;
  requestMobileFullscreen();
@@ -992,17 +1007,20 @@ async function beginOnlineSearch(control=selectedOnlineTimeControl){
  document.querySelector("#online-waiting").hidden=false;
  document.querySelector("#online-status").textContent=t("Подключаемся…");
  try{
-  await ensureOnlineAuth();
+  await onlineTimeout(ensureOnlineAuth());
   if(epoch!==onlineSearchEpoch)return;
-  matchmakingStartedAt=Date.now();updateOnlineTimer();
+  matchmakingStartedAt=performance.now();updateOnlineTimer();
   const matched=await pollMatchmaking(nickname,epoch);
   if(epoch===onlineSearchEpoch&&!matched)matchmakingTimer=setInterval(()=>{updateOnlineTimer();pollMatchmaking(nickname,epoch)},1200);
  }catch(error){
+  if(epoch!==onlineSearchEpoch)return;
+  setOnlineSearching(false);
+  document.querySelector("#online-search").hidden=false;
   document.querySelector("#online-status").textContent=t("Не удалось подключиться. Попробуй позже или сыграй с компьютером.");
  }
 }
 async function startOnlineMatch(matchId,color,opponent){
- stopQueueCounts();
+ onlineFoundMatchId=null;stopQueueCounts();
  clearInterval(matchmakingTimer);matchmakingTimer=null;onlinePolling=false;
  document.querySelector("#online-modal").hidden=true;
  onlineMatchId=matchId;onlineColor=color;onlineOpponent=opponent||t("Соперник");onlineVersion=0;
@@ -1021,28 +1039,33 @@ async function startOnlineMatch(matchId,color,opponent){
  showScreen("game");
  setOnlineClocksVisible(true);
  await subscribeOnlineMatch(matchId);
- statusElement.textContent=turn===playerColor?t("Твой ход."):t("Ход соперника…");
- saveGameState();platformGameplayStart();
+ if(onlineConnected&&!finished)statusElement.textContent=turn===playerColor?t("Твой ход."):t("Ход соперника…");
+ saveGameState();if(!finished)platformGameplayStart();
 }
 async function subscribeOnlineMatch(matchId){
  if(!supabaseClient||!matchId)return;
- if(onlineChannel){await supabaseClient.removeChannel(onlineChannel);onlineChannel=null}
+ stopOnlineSync();
+ if(onlineChannel){await onlineTimeout(supabaseClient.removeChannel(onlineChannel)).catch(()=>{});onlineChannel=null}
  onlineChannel=supabaseClient.channel(`match:${matchId}`);
- onlineChannel
-  .on("postgres_changes",{event:"UPDATE",schema:"public",table:"matches",filter:`id=eq.${matchId}`},payload=>applyOnlineMatch(payload.new,true))
-  .subscribe();
- const {data}=await supabaseClient.from("matches").select("*").eq("id",matchId).single();
- if(data)applyOnlineMatch(data,false);
+ onlineChannel.on("postgres_changes",{event:"UPDATE",schema:"public",table:"matches",filter:`id=eq.${matchId}`},()=>refreshOnlineMatch()).subscribe(status=>{
+  if(matchId!==onlineMatchId)return;
+  if(status==="SUBSCRIBED")refreshOnlineMatch();
+  else if(["CHANNEL_ERROR","TIMED_OUT","CLOSED"].includes(status)){onlineConnected=false;statusElement.textContent=t("Ошибка соединения. Повторяем…")}
+ });
+ onlineSyncTimer=setInterval(refreshOnlineMatch,3000);
+ await refreshOnlineMatch();
 }
 function applyOnlineMatch(row,animateRemote=true){
  if(!row||row.id!==onlineMatchId)return;
  const version=Number(row.version)||0;
- if(version<=onlineVersion&&animateRemote)return;
- onlineVersion=version;
+ if(version<onlineVersion)return false;
+ if(version===onlineVersion&&animateRemote)return;
+ const previousVersion=onlineVersion;onlineVersion=version;
  if(row.time_control&&onlineTimeControls[row.time_control])selectedOnlineTimeControl=row.time_control;
  syncOnlineClock(row);
+ if(finished&&row.status!=="active"&&version===previousVersion)return;
  const apply=()=>{
-  if(row.fen&&row.fen!=="start")chess.load(row.fen);else chess.reset();
+  chess=window.ChessOnlineState.restorePosition(chess,row);
   syncBoard();lastMove=row.last_move||null;selected=null;moves=[];
   finished=row.status!=="active";
   if(finished)platformGameplayStop();
@@ -1050,7 +1073,7 @@ function applyOnlineMatch(row,animateRemote=true){
   if(finished){
    loadPvpStats();
    const won=(row.status==="white_won"&&playerColor==="white")||(row.status==="black_won"&&playerColor==="black");
-   const message=row.status==="draw"?t("Ничья."):row.status==="abandoned"?t("Соперник покинул партию."):row.finish_reason==="timeout"?(won?t("Время соперника вышло. Ты победил!"):t("Твоё время вышло. Победа соперника.")):won?t("Шах и мат! Ты победил!"):t("Шах и мат! Соперник победил.");
+   const message=row.status==="draw"?t("Ничья."):row.status==="abandoned"?t("Соперник покинул партию."):row.finish_reason==="resigned"?(won?t("Соперник покинул партию."):t("Ты покинул партию.")):row.finish_reason==="timeout"?(won?t("Время соперника вышло. Ты победил!"):t("Твоё время вышло. Победа соперника.")):won?t("Шах и мат! Ты победил!"):t("Шах и мат! Соперник победил.");
    statusElement.textContent=message;
    showResult(row.status==="draw"?"draw":"mate",message);
   }else{
@@ -1064,25 +1087,16 @@ function applyOnlineMatch(row,animateRemote=true){
  if(!legal){apply();return}
  moving=true;animateMoveBeforeCommit(legal,apply);
 }
-async function submitOnlineMove(played,status="active"){
+async function submitOnlineMove(played){
  if(!supabaseClient||!onlineMatchId)return false;
- const {data,error}=await supabaseClient.rpc("submit_match_state",{
-  p_match_id:onlineMatchId,
-  p_fen:chess.fen(),
-  p_last_move:{from:played.from,to:played.to,promotion:played.promotion||null,san:played.san||""},
-  p_next_turn:turn,
-  p_status:status
- });
- if(error){
-  statusElement.textContent=t("Не удалось отправить ход. Восстанавливаю позицию…");
-  const {data:row}=await supabaseClient.from("matches").select("*").eq("id",onlineMatchId).single();
-  if(row)applyOnlineMatch(row,false);
-  return false;
- }
- onlineVersion=Number(data?.version)||onlineVersion;
- if(data?.status&&data.status!=="active"){applyOnlineMatch(data,false);return false}
- if(data)syncOnlineClock(data);
- saveGameState();return true;
+ const id=onlineMatchId;onlineMovePending=true;onlineConnected=false;
+ try{
+  const row=await matchRequest("move",{move:{from:played.from,to:played.to,promotion:played.promotion||undefined}});
+  if(id!==onlineMatchId)return false;
+  applyOnlineMatch(row,false);onlineConnected=true;return row.status==="active";
+ }catch{
+  statusElement.textContent=t("Не удалось отправить ход. Восстанавливаю позицию…");return false;
+ }finally{onlineMovePending=false;if(id===onlineMatchId&&!onlineConnected)refreshOnlineMatch()}
 }
 
 function setHotseatPlayers(){
@@ -1277,9 +1291,9 @@ function drawState(){const n=Number(chess.fen().split(" ")[4]),reps=repetitionCo
  automatic:n>=150?t("75 ходов без взятия и хода пешкой"):reps>=5?t("пятикратное повторение позиции"):null,
  claim:n>=100?t("50 ходов без взятия и хода пешкой"):reps>=3?t("троекратное повторение позиции"):null};}
 function endMatch(result,message,awardEnergy=true){
- finished=true;platformGameplayStop();finalMessage=message;statusElement.textContent=message;
+ finished=true;platformGameplayStop();statusElement.textContent=message;
  document.querySelector("#claim-draw").hidden=true;document.querySelector("#resign").hidden=true;
- document.querySelector("#analysis-entry").hidden=false;recordResult(result);
+recordResult(result);
  if(awardEnergy)addEnergy(1,t("Партия завершена: +1 ⚡ энергии для задач."));
  saveGameState();
 }
@@ -1324,7 +1338,7 @@ function cancelDrag(){
  drag=null;
 }
 function onPointerDown(event){
- if(!gameStarted||finished||platformPaused||reviewMode||moving||pendingPromotion||turn!==playerColor||event.button!==0||drag)return;
+ if((gameMode==="online"&&(!onlineConnected||onlineMovePending))||!gameStarted||finished||platformPaused||moving||pendingPromotion||turn!==playerColor||event.button!==0||drag)return;
  const cell=event.target.closest(".square");
  if(!cell||!boardElement.contains(cell))return;
  const r=Number(cell.dataset.row),c=Number(cell.dataset.col);
@@ -1406,7 +1420,7 @@ window.addEventListener("blur",()=>setPauseReason("blur",true));
 window.addEventListener("focus",()=>setPauseReason("blur",false));
 document.addEventListener("visibilitychange",()=>{
  setPauseReason("hidden",document.hidden);
- if(!document.hidden)updatePlayerPresence();
+ if(!document.hidden){updatePlayerPresence();refreshOnlineMatch()}
 });
 window.addEventListener("yandex-game-pause",handlePlatformPause);
 window.addEventListener("yandex-game-resume",handlePlatformResume);
@@ -1414,7 +1428,7 @@ window.addEventListener("yandex-sdk-ready",()=>setPauseReason("sdk",!!yandexPlat
 boardElement.addEventListener("contextmenu",event=>event.preventDefault());
 boardElement.addEventListener("selectstart",event=>event.preventDefault());
 function move(fr,fc,r,c,promotion,dragState=null){
- if(moving||platformPaused)return;
+ if(moving||platformPaused||(gameMode==="online"&&(!onlineConnected||onlineMovePending)))return;
  clearScene();
  const from=square(fr,fc),to=square(r,c);
  const legal=chess.moves({square:from,verbose:true}).find(m=>m.to===to&&m.promotion===promotion);
@@ -1581,15 +1595,10 @@ function impact(r,c){
  for(let i=0;i<8;i++){const spark=document.createElement("span");spark.className="spark";spark.style.setProperty("--angle",i*45+"deg");cell.append(spark)}
  setTimeout(()=>{cell.classList.remove("square--impact");cell.querySelectorAll(".spark").forEach(s=>s.remove())},650);
 }
-function resetReview(){
- reviewMode=false;reviewPly=0;reviewMoves=[];reviewStartFen="";finalMessage="";lastMove=null;
- document.querySelector("#analysis-entry").hidden=true;
- document.querySelector("#review-controls").hidden=true;
- renderMoveList();
-}
+function resetReview(){lastMove=null;renderMoveList()}
 function renderMoveList(){
  const list=document.querySelector("#moves-list");list.replaceChildren();
- const history=reviewMode?reviewMoves:chess.history({verbose:true});
+ const history=chess.history({verbose:true});
  if(!history.length){const empty=document.createElement("p");empty.className="moves-empty";empty.textContent=t("Пока ходов нет");list.append(empty);return}
  for(let i=0;i<history.length;i+=2){
   const row=document.createElement("div");row.className="moves-row";
@@ -1597,36 +1606,12 @@ function renderMoveList(){
   for(let j=i;j<Math.min(i+2,history.length);j++){
    const item=document.createElement("button");item.type="button";item.className="moves-row__move";
    item.textContent=history[j].san;item.title=t("Ход {0}: {1}",[j+1,history[j].san]);
-   item.disabled=!reviewMode;
-   if(reviewMode&&reviewPly===j+1)item.classList.add("is-current");
-   item.addEventListener("click",()=>setReviewPly(j+1));row.append(item);
+   item.disabled=true;
+   row.append(item);
   }
   list.append(row);
  }
- if(!reviewMode){list.scrollTop=list.scrollHeight;list.scrollLeft=list.scrollWidth;}
-}
-function setReviewPly(ply){
- if(!reviewMode)return;
- reviewPly=Math.max(0,Math.min(reviewMoves.length,ply));
- const replay=new Chess(reviewStartFen);
- for(let i=0;i<reviewPly;i++){const m=reviewMoves[i];replay.move({from:m.from,to:m.to,promotion:m.promotion})}
- board=replay.board().map(row=>row.map(p=>p&&{type:names[p.type],color:colorName(p.color)}));
- lastMove=reviewMoves[reviewPly-1]||null;selected=null;moves=[];render();renderMoveList();
- document.querySelector("#review-position").textContent=reviewPly?t("Ход {0}: {1}",[Math.ceil(reviewPly/2),lastMove.san]):t("Начальная позиция");
- for(const [id,disabled] of [["#review-first",!reviewPly],["#review-prev",!reviewPly],["#review-next",reviewPly===reviewMoves.length],["#review-last",reviewPly===reviewMoves.length]])document.querySelector(id).disabled=disabled;
-}
-function openReview(){
- if(gameMode!=="match"||!finished)return;
- clearScene();reviewMoves=chess.history({verbose:true});reviewStartFen=reviewMoves[0]?.before||chess.fen();reviewMode=true;
- document.querySelector("#analysis-entry").hidden=true;document.querySelector("#review-controls").hidden=false;
- setReviewPly(reviewMoves.length);
- statusElement.textContent=t("Разбор партии: выбирай ход в записи или листай стрелками.");
- document.querySelector("#review-controls").scrollIntoView?.({block:"nearest",behavior:"smooth"});
-}
-function closeReview(){
- if(!reviewMode)return;reviewMode=false;syncBoard();lastMove=chess.history({verbose:true}).at(-1)||null;
- render();renderMoveList();document.querySelector("#review-controls").hidden=true;
- document.querySelector("#analysis-entry").hidden=false;statusElement.textContent=finalMessage;
+ list.scrollTop=list.scrollHeight;list.scrollLeft=list.scrollWidth;
 }
 function cancelMotion(){
  motionToken++;cancelGameplayTimer(motionTimer);motionTimer=null;moving=false;
@@ -1744,7 +1729,6 @@ function showResult(kind,message){
  document.querySelector("#result-eyebrow").textContent=kind==="mate"?t("БИТВА ОКОНЧЕНА"):kind==="stalemate"?t("ХОДОВ БОЛЬШЕ НЕТ"):t("ПАРТИЯ ЗАВЕРШЕНА");
  document.querySelector("#result-title").textContent=kind==="mate"?t("ШАХ И МАТ!"):kind==="stalemate"?t("ПАТ!"):kind==="resign"?t("ПОРАЖЕНИЕ"):t("НИЧЬЯ");
  document.querySelector("#result-detail").textContent=message;
- document.querySelector("#result-analysis").hidden=gameMode!=="match";
  document.querySelector("#result-new").hidden=gameMode!=="match";
  document.querySelector("#result-next").hidden=gameMode!=="puzzle";
  panel.hidden=false;
@@ -1828,38 +1812,7 @@ function getPieceSprite(type,color){
  const key=color+"-"+type;
  if(pieceTheme==="classic")return `assets/pieces/classic/${key}.svg`;
  if(pieceTheme!=="fantasy")return themedGlyphSprite(type,color,pieceTheme);
- if(customSprites[key])return customSprites[key];
- if(spriteCache[key])return spriteCache[key];
- const light=color==="white";
- const palette=light?{
-  armor:"#eef2f8",armor2:"#aeb9c7",deep:"#68748b",trim:"#f5c85b",trim2:"#fff0ad",cape:"#f6f0dc",glow:"#76d7ff",outline:"#463d32",eye:"#1f67a7"
- }:{
-  armor:"#151923",armor2:"#343947",deep:"#07080d",trim:"#8a1620",trim2:"#ff5a3f",cape:"#251019",glow:"#d33bff",outline:"#050509",eye:"#ff3b2f"
- };
- const shape={
-  pawn:'<path d="M60 18 L78 31 L73 50 L85 62 L78 87 H42 L35 62 L47 50 L42 31 Z"/><path class="trim" d="M41 62 Q60 52 79 62 L75 75 Q60 82 45 75 Z"/><path class="shield" d="M60 42 L73 50 L69 71 Q60 79 51 71 L47 50 Z"/>',
-  rook:'<path d="M31 22 H43 V33 H52 V22 H68 V33 H77 V22 H89 V49 L82 56 H38 L31 49 Z"/><path d="M41 55 H79 L75 88 H45 Z"/><path class="trim" d="M38 42 H82 V53 H38 Z"/><path class="slit" d="M49 62 H56 V78 H49 Z"/><path class="slit" d="M64 62 H71 V78 H64 Z"/>',
-  knight:'<path d="M34 88 Q42 72 39 58 L30 55 Q25 50 31 43 L43 35 L48 21 L61 30 Q75 28 82 40 Q89 54 76 62 Q67 67 66 77 L77 88 Z"/><path class="trim" d="M47 22 L54 12 L67 31 Z"/><path class="trim" d="M34 44 L52 45 L46 54 L31 53 Z"/><path class="plate" d="M49 60 Q61 54 72 62 L68 76 H48 Z"/>',
-  bishop:'<path d="M60 13 Q78 26 82 42 Q85 57 70 66 L77 88 H43 L50 66 Q35 57 39 42 Q42 26 60 13 Z"/><path class="trim" d="M50 39 Q60 28 70 39 Q68 54 60 61 Q52 54 50 39 Z"/><path class="staff" d="M76 22 L86 15 L89 25 L82 29 L91 82"/>',
-  queen:'<path d="M28 31 L42 51 L49 20 L60 45 L71 20 L78 51 L92 31 L83 66 H37 Z"/><path d="M43 66 H77 L73 88 H47 Z"/><path class="trim" d="M36 57 Q60 47 84 57 L81 67 H39 Z"/><circle class="gem" cx="60" cy="56" r="5"/>',
-  king:'<path class="trim" d="M56 10 H64 V22 H76 V30 H64 V41 H56 V30 H44 V22 H56 Z"/><path d="M32 45 Q60 25 88 45 L80 66 H40 Z"/><path d="M43 66 H77 L73 88 H47 Z"/><path class="trim" d="M40 50 Q60 39 80 50 L77 62 H43 Z"/><circle class="gem" cx="60" cy="54" r="5"/>'
- }[type];
- const horn=light?"":'<path class="horn" d="M38 25 L28 10 L45 21 Z"/><path class="horn" d="M82 25 L92 10 L75 21 Z"/>';
- const weapon=(type==="pawn"||type==="king"||type==="queen")?"":'<path class="weapon" d="M25 84 L93 16"/>';
- const leftEye=type==="knight"?57:54;
- const rightEye=type==="knight"?70:66;
- const eyeY=type==="knight"?43:48;
- const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">'+
- '<defs><linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop stop-color="'+palette.armor+'"/><stop offset=".45" stop-color="'+palette.armor2+'"/><stop offset="1" stop-color="'+palette.deep+'"/></linearGradient><linearGradient id="trim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="'+palette.trim2+'"/><stop offset="1" stop-color="'+palette.trim+'"/></linearGradient><filter id="soft"><feDropShadow dx="0" dy="4" stdDeviation="2.2" flood-color="#000" flood-opacity=".45"/></filter></defs>'+
- '<ellipse cx="60" cy="107" rx="35" ry="7" fill="#000" opacity=".25"/>'+
- '<g filter="url(#soft)" stroke="'+palette.outline+'" stroke-width="3.3" stroke-linejoin="round" stroke-linecap="round">'+
- '<path d="M40 88 H80 Q88 88 90 98 H30 Q32 88 40 88 Z" fill="url(#trim)"/><rect x="25" y="96" width="70" height="12" rx="5" fill="url(#body)"/><g fill="url(#body)">'+shape+'</g>'+horn+weapon+
- '</g>'+
- '<style>.trim,.horn{fill:url(#trim)}.shield,.plate{fill:'+palette.cape+';opacity:.9}.slit{fill:'+palette.deep+'}.gem{fill:'+palette.glow+';stroke:'+palette.outline+';stroke-width:2}.staff,.weapon{fill:none;stroke:url(#trim);stroke-width:4;stroke-linecap:round}.horn{stroke:'+palette.outline+';stroke-width:3}.pieceGlow{opacity:.42}</style>'+
- '<path class="pieceGlow" d="M43 30 Q59 20 75 31" fill="none" stroke="'+palette.trim2+'" stroke-width="3" stroke-linecap="round"/>'+
- '<circle cx="'+leftEye+'" cy="'+eyeY+'" r="3" fill="'+palette.eye+'"/><circle cx="'+rightEye+'" cy="'+eyeY+'" r="3" fill="'+palette.eye+'" opacity="'+(type==="knight"?0:1)+'"/></svg>';
- spriteCache[key]="data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg);
- return spriteCache[key];
+ return customSprites[key];
 }
 
 function startPuzzleWithEnergy(index,category=puzzleCategory){
@@ -1968,8 +1921,9 @@ document.querySelector("#continue-tactic").addEventListener("click",()=>startPuz
 document.querySelector("#back-menu").addEventListener("click",async()=>{
  clearTimeout(botTimer);cancelDrag();cancelMotion();clearScene();closePromotion();resetReview();
  if(gameMode==="online"&&onlineMatchId&&supabaseClient){
-  try{await supabaseClient.rpc("leave_match",{p_match_id:onlineMatchId})}catch{}
-  if(onlineChannel){await supabaseClient.removeChannel(onlineChannel);onlineChannel=null}
+  try{await matchRequest("leave")}catch{statusElement.textContent=t("Ошибка соединения. Повторяем…");return;}
+  stopOnlineSync();
+  if(onlineChannel){await onlineTimeout(supabaseClient.removeChannel(onlineChannel)).catch(()=>{});onlineChannel=null}
   onlineMatchId=null;onlineColor=null;onlineOpponent="";onlineVersion=0;setOnlineClocksVisible(false);
  }
  gameStarted=false;platformGameplayStop();resetButton.hidden=false;showScreen("menu");
@@ -2011,8 +1965,6 @@ document.querySelector("#claim-draw").addEventListener("click",()=>{if(gameMode!
 document.querySelector("#promotion-cancel").addEventListener("click",()=>{closePromotion();render();statusElement.textContent=t("Превращение отменено. Выбери ход снова.")});
 window.addEventListener("keydown",e=>{if(e.key==="Escape"&&pendingPromotion){closePromotion();render()}});
 
-document.querySelector("#analysis-entry").addEventListener("click",openReview);
-document.querySelector("#result-analysis").addEventListener("click",openReview);
 document.querySelector("#result-new").addEventListener("click",restartCurrentGame);
 document.querySelector("#result-next").addEventListener("click",()=>{const list=activePuzzles();startPuzzleWithEnergy((puzzleIndex+1)%list.length,puzzleCategory)});
 document.querySelector("#result-menu").addEventListener("click",()=>document.querySelector("#back-menu").click());
@@ -2021,22 +1973,8 @@ document.querySelector("#resign").addEventListener("click",()=>{
  clearTimeout(botTimer);cancelMotion();clearScene();const message=t("Ты сдался. Победа компьютера.");
  endMatch("losses",message,false);showResult("resign",message);
 });
-for(const [id,position] of [["#review-first",0],["#review-prev",-1],["#review-next",1],["#review-last",Infinity]])
- document.querySelector(id).addEventListener("click",()=>setReviewPly(position===Infinity?reviewMoves.length:position===0?0:reviewPly+position));
-document.querySelector("#review-close").addEventListener("click",closeReview);
-document.querySelector("#copy-pgn").addEventListener("click",async()=>{
- const pgn=chess.pgn();
- try{await navigator.clipboard.writeText(pgn);document.querySelector("#copy-pgn").textContent=t("PGN скопирован")}
- catch{
-  const file=new Blob([pgn],{type:"application/x-chess-pgn;charset=utf-8"}),url=URL.createObjectURL(file),link=document.createElement("a");
-  link.href=url;link.download="partiya.pgn";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-  document.querySelector("#copy-pgn").textContent=t("PGN скачан");
- }
-});
-
-
 window.addEventListener("pagehide",()=>{
- clearInterval(presenceTimer);presenceTimer=null;
+ clearInterval(presenceTimer);presenceTimer=null;stopOnlineSync();
  try{
   sessionStorage.setItem(scrollKey,String(currentScreenElement()?.scrollTop||0));
   saveGameState();
@@ -2044,7 +1982,7 @@ window.addEventListener("pagehide",()=>{
 });
 restoreSession();
 startPlayerPresence();
-window.addEventListener("pageshow",startPlayerPresence);
+window.addEventListener("pageshow",()=>{startPlayerPresence();if(gameMode==="online"&&onlineMatchId&&!onlineSyncTimer)subscribeOnlineMatch(onlineMatchId)});
 // Game Ready also waits for the artwork on the currently visible screen.
 const initialArtworkReady=Promise.all([...currentScreenElement().querySelectorAll("img")].map(image=>
  image.complete?Promise.resolve():new Promise(resolve=>{

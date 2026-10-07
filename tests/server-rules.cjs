@@ -1,0 +1,8 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');const ctx={};vm.createContext(ctx);vm.runInContext(fs.readFileSync('supabase/functions/chess-match/chess.js','utf8'),ctx);vm.runInContext(fs.readFileSync('supabase/functions/chess-match/rules.js','utf8').replace(/import '\.\/chess.js';/,'').replace(/export /g,''),ctx);
+let row={fen:'start',turn:'white',white_id:'white',black_id:'black',status:'active',move_history:[]};
+assert.throws(()=>ctx.validateMove(row,'black',{from:'e2',to:'e4'}));assert.throws(()=>ctx.validateMove(row,'white',{from:'e2',to:'e5'}));
+for(const [from,to] of [['f2','f3'],['e7','e5'],['g2','g4'],['d8','h4']]){const result=ctx.validateMove(row,row.turn,{from,to});row={...row,fen:result.fen,status:result.status,move_history:[...row.move_history,result.move],turn:row.turn==='white'?'black':'white'}}assert.equal(row.status,'black_won');assert.equal(ctx.restoreMatch(row).history().length,4);
+const fen='8/8/8/8/8/8/4k3/6K1 w - - 0 1';assert.equal(ctx.timeoutIsDraw({fen,start_fen:fen,move_history:[],turn:'white'}),true);
+const castle='r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1';const c=ctx.validateMove({fen:castle,start_fen:castle,move_history:[],turn:'white',white_id:'w',black_id:'b',status:'active'},'w',{from:'e1',to:'g1'});assert.match(c.fen,/R4RK1/);
+const promote='7k/P7/8/8/8/8/8/7K w - - 0 1';for(const promotion of ['q','r','b','n'])assert.equal(ctx.validateMove({fen:promote,start_fen:promote,move_history:[],turn:'white',white_id:'w',black_id:'b',status:'active'},'w',{from:'a7',to:'a8',promotion}).move.promotion,promotion);
+console.log('PASS: illegal/out-of-turn moves rejected; server derives mate, history, castling, promotions, bare-king timeout draw');

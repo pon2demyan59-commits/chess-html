@@ -1,0 +1,13 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const context={setTimeout,clearTimeout,Date,Math,Number,Promise};vm.createContext(context);
+vm.runInContext(fs.readFileSync('vendor/chess.js/chess.js','utf8'),context);vm.runInContext(fs.readFileSync('js/online-state.js','utf8'),context);
+const {Chess,ChessOnlineState:S}=context;
+const game=new Chess();for(const move of ['Nf3','Nf6','Ng1','Ng8','Nf3','Nf6','Ng1','Ng8'])game.move(move);
+const row={fen:game.fen(),move_history:game.history({verbose:true}).map(m=>({from:m.from,to:m.to,promotion:m.promotion})),status:'active',clock_type:'total',turn:'white',white_time_ms:180000,black_time_ms:180000,turn_started_at:'2026-10-07T12:00:00Z'};
+const restored=S.restorePosition(new Chess(),row);assert.equal(restored.history().length,8);assert.equal(restored.isThreefoldRepetition(),true);
+assert.throws(()=>S.restorePosition(new Chess(),{...row,fen:new Chess().fen()}));
+const snap=S.clockSnapshot(row,'2026-10-07T12:00:10Z',1000);assert.equal(S.clockTimes(snap,2000).white,169000);
+const oldNow=Date.now;Date.now=()=>1;assert.equal(S.clockTimes(snap,2000).white,169000);Date.now=oldNow;
+const per=S.clockSnapshot({...row,clock_type:'per_move',initial_seconds:30},'2026-10-07T12:00:10Z',1000);assert.equal(S.clockTimes(per,2000).white,19000);
+const finished=S.clockSnapshot({...row,status:'draw'},'2026-10-07T12:00:10Z',1000);assert.equal(S.clockTimes(finished,999999).white,180000);
+(async()=>{await assert.rejects(S.withTimeout(new Promise(()=>{}),10));assert.equal(await S.withTimeout(Promise.resolve(42),10),42);console.log('PASS: history, repetitions, malformed history, server/monotonic clocks, per-move clocks, bounded requests')})();
